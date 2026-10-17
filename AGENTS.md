@@ -15,7 +15,7 @@
 - When the user sets or changes a rule, update this file in the same change and delete what it replaces.
 
 ## Code style
-- Prefer concise names without unnecessary hyphens.
+- Prefer concise names, one word where it reads well. Name frontend files in kebab-case.
 - Always use braces for control-flow bodies, put early returns on their own lines, and separate logical steps with blank lines.
 - Write no comments in our own code; names explain it. Keep only directives tools need, such as lint attributes and `// SAFETY:`.
 - Keep files under 300 lines by splitting along responsibilities.
@@ -39,14 +39,16 @@
 - Keep platform-specific code behind `#[cfg]` in one place per concern, with the same interface everywhere.
 
 ## Security
-- Drive the unmodified `claude` and `codex` binaries and let users sign in through each CLI's own flow. Never read, store, log, sync or forward their credentials.
+- Drive the unmodified `claude`, `codex` and `gh` binaries and let users sign in through each CLI's own flow. Never read, store, log, sync or forward their credentials.
 - Keep secrets only in the OS keychain, never in files, logs or error messages.
 
 ## UI
 - Use installed shadcn/ui components for controls, installing any that are missing. Never edit them or override their appearance unless the user agrees.
 - Show loading with a spinner or skeleton, whichever fits the content.
+- Keep the window chrome transparent. Raise surfaces with the `surface-*` background and shadow tokens instead of hard-coding them.
 - App-owned padding, margins and gaps use Tailwind spacing values divisible by four, or `2`. Auto margins, shadcn/ui and third-party styles are exempt.
-- App-owned text uses only the shared typography roles, never its own sizes, weights, families, line heights or letter spacing. Discuss a new role before adding one.
+- App-owned text uses only the `type-*` roles, never its own sizes, weights, families, line heights or letter spacing. Text inside shadcn/ui components keeps their own styles.
+- App-owned text uses the foreground colour; muted only for metadata such as timestamps, paths and counts.
 - Use Phosphor (`@phosphor-icons/react`) for every icon, and show state with its weights (`regular` idle, `fill` active) rather than extra icons or badges.
 - Meet WCAG 2.2 AA: every action works by keyboard with a visible focus state, and icon-only controls have accessible labels.
 

@@ -9,15 +9,9 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "title": "Fogde",
-        "width": 1200,
-        "height": 800
-      }
-    ],
+    "macOSPrivateApi": true,
     "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost ws://127.0.0.1:*"
     }
   },
   "bundle": {

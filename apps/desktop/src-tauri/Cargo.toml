@@ -9,7 +9,15 @@ publish.workspace = true
 tauri-build.workspace = true
 
 [dependencies]
-tauri.workspace = true
+anyhow.workspace = true
+host.workspace = true
+protocol.workspace = true
+tauri = { workspace = true, features = ["macos-private-api"] }
+tauri-plugin-opener.workspace = true
+tracing-subscriber.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-version.workspace = true
 
 [lints]
 workspace = true

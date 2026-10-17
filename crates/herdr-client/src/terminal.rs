@@ -47,7 +47,6 @@ impl Terminal {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .kill_on_drop(true)
             .spawn()
             .map_err(Error::Start)?;
 
@@ -124,16 +123,10 @@ impl Terminal {
 }
 
 fn command(herdr: &Path, socket: &Path) -> Command {
-    let mut command = Command::new(herdr);
+    let mut command = process::command(herdr);
     command
         .env("HERDR_SOCKET_PATH", socket)
         .env_remove("HERDR_SESSION");
-
-    #[cfg(windows)]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        command.creation_flags(CREATE_NO_WINDOW);
-    }
 
     command
 }

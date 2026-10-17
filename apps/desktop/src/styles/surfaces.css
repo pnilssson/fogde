@@ -1,0 +1,103 @@
+@theme inline {
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
+  --color-surface-5: var(--surface-5);
+  --color-surface-6: var(--surface-6);
+  --color-surface-7: var(--surface-7);
+  --color-surface-8: var(--surface-8);
+  --shadow-surface-1: var(--shadow-1);
+  --shadow-surface-2: var(--shadow-2);
+  --shadow-surface-3: var(--shadow-3);
+  --shadow-surface-4: var(--shadow-4);
+  --shadow-surface-5: var(--shadow-5);
+  --shadow-surface-6: var(--shadow-6);
+  --shadow-surface-7: var(--shadow-7);
+  --shadow-surface-8: var(--shadow-8);
+  --color-hover: var(--hover);
+  --color-selected: var(--selected);
+}
+
+:root {
+  --tint: 30%;
+  --surface-1: #fafafa;
+  --surface-2: rgb(255 255 255 / 15%);
+  --surface-3: rgb(255 255 255 / 35%);
+  --surface-4: rgb(255 255 255 / 35%);
+  --surface-5: rgb(255 255 255 / 35%);
+  --surface-6: rgb(255 255 255 / 35%);
+  --surface-7: rgb(255 255 255 / 35%);
+  --surface-8: rgb(255 255 255 / 35%);
+  --hover: rgb(0 0 0 / 4%);
+  --selected: rgb(0 0 0 / 7%);
+  --shadow-color: rgb(0 0 0 / 6%);
+  --shadow-1: 0 0 0 1px var(--shadow-color);
+  --shadow-2: var(--shadow-1), 0 1px 1px -0.5px var(--shadow-color);
+  --shadow-3: var(--shadow-2), 0 3px 3px -1.5px var(--shadow-color);
+  --shadow-4: var(--shadow-3), 0 6px 6px -3px var(--shadow-color);
+  --shadow-5: var(--shadow-4), 0 12px 12px -6px var(--shadow-color);
+  --shadow-6: var(--shadow-5), 0 24px 24px -12px var(--shadow-color);
+  --shadow-7: var(--shadow-6), 0 48px 48px -24px var(--shadow-color);
+  --shadow-8: var(--shadow-7), 0 96px 96px -48px var(--shadow-color);
+}
+
+.dark {
+  --tint: 20%;
+  --surface-1: #171717;
+  --surface-2: rgb(255 255 255 / 3%);
+  --surface-3: rgb(255 255 255 / 6%);
+  --surface-4: rgb(255 255 255 / 9%);
+  --surface-5: rgb(255 255 255 / 12%);
+  --surface-6: rgb(255 255 255 / 15%);
+  --surface-7: rgb(255 255 255 / 18%);
+  --surface-8: rgb(255 255 255 / 21%);
+  --hover: rgb(255 255 255 / 6%);
+  --selected: rgb(255 255 255 / 10%);
+  --highlight-base: rgb(255 255 255 / 1%);
+  --highlight-mid: rgb(255 255 255 / 2%);
+  --highlight-high: rgb(255 255 255 / 4%);
+  --highlight-peak: rgb(255 255 255 / 6%);
+  --ring-base: rgb(255 255 255 / 2%);
+  --ring-mid: rgb(255 255 255 / 4%);
+  --ring-high: rgb(255 255 255 / 6%);
+  --drop: rgb(0 0 0 / 18%);
+  --drops-2: 0 1px 1px -0.5px var(--drop);
+  --drops-3: var(--drops-2), 0 3px 3px -1.5px var(--drop);
+  --drops-4: var(--drops-3), 0 6px 6px -3px var(--drop);
+  --drops-5: var(--drops-4), 0 12px 12px -6px var(--drop);
+  --drops-6: var(--drops-5), 0 24px 24px -12px var(--drop);
+  --drops-7: var(--drops-6), 0 48px 48px -24px var(--drop);
+  --drops-8: var(--drops-7), 0 96px 96px -48px var(--drop);
+  --shadow-1: inset 0 0 0 1px var(--ring-base);
+  --shadow-2:
+    inset 0 1px 0 0 var(--highlight-base), inset 0 0 0 1px var(--ring-base),
+    var(--drops-2);
+  --shadow-3:
+    inset 0 1px 0 0 var(--highlight-mid), inset 0 0 0 1px var(--ring-base),
+    0 0 0 1px rgb(0 0 0 / 12%), var(--drops-3);
+  --shadow-4:
+    inset 0 1px 0 0 var(--highlight-mid), inset 0 0 0 1px var(--ring-mid),
+    0 0 0 1px rgb(0 0 0 / 14%), var(--drops-4);
+  --shadow-5:
+    inset 0 1px 0 0 var(--highlight-high), inset 0 0 0 1px var(--ring-mid),
+    0 0 0 1px rgb(0 0 0 / 16%), var(--drops-5);
+  --shadow-6:
+    inset 0 1px 0 0 var(--highlight-high), inset 0 0 0 1px var(--ring-high),
+    0 0 0 1px rgb(0 0 0 / 18%), var(--drops-6);
+  --shadow-7:
+    inset 0 1px 0 0 var(--highlight-peak), inset 0 0 0 1px var(--ring-high),
+    0 0 0 1px rgb(0 0 0 / 20%), var(--drops-7);
+  --shadow-8:
+    inset 0 1px 0 0 var(--highlight-peak), inset 0 0 0 1px var(--ring-high),
+    0 0 0 1px rgb(0 0 0 / 22%), var(--drops-8);
+}
+
+@layer base {
+  html {
+    @apply bg-surface-1;
+  }
+  html.translucent {
+    background: color-mix(in oklab, var(--surface-1) var(--tint), transparent);
+  }
+}

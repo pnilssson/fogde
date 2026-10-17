@@ -35,3 +35,4 @@ jobs:
         with:
           tool: just,cargo-deny,cargo-shear,typos,zizmor
       - run: just check
+      - run: git diff --exit-code apps/desktop/src/generated

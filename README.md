@@ -10,14 +10,16 @@ Early development.
 
 ## Development
 
-Requires [rustup](https://rustup.rs), [just](https://just.systems), [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) and [Node.js](https://nodejs.org) LTS. The pinned Rust toolchain installs itself on first use. Install the check tools and frontend dependencies once:
+Requires [rustup](https://rustup.rs), [just](https://just.systems), [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), [Node.js](https://nodejs.org) LTS and the [Tauri system prerequisites](https://tauri.app/start/prerequisites/). The pinned Rust toolchain installs itself on first use. Install the check tools and frontend dependencies once:
 
 ```sh
 cargo binstall cargo-deny cargo-shear typos-cli zizmor
 npm ci --prefix apps/desktop
 ```
 
-Run `just check` before committing. It runs formatting, Clippy, tests, the file length limit, cargo-deny, cargo-shear, typos, zizmor and Knip.
+Run the desktop app with `just dev`.
+
+Run `just check` before committing. It runs formatting, Clippy, ESLint, TypeScript, tests, the file length limit, cargo-deny, cargo-shear, typos, zizmor and Knip.
 
 ## License
 

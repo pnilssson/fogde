@@ -3,12 +3,19 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
 default:
     @just --list
 
+dev:
+    npm run --prefix apps/desktop tauri dev
+
 fmt:
     cargo fmt --all
+    npm run --prefix apps/desktop format
 
 lint:
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
+    npm run --prefix apps/desktop format:check
+    npm run --prefix apps/desktop lint
+    npm run --prefix apps/desktop typecheck
 
 test:
     cargo test --workspace

@@ -9,7 +9,8 @@
 ## Working rules
 - Never start the development environment or run browser-based visual checks unless asked; the user runs and tests the app.
 - Run `just check` before committing or pushing, not after every change.
-- Fix what the checks find instead of silencing it. Add an `#[allow]`, an ignore entry, a lower threshold or an allowed license only after the user agrees.
+- Fix what the checks find instead of silencing it. Add an `#[allow]`, an ignore entry or a lower threshold only after the user agrees.
+- Allow permissive and file-level copyleft licenses (such as BSD, ISC, Zlib, MPL-2.0) in cargo-deny without asking. Ask before allowing GPL, LGPL, AGPL or other strong copyleft licenses.
 - Leave changes uncommitted until the user asks. Work on `main`, without branches or pull requests unless asked.
 - When the user sets or changes a rule, update this file in the same change and delete what it replaces.
 

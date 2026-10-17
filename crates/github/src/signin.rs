@@ -4,14 +4,12 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader, Lines};
 use tokio::process::{Child, ChildStderr, ChildStdin};
 
+use crate::Error;
 use crate::gh::{Gh, failure, spawn_error};
-use crate::{Error, User};
 
-const LOGIN: [&str; 10] = [
+const LOGIN: [&str; 8] = [
     "auth",
     "login",
-    "--hostname",
-    "github.com",
     "--git-protocol",
     "https",
     "--web",
@@ -24,16 +22,18 @@ pub struct SignIn {
     pub code: String,
     pub url: String,
     gh: Gh,
+    host: String,
     child: Child,
     _stdin: ChildStdin,
     stderr: Lines<BufReader<ChildStderr>>,
 }
 
 impl SignIn {
-    pub async fn start(gh: &Gh) -> Result<Self, Error> {
+    pub async fn start(gh: &Gh, host: String) -> Result<Self, Error> {
         let mut child = gh
             .command()
             .args(LOGIN)
+            .args(["--hostname", &host])
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
@@ -61,6 +61,7 @@ impl SignIn {
                     code,
                     url,
                     gh: gh.clone(),
+                    host,
                     child,
                     _stdin: stdin,
                     stderr,
@@ -71,7 +72,7 @@ impl SignIn {
         Err(failure(output.as_bytes()))
     }
 
-    pub async fn finish(mut self) -> Result<User, Error> {
+    pub async fn finish(mut self) -> Result<(), Error> {
         let mut output = String::new();
         while let Some(line) = self.stderr.next_line().await? {
             output.push_str(&line);
@@ -82,15 +83,15 @@ impl SignIn {
             return Err(failure(output.as_bytes()));
         }
 
-        let setup = self.gh.run(&["auth", "setup-git"]).await?;
+        let setup = self
+            .gh
+            .run(&["auth", "setup-git", "--hostname", &self.host])
+            .await?;
         if !setup.status.success() {
             return Err(failure(&setup.stderr));
         }
 
-        self.gh
-            .user()
-            .await?
-            .ok_or_else(|| Error::Gh("signed in, but GitHub returned no user".to_owned()))
+        Ok(())
     }
 }
 

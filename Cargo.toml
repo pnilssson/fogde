@@ -9,6 +9,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [workspace.dependencies]
+agents = { path = "crates/agents" }
 anyhow = "1.0.104"
 axum = "0.8.9"
 base64 = "0.23.1"

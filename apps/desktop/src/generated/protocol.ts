@@ -6,10 +6,16 @@ export type Frame = { platform: Platform, translucent: boolean, };
 
 export type Platform = "windows" | "macos" | "linux";
 
-export type User = { login: string, name: string | null, avatarUrl: string, };
+export type Account = { host: string, login: string, };
+
+export type Agent = "claude" | "codex";
 
 export type Methods = {
-  "github.user": { params: null; result: { login: string, name: string | null, avatarUrl: string, } | null };
-  "github.startSignIn": { params: null; result: { code: string, url: string, } };
-  "github.finishSignIn": { params: null; result: { login: string, name: string | null, avatarUrl: string, } };
+  "github.accounts": { params: null; result: Array<{ host: string, login: string, }> };
+  "github.startSignIn": { params: string; result: { code: string, url: string, } };
+  "github.finishSignIn": { params: null; result: null };
+  "agents.signedIn": { params: null; result: Array<"claude" | "codex"> };
+  "agents.signIn": { params: "claude" | "codex"; result: null };
+  "onboarding.done": { params: null; result: boolean };
+  "onboarding.finish": { params: null; result: null };
 };

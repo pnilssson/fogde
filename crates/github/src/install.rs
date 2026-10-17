@@ -18,7 +18,7 @@ struct Asset {
 }
 
 pub async fn locate(tools: &Path) -> Result<PathBuf, Error> {
-    if let Some(program) = on_path() {
+    if let Some(program) = process::find("gh") {
         return Ok(program);
     }
 
@@ -35,14 +35,6 @@ pub async fn locate(tools: &Path) -> Result<PathBuf, Error> {
     install(&asset, &dir).await?;
 
     Ok(program)
-}
-
-fn on_path() -> Option<PathBuf> {
-    let name = if cfg!(windows) { "gh.exe" } else { "gh" };
-
-    env::split_paths(&env::var_os("PATH")?)
-        .map(|dir| dir.join(name))
-        .find(|candidate| candidate.is_file())
 }
 
 async fn install(asset: &Asset, dir: &Path) -> Result<(), Error> {

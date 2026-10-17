@@ -1,4 +1,6 @@
+use std::env;
 use std::ffi::OsStr;
+use std::path::PathBuf;
 
 use tokio::process::Command;
 
@@ -13,4 +15,16 @@ pub fn command(program: impl AsRef<OsStr>) -> Command {
     }
 
     command
+}
+
+pub fn find(name: &str) -> Option<PathBuf> {
+    let names: Vec<String> = if cfg!(windows) {
+        vec![format!("{name}.exe"), format!("{name}.cmd")]
+    } else {
+        vec![name.to_owned()]
+    };
+
+    env::split_paths(&env::var_os("PATH")?)
+        .flat_map(|dir| names.iter().map(move |name| dir.join(name)))
+        .find(|candidate| candidate.is_file())
 }

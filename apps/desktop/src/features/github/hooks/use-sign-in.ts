@@ -1,23 +1,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-import { userQuery } from "@/features/github/api/user";
+import { accountsQuery } from "@/features/github/api/accounts";
 import { call } from "@/lib/host";
 
 export function useSignIn() {
   const queries = useQueryClient();
-  const navigate = useNavigate();
 
   const finish = useMutation({
     mutationFn: () => call("github.finishSignIn"),
-    onSuccess: (user) => {
-      queries.setQueryData(userQuery.queryKey, user);
-      void navigate({ to: "/" });
-    },
+    onSuccess: () => queries.invalidateQueries(accountsQuery),
   });
   const start = useMutation({
-    mutationFn: () => call("github.startSignIn"),
+    mutationFn: (host: string) => call("github.startSignIn", host),
     onSuccess: (prompt) => {
       void openUrl(prompt.url);
       finish.mutate();
@@ -25,12 +20,12 @@ export function useSignIn() {
   });
 
   return {
-    prompt: start.data,
-    starting: start.isPending,
+    prompt: finish.isPending ? start.data : undefined,
+    starting: start.isPending ? start.variables : undefined,
     error: start.error ?? finish.error,
-    begin: () => {
+    begin: (host: string) => {
       finish.reset();
-      start.mutate();
+      start.mutate(host);
     },
   };
 }

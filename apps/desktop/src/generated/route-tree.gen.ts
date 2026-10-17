@@ -9,93 +9,116 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './../routes/__root'
-import { Route as SignedInRouteImport } from './../routes/_signed-in'
-import { Route as SignInRouteImport } from './../routes/sign-in'
-import { Route as SignedInIndexRouteImport } from './../routes/_signed-in/index'
+import { Route as OnboardedRouteImport } from './../routes/_onboarded'
+import { Route as OnboardedIndexRouteImport } from './../routes/_onboarded/index'
+import { Route as OnboardingAgentsRouteImport } from './../routes/onboarding/agents'
+import { Route as OnboardingGithubRouteImport } from './../routes/onboarding/github'
 
-const SignedInRoute = SignedInRouteImport.update({
-  id: '/_signed-in',
+const OnboardedRoute = OnboardedRouteImport.update({
+  id: '/_onboarded',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SignInRoute = SignInRouteImport.update({
-  id: '/sign-in',
-  path: '/sign-in',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignedInIndexRoute = SignedInIndexRouteImport.update({
+const OnboardedIndexRoute = OnboardedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => SignedInRoute,
+  getParentRoute: () => OnboardedRoute,
+} as any)
+const OnboardingAgentsRoute = OnboardingAgentsRouteImport.update({
+  id: '/onboarding/agents',
+  path: '/onboarding/agents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingGithubRoute = OnboardingGithubRouteImport.update({
+  id: '/onboarding/github',
+  path: '/onboarding/github',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof SignedInIndexRoute
-  '/sign-in': typeof SignInRoute
+  '/': typeof OnboardedIndexRoute
+  '/onboarding/agents': typeof OnboardingAgentsRoute
+  '/onboarding/github': typeof OnboardingGithubRoute
 }
 export interface FileRoutesByTo {
-  '/sign-in': typeof SignInRoute
-  '/': typeof SignedInIndexRoute
+  '/onboarding/agents': typeof OnboardingAgentsRoute
+  '/onboarding/github': typeof OnboardingGithubRoute
+  '/': typeof OnboardedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_signed-in': typeof SignedInRouteWithChildren
-  '/sign-in': typeof SignInRoute
-  '/_signed-in/': typeof SignedInIndexRoute
+  '/_onboarded': typeof OnboardedRouteWithChildren
+  '/onboarding/agents': typeof OnboardingAgentsRoute
+  '/onboarding/github': typeof OnboardingGithubRoute
+  '/_onboarded/': typeof OnboardedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in'
+  fullPaths: '/' | '/onboarding/agents' | '/onboarding/github'
   fileRoutesByTo: FileRoutesByTo
-  to: '/sign-in' | '/'
-  id: '__root__' | '/_signed-in' | '/sign-in' | '/_signed-in/'
+  to: '/onboarding/agents' | '/onboarding/github' | '/'
+  id:
+    | '__root__'
+    | '/_onboarded'
+    | '/onboarding/agents'
+    | '/onboarding/github'
+    | '/_onboarded/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  SignedInRoute: typeof SignedInRouteWithChildren
-  SignInRoute: typeof SignInRoute
+  OnboardedRoute: typeof OnboardedRouteWithChildren
+  OnboardingAgentsRoute: typeof OnboardingAgentsRoute
+  OnboardingGithubRoute: typeof OnboardingGithubRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_signed-in': {
-      id: '/_signed-in'
+    '/_onboarded': {
+      id: '/_onboarded'
       path: ''
       fullPath: '/'
-      preLoaderRoute: typeof SignedInRouteImport
+      preLoaderRoute: typeof OnboardedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sign-in': {
-      id: '/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof SignInRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_signed-in/': {
-      id: '/_signed-in/'
+    '/_onboarded/': {
+      id: '/_onboarded/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof SignedInIndexRouteImport
-      parentRoute: typeof SignedInRoute
+      preLoaderRoute: typeof OnboardedIndexRouteImport
+      parentRoute: typeof OnboardedRoute
+    }
+    '/onboarding/agents': {
+      id: '/onboarding/agents'
+      path: '/onboarding/agents'
+      fullPath: '/onboarding/agents'
+      preLoaderRoute: typeof OnboardingAgentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding/github': {
+      id: '/onboarding/github'
+      path: '/onboarding/github'
+      fullPath: '/onboarding/github'
+      preLoaderRoute: typeof OnboardingGithubRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface SignedInRouteChildren {
-  SignedInIndexRoute: typeof SignedInIndexRoute
+interface OnboardedRouteChildren {
+  OnboardedIndexRoute: typeof OnboardedIndexRoute
 }
 
-const SignedInRouteChildren: SignedInRouteChildren = {
-  SignedInIndexRoute: SignedInIndexRoute,
+const OnboardedRouteChildren: OnboardedRouteChildren = {
+  OnboardedIndexRoute: OnboardedIndexRoute,
 }
 
-const SignedInRouteWithChildren = SignedInRoute._addFileChildren(
-  SignedInRouteChildren,
+const OnboardedRouteWithChildren = OnboardedRoute._addFileChildren(
+  OnboardedRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  SignedInRoute: SignedInRouteWithChildren,
-  SignInRoute: SignInRoute,
+  OnboardedRoute: OnboardedRouteWithChildren,
+  OnboardingAgentsRoute: OnboardingAgentsRoute,
+  OnboardingGithubRoute: OnboardingGithubRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -17,6 +17,9 @@ pub enum Error {
     #[error("could not run the GitHub CLI")]
     Io(#[from] io::Error),
 
+    #[error("{0} is not a GitHub address")]
+    Host(String),
+
     #[error("the GitHub CLI failed: {0}")]
     Gh(String),
 

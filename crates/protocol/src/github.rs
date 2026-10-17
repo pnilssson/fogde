@@ -4,11 +4,9 @@ use ts_rs::TS;
 use crate::Method;
 
 #[derive(Clone, Debug, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub struct User {
+pub struct Account {
+    pub host: String,
     pub login: String,
-    pub name: Option<String>,
-    pub avatar_url: String,
 }
 
 #[derive(Clone, Debug, Serialize, TS)]
@@ -17,19 +15,19 @@ pub struct SignInCode {
     pub url: String,
 }
 
-pub struct GetUser;
+pub struct GetAccounts;
 
-impl Method for GetUser {
-    const NAME: &'static str = "github.user";
+impl Method for GetAccounts {
+    const NAME: &'static str = "github.accounts";
     type Params = ();
-    type Result = Option<User>;
+    type Result = Vec<Account>;
 }
 
 pub struct StartSignIn;
 
 impl Method for StartSignIn {
     const NAME: &'static str = "github.startSignIn";
-    type Params = ();
+    type Params = String;
     type Result = SignInCode;
 }
 
@@ -38,5 +36,5 @@ pub struct FinishSignIn;
 impl Method for FinishSignIn {
     const NAME: &'static str = "github.finishSignIn";
     type Params = ();
-    type Result = User;
+    type Result = ();
 }

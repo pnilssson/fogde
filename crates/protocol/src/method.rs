@@ -16,7 +16,9 @@ mod tests {
     use ts_rs::{Config, TS};
 
     use super::Method;
-    use crate::github::{FinishSignIn, GetUser, StartSignIn, User};
+    use crate::agents::{Agent, SignInAgent, SignedInAgents};
+    use crate::github::{Account, FinishSignIn, GetAccounts, StartSignIn};
+    use crate::onboarding::{FinishOnboarding, GetOnboarded};
     use crate::{Connection, Frame, Platform};
 
     fn named<T: TS>(file: &mut String, cfg: &Config) {
@@ -41,11 +43,16 @@ mod tests {
         named::<Connection>(&mut file, &cfg);
         named::<Frame>(&mut file, &cfg);
         named::<Platform>(&mut file, &cfg);
-        named::<User>(&mut file, &cfg);
+        named::<Account>(&mut file, &cfg);
+        named::<Agent>(&mut file, &cfg);
         file.push_str("export type Methods = {\n");
-        entry::<GetUser>(&mut file, &cfg);
+        entry::<GetAccounts>(&mut file, &cfg);
         entry::<StartSignIn>(&mut file, &cfg);
         entry::<FinishSignIn>(&mut file, &cfg);
+        entry::<SignedInAgents>(&mut file, &cfg);
+        entry::<SignInAgent>(&mut file, &cfg);
+        entry::<GetOnboarded>(&mut file, &cfg);
+        entry::<FinishOnboarding>(&mut file, &cfg);
         file.push_str("};\n");
 
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))

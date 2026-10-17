@@ -2,6 +2,7 @@ import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useState } from "react";
 
+import { OnboardingProgress } from "@/components/onboarding-progress";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -21,6 +22,7 @@ export function DeviceCode({ code, url }: Props) {
 
   return (
     <section className="flex flex-col items-center gap-8">
+      <OnboardingProgress step="github" />
       <h1 className="type-display">
         Enter this code on{" "}
         <button

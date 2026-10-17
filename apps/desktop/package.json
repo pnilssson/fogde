@@ -1,0 +1,11 @@
+{
+  "name": "desktop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "knip": "knip"
+  },
+  "devDependencies": {
+    "knip": "^6.41.0"
+  }
+}

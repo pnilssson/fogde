@@ -8,6 +8,17 @@ Fogde is a minimal desktop workspace for developers who build with coding agents
 
 Early development.
 
+## Development
+
+Requires [rustup](https://rustup.rs), [just](https://just.systems), [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) and [Node.js](https://nodejs.org) LTS. The pinned Rust toolchain installs itself on first use. Install the check tools and frontend dependencies once:
+
+```sh
+cargo binstall cargo-deny cargo-shear typos-cli zizmor
+npm ci --prefix apps/desktop
+```
+
+Run `just check` before committing. It runs formatting, Clippy, tests, the file length limit, cargo-deny, cargo-shear, typos, zizmor and Knip.
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT), at your option.

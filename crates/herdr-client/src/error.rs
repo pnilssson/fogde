@@ -19,4 +19,13 @@ pub enum Error {
 
     #[error("Herdr rejected the request: {message} ({code})")]
     Herdr { code: String, message: String },
+
+    #[error("could not start Herdr")]
+    Start(#[source] io::Error),
+
+    #[error("Herdr stopped the terminal stream: {0}")]
+    Stream(String),
+
+    #[error("Herdr sent a terminal frame that could not be decoded")]
+    Frame(#[from] base64::DecodeError),
 }

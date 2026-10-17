@@ -21,6 +21,11 @@
 - Never hand-edit generated files; change the source and regenerate.
 - Keep docs short. `README.md` holds only an overview and local development instructions.
 
+## Testing
+- Test the backend by risk: integrations with external tools, parsing of data we don't own, security, and anything that can lose user data. Test behaviour through public interfaces, using real captured data.
+- Add a test that reproduces each bug before fixing it.
+- Skip tests for UI, glue and trivial code, and never require a signed-in agent.
+
 ## Rust
 - Use `thiserror` in library crates and `anyhow` only in binaries. Return errors instead of panicking, and log with `tracing`.
 - Use Tokio for async work and never block the runtime; move blocking work to `spawn_blocking`.

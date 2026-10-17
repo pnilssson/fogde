@@ -37,11 +37,12 @@ export function ConnectAgents({ onBack, onContinue }: Props) {
         ))}
       </div>
       <div className="flex gap-2">
-        <Button variant="ghost" onClick={onBack}>
+        <Button variant="ghost" size="sm" onClick={onBack}>
           Back
         </Button>
         <Button
           variant="secondary"
+          size="sm"
           disabled={signedIn.length === 0}
           onClick={onContinue}
         >

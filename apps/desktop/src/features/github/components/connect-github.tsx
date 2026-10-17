@@ -75,6 +75,7 @@ export function ConnectGitHub({ onContinue }: Props) {
       {error && <p className="type-body">{error.message}</p>}
       <Button
         variant="secondary"
+        size="sm"
         disabled={accounts.length === 0}
         onClick={onContinue}
       >

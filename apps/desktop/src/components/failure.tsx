@@ -13,7 +13,9 @@ export function Failure({ error }: ErrorComponentProps) {
         <p className="type-body">
           {error instanceof Error ? error.message : String(error)}
         </p>
-        <Button onClick={() => void router.invalidate()}>Try again</Button>
+        <Button size="sm" onClick={() => void router.invalidate()}>
+          Try again
+        </Button>
       </section>
     </Centered>
   );

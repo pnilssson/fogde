@@ -37,7 +37,7 @@ export function DeviceCode({ code, url }: Props) {
         <span className="type-code-display">{code}</span>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label={copied ? "Copied" : "Copy code"}
           onClick={copy}
         >

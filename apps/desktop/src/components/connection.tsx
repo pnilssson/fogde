@@ -1,4 +1,6 @@
-import { Badge } from "@/components/ui/badge";
+import type { ReactNode } from "react";
+
+import { DoneBadge } from "@/components/done-badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -6,24 +8,34 @@ type Status = "connected" | "connecting" | "disconnected";
 
 interface Props {
   name: string;
+  icon?: ReactNode;
+  action?: string;
+  pending?: string;
   status: Status;
   onConnect: () => void;
 }
 
-export function Connection({ name, status, onConnect }: Props) {
+export function Connection({
+  name,
+  icon,
+  action = "Connect",
+  pending = action,
+  status,
+  onConnect,
+}: Props) {
   return (
     <div className="flex h-9 w-full items-center justify-between">
-      <span className="type-body">{name}</span>
+      <span className="flex items-center gap-2 type-body">
+        {icon}
+        {name}
+      </span>
       {status === "connected" ? (
-        <Badge variant="secondary">
-          <span aria-hidden className="size-2 rounded-full bg-success" />
-          Connected
-        </Badge>
+        <DoneBadge>Connected</DoneBadge>
       ) : (
         <Button
           variant="secondary"
           size="sm"
-          aria-label={`Connect ${name}`}
+          aria-label={`${action} ${name}`}
           aria-busy={status === "connecting"}
           onClick={() => {
             if (status === "disconnected") {
@@ -34,7 +46,7 @@ export function Connection({ name, status, onConnect }: Props) {
           {status === "connecting" && (
             <Spinner aria-hidden data-icon="inline-start" />
           )}
-          Connect
+          {status === "connecting" ? pending : action}
         </Button>
       )}
     </div>

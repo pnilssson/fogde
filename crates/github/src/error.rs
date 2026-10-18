@@ -1,4 +1,5 @@
 use std::io;
+use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -19,6 +20,12 @@ pub enum Error {
 
     #[error("{0} is not a GitHub address")]
     Host(String),
+
+    #[error("{0} is not a repository name")]
+    Repo(String),
+
+    #[error("there is already a folder at {}", .0.display())]
+    Exists(PathBuf),
 
     #[error("the GitHub CLI failed: {0}")]
     Gh(String),

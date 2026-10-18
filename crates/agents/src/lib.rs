@@ -1,15 +1,19 @@
 mod agent;
 mod error;
+mod install;
 mod status;
 
-pub use agent::Agent;
+pub use agent::{Agent, State};
 pub use error::Error;
 
-pub async fn signed_in() -> Result<Vec<Agent>, Error> {
-    let (claude, codex) = tokio::join!(Agent::Claude.signed_in(), Agent::Codex.signed_in());
+const ALL: [Agent; 3] = [Agent::Claude, Agent::Codex, Agent::Copilot];
 
-    Ok([(Agent::Claude, claude?), (Agent::Codex, codex?)]
-        .into_iter()
-        .filter_map(|(agent, signed_in)| signed_in.then_some(agent))
-        .collect())
+pub async fn states() -> Result<Vec<(Agent, State)>, Error> {
+    let (claude, codex, copilot) = tokio::join!(
+        Agent::Claude.state(),
+        Agent::Codex.state(),
+        Agent::Copilot.state()
+    );
+
+    Ok(ALL.into_iter().zip([claude?, codex?, copilot?]).collect())
 }

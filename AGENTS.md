@@ -39,7 +39,7 @@
 - Keep platform-specific code behind `#[cfg]` in one place per concern, with the same interface everywhere.
 
 ## Security
-- Drive the unmodified `claude`, `codex` and `gh` binaries and let users sign in through each CLI's own flow. Never read, store, log, sync or forward their credentials.
+- Drive the unmodified official CLI of each agent and of GitHub (gh), and let users sign in through each CLI's own flow. Never read, store, log, sync or forward their credentials, or the files where those CLIs keep them.
 - Keep secrets only in the OS keychain, never in files, logs or error messages.
 
 ## UI
@@ -49,7 +49,7 @@
 - App-owned padding, margins and gaps use Tailwind spacing values divisible by four, or `2`. Auto margins, shadcn/ui and third-party styles are exempt.
 - App-owned text uses only the `type-*` roles, never its own sizes, weights, families, line heights or letter spacing. Text inside shadcn/ui components keeps their own styles.
 - App-owned text uses the foreground colour; muted only for metadata such as timestamps, paths and counts.
-- Use Phosphor (`@phosphor-icons/react`) for every icon, and show state with its weights (`regular` idle, `fill` active) rather than extra icons or badges.
+- Use Phosphor (`@phosphor-icons/react`) for every icon, and show state with its weights (`regular` idle, `fill` active) rather than extra icons or badges. Brand logos are the exception: use the official asset from the brand's own kit.
 - Meet WCAG 2.2 AA: every action works by keyboard with a visible focus state, and icon-only controls have accessible labels.
 
 ## Motion

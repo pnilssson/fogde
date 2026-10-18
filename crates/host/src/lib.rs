@@ -1,3 +1,4 @@
+mod folders;
 mod server;
 mod session;
 mod settings;

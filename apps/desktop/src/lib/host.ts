@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 
 import type { Connection, Methods } from "@/generated/protocol";
 
@@ -38,6 +38,11 @@ export async function call<M extends Method>(
     });
     open.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
   });
+}
+
+// The native pickers need the desktop app on the host's own computer.
+export async function local(): Promise<boolean> {
+  return isTauri() && (await call("client.local"));
 }
 
 function connect(): Promise<WebSocket> {

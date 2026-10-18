@@ -1,10 +1,10 @@
 use std::io;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{Query, State};
+use axum::extract::{ConnectInfo, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -30,7 +30,10 @@ pub async fn start() -> io::Result<Connection> {
 
     let shared = Arc::new(Shared::new(token.clone())?);
 
-    let app = Router::new().route("/", get(upgrade)).with_state(shared);
+    let app = Router::new()
+        .route("/", get(upgrade))
+        .with_state(shared)
+        .into_make_service_with_connect_info::<SocketAddr>();
     tokio::spawn(async move {
         if let Err(error) = axum::serve(listener, app).await {
             tracing::error!(%error, "host stopped");
@@ -42,6 +45,7 @@ pub async fn start() -> io::Result<Connection> {
 
 async fn upgrade(
     upgrade: WebSocketUpgrade,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     Query(auth): Query<Auth>,
     State(shared): State<Arc<Shared>>,
 ) -> Response {
@@ -49,11 +53,13 @@ async fn upgrade(
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
-    upgrade.on_upgrade(|socket| serve(socket, shared))
+    // A client on this computer connects over loopback.
+    let local = peer.ip().is_loopback();
+    upgrade.on_upgrade(move |socket| serve(socket, shared, local))
 }
 
-async fn serve(mut socket: WebSocket, shared: Arc<Shared>) {
-    let session = Arc::new(Session::new(shared));
+async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: bool) {
+    let session = Arc::new(Session::new(shared, local));
     let (replies, mut outgoing) = mpsc::unbounded_channel::<rpc::Response>();
 
     loop {

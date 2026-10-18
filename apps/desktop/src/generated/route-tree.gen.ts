@@ -10,12 +10,20 @@
 
 import { Route as rootRouteImport } from './../routes/__root'
 import { Route as OnboardedRouteImport } from './../routes/_onboarded'
+import { Route as OnboardingRouteImport } from './../routes/onboarding'
 import { Route as OnboardedIndexRouteImport } from './../routes/_onboarded/index'
 import { Route as OnboardingAgentsRouteImport } from './../routes/onboarding/agents'
+import { Route as OnboardingCloneRouteImport } from './../routes/onboarding/clone'
 import { Route as OnboardingGithubRouteImport } from './../routes/onboarding/github'
+import { Route as OnboardingReposRouteImport } from './../routes/onboarding/repos'
 
 const OnboardedRoute = OnboardedRouteImport.update({
   id: '/_onboarded',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardedIndexRoute = OnboardedIndexRouteImport.update({
@@ -24,50 +32,83 @@ const OnboardedIndexRoute = OnboardedIndexRouteImport.update({
   getParentRoute: () => OnboardedRoute,
 } as any)
 const OnboardingAgentsRoute = OnboardingAgentsRouteImport.update({
-  id: '/onboarding/agents',
-  path: '/onboarding/agents',
-  getParentRoute: () => rootRouteImport,
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingCloneRoute = OnboardingCloneRouteImport.update({
+  id: '/clone',
+  path: '/clone',
+  getParentRoute: () => OnboardingRoute,
 } as any)
 const OnboardingGithubRoute = OnboardingGithubRouteImport.update({
-  id: '/onboarding/github',
-  path: '/onboarding/github',
-  getParentRoute: () => rootRouteImport,
+  id: '/github',
+  path: '/github',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingReposRoute = OnboardingReposRouteImport.update({
+  id: '/repos',
+  path: '/repos',
+  getParentRoute: () => OnboardingRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof OnboardedIndexRoute
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/onboarding/agents': typeof OnboardingAgentsRoute
+  '/onboarding/clone': typeof OnboardingCloneRoute
   '/onboarding/github': typeof OnboardingGithubRoute
+  '/onboarding/repos': typeof OnboardingReposRoute
 }
 export interface FileRoutesByTo {
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/onboarding/agents': typeof OnboardingAgentsRoute
+  '/onboarding/clone': typeof OnboardingCloneRoute
   '/onboarding/github': typeof OnboardingGithubRoute
+  '/onboarding/repos': typeof OnboardingReposRoute
   '/': typeof OnboardedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_onboarded': typeof OnboardedRouteWithChildren
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/onboarding/agents': typeof OnboardingAgentsRoute
+  '/onboarding/clone': typeof OnboardingCloneRoute
   '/onboarding/github': typeof OnboardingGithubRoute
+  '/onboarding/repos': typeof OnboardingReposRoute
   '/_onboarded/': typeof OnboardedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/onboarding/agents' | '/onboarding/github'
+  fullPaths:
+    | '/'
+    | '/onboarding'
+    | '/onboarding/agents'
+    | '/onboarding/clone'
+    | '/onboarding/github'
+    | '/onboarding/repos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/onboarding/agents' | '/onboarding/github' | '/'
+  to:
+    | '/onboarding'
+    | '/onboarding/agents'
+    | '/onboarding/clone'
+    | '/onboarding/github'
+    | '/onboarding/repos'
+    | '/'
   id:
     | '__root__'
     | '/_onboarded'
+    | '/onboarding'
     | '/onboarding/agents'
+    | '/onboarding/clone'
     | '/onboarding/github'
+    | '/onboarding/repos'
     | '/_onboarded/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   OnboardedRoute: typeof OnboardedRouteWithChildren
-  OnboardingAgentsRoute: typeof OnboardingAgentsRoute
-  OnboardingGithubRoute: typeof OnboardingGithubRoute
+  OnboardingRoute: typeof OnboardingRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -79,6 +120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_onboarded/': {
       id: '/_onboarded/'
       path: '/'
@@ -88,17 +136,31 @@ declare module '@tanstack/react-router' {
     }
     '/onboarding/agents': {
       id: '/onboarding/agents'
-      path: '/onboarding/agents'
+      path: '/agents'
       fullPath: '/onboarding/agents'
       preLoaderRoute: typeof OnboardingAgentsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/clone': {
+      id: '/onboarding/clone'
+      path: '/clone'
+      fullPath: '/onboarding/clone'
+      preLoaderRoute: typeof OnboardingCloneRouteImport
+      parentRoute: typeof OnboardingRoute
     }
     '/onboarding/github': {
       id: '/onboarding/github'
-      path: '/onboarding/github'
+      path: '/github'
       fullPath: '/onboarding/github'
       preLoaderRoute: typeof OnboardingGithubRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/repos': {
+      id: '/onboarding/repos'
+      path: '/repos'
+      fullPath: '/onboarding/repos'
+      preLoaderRoute: typeof OnboardingReposRouteImport
+      parentRoute: typeof OnboardingRoute
     }
   }
 }
@@ -115,10 +177,27 @@ const OnboardedRouteWithChildren = OnboardedRoute._addFileChildren(
   OnboardedRouteChildren,
 )
 
+interface OnboardingRouteChildren {
+  OnboardingAgentsRoute: typeof OnboardingAgentsRoute
+  OnboardingCloneRoute: typeof OnboardingCloneRoute
+  OnboardingGithubRoute: typeof OnboardingGithubRoute
+  OnboardingReposRoute: typeof OnboardingReposRoute
+}
+
+const OnboardingRouteChildren: OnboardingRouteChildren = {
+  OnboardingAgentsRoute: OnboardingAgentsRoute,
+  OnboardingCloneRoute: OnboardingCloneRoute,
+  OnboardingGithubRoute: OnboardingGithubRoute,
+  OnboardingReposRoute: OnboardingReposRoute,
+}
+
+const OnboardingRouteWithChildren = OnboardingRoute._addFileChildren(
+  OnboardingRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   OnboardedRoute: OnboardedRouteWithChildren,
-  OnboardingAgentsRoute: OnboardingAgentsRoute,
-  OnboardingGithubRoute: OnboardingGithubRoute,
+  OnboardingRoute: OnboardingRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

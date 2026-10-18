@@ -8,20 +8,43 @@ use crate::Method;
 pub enum Agent {
     Claude,
     Codex,
+    Copilot,
 }
 
-pub struct SignedInAgents;
+#[derive(Clone, Copy, Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentState {
+    Missing,
+    SignedOut,
+    SignedIn,
+}
 
-impl Method for SignedInAgents {
-    const NAME: &'static str = "agents.signedIn";
+#[derive(Clone, Debug, Serialize, TS)]
+pub struct AgentStatus {
+    pub agent: Agent,
+    pub state: AgentState,
+}
+
+pub struct ListAgents;
+
+impl Method for ListAgents {
+    const NAME: &'static str = "agents.list";
     type Params = ();
-    type Result = Vec<Agent>;
+    type Result = Vec<AgentStatus>;
 }
 
 pub struct SignInAgent;
 
 impl Method for SignInAgent {
     const NAME: &'static str = "agents.signIn";
+    type Params = Agent;
+    type Result = ();
+}
+
+pub struct InstallAgent;
+
+impl Method for InstallAgent {
+    const NAME: &'static str = "agents.install";
     type Params = Agent;
     type Result = ();
 }

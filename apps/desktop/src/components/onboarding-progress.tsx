@@ -1,14 +1,11 @@
 import { StepBars } from "@/components/step-bars";
-
-const steps = ["github", "agents"] as const;
+import { steps } from "@/lib/onboarding";
 
 interface Props {
-  step: (typeof steps)[number];
+  position: number;
 }
 
-export function OnboardingProgress({ step }: Props) {
-  const position = steps.indexOf(step);
-
+export function OnboardingProgress({ position }: Props) {
   return (
     <div>
       <StepBars total={steps.length} position={position} />

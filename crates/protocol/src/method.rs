@@ -16,9 +16,15 @@ mod tests {
     use ts_rs::{Config, TS};
 
     use super::Method;
-    use crate::agents::{Agent, SignInAgent, SignedInAgents};
+    use crate::agents::{Agent, AgentState, InstallAgent, ListAgents, SignInAgent};
+    use crate::client::IsLocal;
+    use crate::folders::{Folder, ListFolders};
     use crate::github::{Account, FinishSignIn, GetAccounts, StartSignIn};
     use crate::onboarding::{FinishOnboarding, GetOnboarded};
+    use crate::repos::{
+        CheckReposFolder, CloneRepo, GetReposFolder, ListRepos, RemoteRepo, Repo, SetReposFolder,
+    };
+    use crate::theme::{GetTheme, SetTheme, Theme};
     use crate::{Connection, Frame, Platform};
 
     fn named<T: TS>(file: &mut String, cfg: &Config) {
@@ -45,14 +51,29 @@ mod tests {
         named::<Platform>(&mut file, &cfg);
         named::<Account>(&mut file, &cfg);
         named::<Agent>(&mut file, &cfg);
+        named::<AgentState>(&mut file, &cfg);
+        named::<Folder>(&mut file, &cfg);
+        named::<Theme>(&mut file, &cfg);
+        named::<Repo>(&mut file, &cfg);
+        named::<RemoteRepo>(&mut file, &cfg);
         file.push_str("export type Methods = {\n");
+        entry::<IsLocal>(&mut file, &cfg);
         entry::<GetAccounts>(&mut file, &cfg);
         entry::<StartSignIn>(&mut file, &cfg);
         entry::<FinishSignIn>(&mut file, &cfg);
-        entry::<SignedInAgents>(&mut file, &cfg);
+        entry::<ListAgents>(&mut file, &cfg);
         entry::<SignInAgent>(&mut file, &cfg);
+        entry::<InstallAgent>(&mut file, &cfg);
         entry::<GetOnboarded>(&mut file, &cfg);
         entry::<FinishOnboarding>(&mut file, &cfg);
+        entry::<GetReposFolder>(&mut file, &cfg);
+        entry::<CheckReposFolder>(&mut file, &cfg);
+        entry::<SetReposFolder>(&mut file, &cfg);
+        entry::<ListFolders>(&mut file, &cfg);
+        entry::<ListRepos>(&mut file, &cfg);
+        entry::<CloneRepo>(&mut file, &cfg);
+        entry::<GetTheme>(&mut file, &cfg);
+        entry::<SetTheme>(&mut file, &cfg);
         file.push_str("};\n");
 
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))

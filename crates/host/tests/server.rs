@@ -29,6 +29,18 @@ async fn rejects_missing_token() {
 }
 
 #[tokio::test]
+async fn reports_a_loopback_client_as_local() {
+    let connection = host::start().await.unwrap();
+    let url = format!("{}?token={}", connection.url, connection.token);
+
+    let reply = exchange(&url, r#"{"jsonrpc":"2.0","id":1,"method":"client.local"}"#)
+        .await
+        .unwrap();
+
+    assert_eq!(reply["result"], json!(true));
+}
+
+#[tokio::test]
 async fn answers_unknown_method_and_bad_json() {
     let connection = host::start().await.unwrap();
     let url = format!("{}?token={}", connection.url, connection.token);

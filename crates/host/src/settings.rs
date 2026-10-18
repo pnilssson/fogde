@@ -1,6 +1,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use protocol::theme::Theme;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tokio::sync::Mutex;
@@ -9,6 +10,10 @@ use tokio::sync::Mutex;
 struct Values {
     #[serde(default)]
     onboarded: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    repos: Option<PathBuf>,
+    #[serde(default)]
+    theme: Theme,
 }
 
 pub struct Settings {
@@ -30,6 +35,22 @@ impl Settings {
 
     pub async fn finish_onboarding(&self) -> io::Result<()> {
         self.update(|values| values.onboarded = true).await
+    }
+
+    pub async fn repos(&self) -> io::Result<Option<PathBuf>> {
+        Ok(self.load().await?.repos)
+    }
+
+    pub async fn set_repos(&self, path: PathBuf) -> io::Result<()> {
+        self.update(|values| values.repos = Some(path)).await
+    }
+
+    pub async fn theme(&self) -> io::Result<Theme> {
+        Ok(self.load().await?.theme)
+    }
+
+    pub async fn set_theme(&self, theme: Theme) -> io::Result<()> {
+        self.update(|values| values.theme = theme).await
     }
 
     async fn load(&self) -> io::Result<Values> {
@@ -60,16 +81,23 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn remembers_finished_onboarding() {
+    async fn remembers_what_was_saved() {
         let app = std::env::temp_dir().join(format!("fogde-settings-{}", std::process::id()));
         let _ = fs::remove_dir_all(&app).await;
         let settings = Settings::new(&app);
 
         assert!(!settings.onboarded().await.unwrap());
+        assert_eq!(settings.repos().await.unwrap(), None);
+        assert_eq!(settings.theme().await.unwrap(), Theme::System);
 
+        settings.set_repos(app.join("repos")).await.unwrap();
         settings.finish_onboarding().await.unwrap();
+        settings.set_theme(Theme::Dark).await.unwrap();
 
-        assert!(Settings::new(&app).onboarded().await.unwrap());
+        let reopened = Settings::new(&app);
+        assert!(reopened.onboarded().await.unwrap());
+        assert_eq!(reopened.repos().await.unwrap(), Some(app.join("repos")));
+        assert_eq!(reopened.theme().await.unwrap(), Theme::Dark);
         fs::remove_dir_all(&app).await.unwrap();
     }
 }

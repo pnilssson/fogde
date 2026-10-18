@@ -21,6 +21,7 @@ fn main() -> anyhow::Result<()> {
     let host = tauri::async_runtime::block_on(host::start())?;
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(host)
         .setup(|app| Ok(window::open(app)?))

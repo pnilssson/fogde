@@ -8,14 +8,34 @@ export type Platform = "windows" | "macos" | "linux";
 
 export type Account = { host: string, login: string, };
 
-export type Agent = "claude" | "codex";
+export type Agent = "claude" | "codex" | "copilot";
+
+export type AgentState = "missing" | "signedOut" | "signedIn";
+
+export type Folder = { name: string, path: string, };
+
+export type Theme = "system" | "light" | "dark";
+
+export type Repo = { host: string, owner: string, name: string, };
+
+export type RemoteRepo = { host: string, owner: string, name: string, cloned: boolean, };
 
 export type Methods = {
+  "client.local": { params: null; result: boolean };
   "github.accounts": { params: null; result: Array<{ host: string, login: string, }> };
   "github.startSignIn": { params: string; result: { code: string, url: string, } };
   "github.finishSignIn": { params: null; result: null };
-  "agents.signedIn": { params: null; result: Array<"claude" | "codex"> };
-  "agents.signIn": { params: "claude" | "codex"; result: null };
+  "agents.list": { params: null; result: Array<{ agent: Agent, state: AgentState, }> };
+  "agents.signIn": { params: "claude" | "codex" | "copilot"; result: null };
+  "agents.install": { params: "claude" | "codex" | "copilot"; result: null };
   "onboarding.done": { params: null; result: boolean };
   "onboarding.finish": { params: null; result: null };
+  "repos.folder": { params: null; result: string };
+  "repos.checkFolder": { params: string; result: null };
+  "repos.setFolder": { params: string; result: null };
+  "folders.list": { params: string; result: { path: string, parent: string | null, folders: Array<Folder>, } };
+  "repos.list": { params: string; result: Array<{ host: string, owner: string, name: string, cloned: boolean, }> };
+  "repos.clone": { params: { host: string, owner: string, name: string, }; result: null };
+  "theme.get": { params: null; result: "system" | "light" | "dark" };
+  "theme.set": { params: "system" | "light" | "dark"; result: null };
 };

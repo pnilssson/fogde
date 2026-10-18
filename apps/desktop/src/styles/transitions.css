@@ -1,0 +1,53 @@
+:root {
+  view-transition-name: none;
+}
+
+::view-transition-group(progress),
+::view-transition-group(step) {
+  animation-duration: 250ms;
+  animation-timing-function: var(--ease-out);
+}
+
+::view-transition-old(step) {
+  animation: 150ms var(--ease-out) both step-leave;
+}
+
+::view-transition-new(step) {
+  animation: 250ms var(--ease-out) both step-enter;
+}
+
+:root:active-view-transition-type(forward) {
+  --step-from: 24px;
+  --step-to: -24px;
+}
+
+:root:active-view-transition-type(back) {
+  --step-from: -24px;
+  --step-to: 24px;
+}
+
+@keyframes step-leave {
+  to {
+    opacity: 0;
+    transform: translateX(var(--step-to, 0));
+  }
+}
+
+@keyframes step-enter {
+  from {
+    opacity: 0;
+    transform: translateX(var(--step-from, 0));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(progress),
+  ::view-transition-group(step) {
+    animation: none;
+  }
+
+  :root {
+    --step-from: 0 !important;
+    --step-to: 0 !important;
+  }
+}

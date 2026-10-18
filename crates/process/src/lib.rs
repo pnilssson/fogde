@@ -18,13 +18,17 @@ pub fn command(program: impl AsRef<OsStr>) -> Command {
 }
 
 pub fn find(name: &str) -> Option<PathBuf> {
+    find_in(env::split_paths(&env::var_os("PATH")?), name)
+}
+
+pub fn find_in(dirs: impl IntoIterator<Item = PathBuf>, name: &str) -> Option<PathBuf> {
     let names: Vec<String> = if cfg!(windows) {
         vec![format!("{name}.exe"), format!("{name}.cmd")]
     } else {
         vec![name.to_owned()]
     };
 
-    env::split_paths(&env::var_os("PATH")?)
+    dirs.into_iter()
         .flat_map(|dir| names.iter().map(move |name| dir.join(name)))
         .find(|candidate| candidate.is_file())
 }

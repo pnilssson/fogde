@@ -4,10 +4,14 @@ import {
   createHashHistory,
   createRouter,
 } from "@tanstack/react-router";
+import { LazyMotion, MotionConfig, domAnimation } from "motion/react";
 
 import { Failure } from "@/components/failure";
 import { Loading } from "@/components/loading";
+import { Toaster } from "@/components/ui/toast";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { routeTree } from "@/generated/route-tree.gen";
+import { stepTransition } from "@/lib/onboarding";
 
 const queries = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
@@ -19,6 +23,10 @@ const router = createRouter({
   context: { queries },
   defaultPendingComponent: Loading,
   defaultErrorComponent: Failure,
+  defaultViewTransition: {
+    types: ({ fromLocation, toLocation }) =>
+      stepTransition(fromLocation?.pathname, toLocation.pathname),
+  },
 });
 
 declare module "@tanstack/react-router" {
@@ -30,7 +38,15 @@ declare module "@tanstack/react-router" {
 export function App() {
   return (
     <QueryClientProvider client={queries}>
-      <RouterProvider router={router} />
+      <LazyMotion features={domAnimation} strict>
+        <MotionConfig reducedMotion="user">
+          <Toaster>
+            <TooltipProvider>
+              <RouterProvider router={router} />
+            </TooltipProvider>
+          </Toaster>
+        </MotionConfig>
+      </LazyMotion>
     </QueryClientProvider>
   );
 }

@@ -8,6 +8,7 @@ mod method;
 pub mod onboarding;
 pub mod repos;
 pub mod rpc;
+pub mod server;
 pub mod theme;
 
 pub use connection::Connection;

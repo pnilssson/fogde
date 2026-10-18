@@ -3,7 +3,7 @@ use protocol::github::{Account, FinishSignIn, GetAccounts, SignInCode, StartSign
 use protocol::rpc::{Failure, SERVER_ERROR};
 use serde_json::Value;
 
-use super::{Session, failure, parse, reply};
+use super::{Session, cancelled, failure, parse, reply};
 
 impl Session {
     pub(super) async fn accounts(&self, params: Value) -> Result<Value, Failure> {
@@ -41,6 +41,9 @@ impl Session {
             return Err(Failure::new(SERVER_ERROR, "no sign-in is in progress"));
         };
 
-        reply::<FinishSignIn, _>(signin.finish().await)
+        tokio::select! {
+            result = signin.finish() => reply::<FinishSignIn, _>(result),
+            () = self.closed() => Err(cancelled()),
+        }
     }
 }

@@ -16,13 +16,20 @@ mod tests {
     use ts_rs::{Config, TS};
 
     use super::Method;
-    use crate::agents::{Agent, AgentState, InstallAgent, ListAgents, SignInAgent};
+    use crate::agents::{
+        Agent, AgentPrompt, AgentState, CancelAgentSignIn, FinishAgentSignIn,
+        FinishAgentSignInParams, InstallAgent, ListAgents, StartAgentSignIn,
+    };
     use crate::client::IsLocal;
     use crate::folders::{Folder, ListFolders};
     use crate::github::{Account, FinishSignIn, GetAccounts, StartSignIn};
     use crate::onboarding::{FinishOnboarding, GetOnboarded};
     use crate::repos::{
         CheckReposFolder, CloneRepo, GetReposFolder, ListRepos, RemoteRepo, Repo, SetReposFolder,
+    };
+    use crate::server::{
+        CheckServer, ClearServer, GetServer, ListSshHosts, ServerCheck, ServerCheckParams,
+        SetUpServer, SshKey,
     };
     use crate::theme::{GetTheme, SetTheme, Theme};
     use crate::{Connection, Frame, Platform};
@@ -52,17 +59,24 @@ mod tests {
         named::<Account>(&mut file, &cfg);
         named::<Agent>(&mut file, &cfg);
         named::<AgentState>(&mut file, &cfg);
+        named::<AgentPrompt>(&mut file, &cfg);
+        named::<FinishAgentSignInParams>(&mut file, &cfg);
         named::<Folder>(&mut file, &cfg);
         named::<Theme>(&mut file, &cfg);
         named::<Repo>(&mut file, &cfg);
         named::<RemoteRepo>(&mut file, &cfg);
+        named::<ServerCheckParams>(&mut file, &cfg);
+        named::<SshKey>(&mut file, &cfg);
+        named::<ServerCheck>(&mut file, &cfg);
         file.push_str("export type Methods = {\n");
         entry::<IsLocal>(&mut file, &cfg);
         entry::<GetAccounts>(&mut file, &cfg);
         entry::<StartSignIn>(&mut file, &cfg);
         entry::<FinishSignIn>(&mut file, &cfg);
         entry::<ListAgents>(&mut file, &cfg);
-        entry::<SignInAgent>(&mut file, &cfg);
+        entry::<StartAgentSignIn>(&mut file, &cfg);
+        entry::<FinishAgentSignIn>(&mut file, &cfg);
+        entry::<CancelAgentSignIn>(&mut file, &cfg);
         entry::<InstallAgent>(&mut file, &cfg);
         entry::<GetOnboarded>(&mut file, &cfg);
         entry::<FinishOnboarding>(&mut file, &cfg);
@@ -74,6 +88,11 @@ mod tests {
         entry::<CloneRepo>(&mut file, &cfg);
         entry::<GetTheme>(&mut file, &cfg);
         entry::<SetTheme>(&mut file, &cfg);
+        entry::<GetServer>(&mut file, &cfg);
+        entry::<ListSshHosts>(&mut file, &cfg);
+        entry::<CheckServer>(&mut file, &cfg);
+        entry::<SetUpServer>(&mut file, &cfg);
+        entry::<ClearServer>(&mut file, &cfg);
         file.push_str("};\n");
 
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))

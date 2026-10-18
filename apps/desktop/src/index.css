@@ -141,7 +141,10 @@
     @apply font-sans;
   }
   button:not(:disabled),
-  [role="button"]:not(:disabled) {
+  [role="button"]:not(:disabled),
+  [role="radio"]:not([data-disabled]),
+  [role="checkbox"]:not([data-disabled]),
+  label:has([role="radio"], [role="checkbox"]):not(:has([data-disabled])) {
     cursor: pointer;
   }
 }

@@ -4,9 +4,10 @@ import * as m from "motion/react-m";
 import { useState } from "react";
 
 import { Connection } from "@/components/connection";
+import { ContinueButton } from "@/components/continue-button";
 import { Button } from "@/components/ui/button";
 import { accountsQuery } from "@/features/github/api/accounts";
-import { DeviceCode } from "@/features/github/components/device-code";
+import { DeviceCode } from "@/components/device-code";
 import { EnterpriseForm } from "@/features/github/components/enterprise-form";
 import { useSignIn } from "@/features/github/hooks/use-sign-in";
 import { expand, swap } from "@/lib/motion";
@@ -14,10 +15,11 @@ import { expand, swap } from "@/lib/motion";
 const github = "github.com";
 
 interface Props {
-  onContinue: () => void;
+  onBack: () => void;
+  onContinue: () => Promise<void>;
 }
 
-export function ConnectGitHub({ onContinue }: Props) {
+export function ConnectGitHub({ onBack, onContinue }: Props) {
   const { data: accounts } = useSuspenseQuery({
     ...accountsQuery,
     refetchOnWindowFocus: true,
@@ -33,7 +35,7 @@ export function ConnectGitHub({ onContinue }: Props) {
     <AnimatePresence mode="wait" initial={false}>
       {prompt ? (
         <m.div key="code" {...swap}>
-          <DeviceCode code={prompt.code} url={prompt.url} />
+          <DeviceCode code={prompt.code} url={prompt.url} site="GitHub" />
         </m.div>
       ) : (
         <m.section
@@ -89,14 +91,15 @@ export function ConnectGitHub({ onContinue }: Props) {
             </AnimatePresence>
           </div>
           {error && <p className="type-body">{error.message}</p>}
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={accounts.length === 0}
-            onClick={onContinue}
-          >
-            Continue
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={onBack}>
+              Back
+            </Button>
+            <ContinueButton
+              disabled={accounts.length === 0}
+              onContinue={onContinue}
+            />
+          </div>
         </m.section>
       )}
     </AnimatePresence>

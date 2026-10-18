@@ -7,6 +7,7 @@
   --color-surface-6: var(--surface-6);
   --color-surface-7: var(--surface-7);
   --color-surface-8: var(--surface-8);
+  --color-surface-glass: var(--surface-glass);
   --shadow-surface-1: var(--shadow-1);
   --shadow-surface-2: var(--shadow-2);
   --shadow-surface-3: var(--shadow-3);
@@ -21,6 +22,7 @@
 
 :root {
   --tint: 30%;
+  --surface-glass: color-mix(in oklab, var(--surface-1) 75%, transparent);
   --surface-1: #fafafa;
   --surface-2: rgb(255 255 255 / 15%);
   --surface-3: rgb(255 255 255 / 35%);
@@ -44,6 +46,7 @@
 
 .dark {
   --tint: 20%;
+  --surface-glass: color-mix(in oklab, var(--surface-1) 90%, transparent);
   --surface-1: #171717;
   --surface-2: rgb(255 255 255 / 3%);
   --surface-3: rgb(255 255 255 / 6%);

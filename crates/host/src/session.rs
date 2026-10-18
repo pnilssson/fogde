@@ -1,6 +1,7 @@
 mod agents;
 mod github;
 mod repos;
+mod server;
 mod settings;
 
 use std::convert::Infallible;
@@ -9,16 +10,19 @@ use std::sync::Arc;
 
 use ::github::{Gh, SignIn};
 use protocol::Method;
-use protocol::agents::{InstallAgent, ListAgents, SignInAgent};
+use protocol::agents::{
+    CancelAgentSignIn, FinishAgentSignIn, InstallAgent, ListAgents, StartAgentSignIn,
+};
 use protocol::client::IsLocal;
 use protocol::folders::ListFolders;
 use protocol::github::{FinishSignIn, GetAccounts, StartSignIn};
 use protocol::onboarding::{FinishOnboarding, GetOnboarded};
 use protocol::repos::{CheckReposFolder, CloneRepo, GetReposFolder, ListRepos, SetReposFolder};
 use protocol::rpc::{Failure, INVALID_PARAMS, METHOD_NOT_FOUND, Request, Response, SERVER_ERROR};
+use protocol::server::{CheckServer, ClearServer, GetServer, ListSshHosts, SetUpServer};
 use protocol::theme::{GetTheme, SetTheme};
 use serde_json::Value;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, watch};
 
 use crate::shared::Shared;
 
@@ -26,6 +30,9 @@ pub struct Session {
     shared: Arc<Shared>,
     local: bool,
     signin: Mutex<Option<SignIn>>,
+    agent_sign_ins: Mutex<agents::SignIns>,
+    checked: Mutex<Option<(String, remote::System)>>,
+    closed: watch::Sender<bool>,
 }
 
 impl Session {
@@ -34,7 +41,18 @@ impl Session {
             shared,
             local,
             signin: Mutex::new(None),
+            agent_sign_ins: Mutex::default(),
+            checked: Mutex::new(None),
+            closed: watch::Sender::new(false),
         }
+    }
+
+    pub fn close(&self) {
+        self.closed.send_replace(true);
+    }
+
+    async fn closed(&self) {
+        let _ = self.closed.subscribe().wait_for(|closed| *closed).await;
     }
 
     async fn gh(&self) -> Result<&Gh, Failure> {
@@ -57,7 +75,9 @@ impl Session {
             StartSignIn::NAME => self.start_sign_in(params).await,
             FinishSignIn::NAME => self.finish_sign_in(params).await,
             ListAgents::NAME => self.agents(params).await,
-            SignInAgent::NAME => self.sign_in_agent(params).await,
+            StartAgentSignIn::NAME => self.start_agent_sign_in(params).await,
+            FinishAgentSignIn::NAME => self.finish_agent_sign_in(params).await,
+            CancelAgentSignIn::NAME => self.cancel_agent_sign_in(params).await,
             InstallAgent::NAME => self.install_agent(params).await,
             GetOnboarded::NAME => self.onboarded(params).await,
             FinishOnboarding::NAME => self.finish_onboarding(params).await,
@@ -69,6 +89,11 @@ impl Session {
             CloneRepo::NAME => self.clone_repo(params).await,
             GetTheme::NAME => self.theme(params).await,
             SetTheme::NAME => self.set_theme(params).await,
+            GetServer::NAME => self.server(params).await,
+            ListSshHosts::NAME => self.ssh_hosts(params).await,
+            CheckServer::NAME => self.check_server(params).await,
+            SetUpServer::NAME => self.set_up_server(params).await,
+            ClearServer::NAME => self.clear_server(params).await,
             _ => Err(Failure::new(
                 METHOD_NOT_FOUND,
                 format!("unknown method {method}"),
@@ -91,4 +116,8 @@ fn failure(error: &impl Display) -> Failure {
     tracing::warn!(%error, "request failed");
 
     Failure::new(SERVER_ERROR, error.to_string())
+}
+
+fn cancelled() -> Failure {
+    Failure::new(SERVER_ERROR, "the sign-in was cancelled")
 }

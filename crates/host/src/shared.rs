@@ -2,29 +2,30 @@ use std::io;
 use std::path::PathBuf;
 
 use github::Gh;
+use remote::{Binaries, Tunnel};
 use tokio::fs;
-use tokio::sync::OnceCell;
+use tokio::sync::{Mutex, OnceCell};
 
 use crate::settings::Settings;
 
 pub struct Shared {
-    pub token: String,
     pub settings: Settings,
+    pub binaries: Option<Binaries>,
+    pub tunnel: Mutex<Option<Tunnel>>,
     fogde: PathBuf,
     tools: PathBuf,
     gh: OnceCell<Gh>,
 }
 
 impl Shared {
-    pub fn new(token: String) -> io::Result<Self> {
-        let home = std::env::home_dir()
-            .ok_or_else(|| io::Error::other("could not find the home folder"))?;
-        let fogde = home.join("Fogde");
+    pub fn new(binaries: Option<Binaries>) -> io::Result<Self> {
+        let fogde = fogde()?;
         let app = fogde.join(".app");
 
         Ok(Self {
-            token,
             settings: Settings::new(&app),
+            binaries,
+            tunnel: Mutex::new(None),
             tools: app.join("tools"),
             fogde,
             gh: OnceCell::new(),
@@ -47,4 +48,10 @@ impl Shared {
         fs::create_dir_all(&path).await?;
         self.settings.set_repos(path).await
     }
+}
+
+pub fn fogde() -> io::Result<PathBuf> {
+    std::env::home_dir()
+        .map(|home| home.join("Fogde"))
+        .ok_or_else(|| io::Error::other("could not find the home folder"))
 }

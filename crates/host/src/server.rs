@@ -14,25 +14,37 @@ use serde::Deserialize;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
+use remote::Binaries;
+
+use crate::relay;
 use crate::session::Session;
 use crate::shared::Shared;
 use crate::token;
+
+struct Desktop {
+    shared: Arc<Shared>,
+    token: String,
+}
 
 #[derive(Deserialize)]
 struct Auth {
     token: String,
 }
 
-pub async fn start() -> io::Result<Connection> {
+pub async fn start(binaries: Binaries) -> io::Result<Connection> {
     let token = token::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let url = format!("ws://{}/", listener.local_addr()?);
 
-    let shared = Arc::new(Shared::new(token.clone())?);
+    let desktop = Arc::new(Desktop {
+        shared: Arc::new(Shared::new(Some(binaries))?),
+        token: token.clone(),
+    });
 
     let app = Router::new()
         .route("/", get(upgrade))
-        .with_state(shared)
+        .route("/server", get(server))
+        .with_state(desktop)
         .into_make_service_with_connect_info::<SocketAddr>();
     tokio::spawn(async move {
         if let Err(error) = axum::serve(listener, app).await {
@@ -47,18 +59,36 @@ async fn upgrade(
     upgrade: WebSocketUpgrade,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     Query(auth): Query<Auth>,
-    State(shared): State<Arc<Shared>>,
+    State(desktop): State<Arc<Desktop>>,
 ) -> Response {
-    if !token::matches(&auth.token, &shared.token) {
+    if !token::matches(&auth.token, &desktop.token) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
-    // A client on this computer connects over loopback.
     let local = peer.ip().is_loopback();
+    let shared = Arc::clone(&desktop.shared);
     upgrade.on_upgrade(move |socket| serve(socket, shared, local))
 }
 
-async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: bool) {
+async fn server(
+    upgrade: WebSocketUpgrade,
+    Query(auth): Query<Auth>,
+    State(desktop): State<Arc<Desktop>>,
+) -> Response {
+    if !token::matches(&auth.token, &desktop.token) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
+    match relay::open(&desktop.shared).await {
+        Ok(tunnel) => upgrade.on_upgrade(move |socket| relay::relay(socket, tunnel)),
+        Err(error) => {
+            tracing::warn!(%error, "could not reach the server");
+            StatusCode::BAD_GATEWAY.into_response()
+        }
+    }
+}
+
+pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: bool) {
     let session = Arc::new(Session::new(shared, local));
     let (replies, mut outgoing) = mpsc::unbounded_channel::<rpc::Response>();
 
@@ -98,4 +128,6 @@ async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: bool) {
             }
         }
     }
+
+    session.close();
 }

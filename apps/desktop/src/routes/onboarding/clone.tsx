@@ -4,8 +4,10 @@ import { accountsQuery } from "@/features/github/api/accounts";
 import { useFinishOnboarding } from "@/features/onboarding/hooks/use-finish-onboarding";
 import { remoteReposQuery } from "@/features/repos/api/repos";
 import { CloneRepos } from "@/features/repos/components/clone-repos";
+import { stepPendingMs } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/onboarding/clone")({
+  pendingMs: stepPendingMs,
   loader: async ({ context: { queries } }) => {
     const accounts = await queries.query({
       ...accountsQuery,
@@ -13,7 +15,6 @@ export const Route = createFileRoute("/onboarding/clone")({
     });
     const hosts = accounts.map((account) => account.host);
 
-    // A host that fails shows a toast on the page instead of blocking it.
     await Promise.allSettled(
       hosts.map((host) =>
         queries.query({ ...remoteReposQuery(host), staleTime: "static" }),
@@ -25,12 +26,13 @@ export const Route = createFileRoute("/onboarding/clone")({
   component: function CloneRoute() {
     const { hosts } = Route.useLoaderData();
     const navigate = useNavigate();
-    const finish = useFinishOnboarding();
+    const { finish, finishing } = useFinishOnboarding();
 
     return (
       <CloneRepos
         hosts={hosts}
         onBack={() => void navigate({ to: "/onboarding/repos" })}
+        finishing={finishing}
         onContinue={finish}
       />
     );

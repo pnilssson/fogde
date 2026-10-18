@@ -12,6 +12,10 @@ export type Agent = "claude" | "codex" | "copilot";
 
 export type AgentState = "missing" | "signedOut" | "signedIn";
 
+export type AgentPrompt = { "kind": "done" } | { "kind": "browser" } | { "kind": "code", code: string, url: string, } | { "kind": "paste", url: string, };
+
+export type FinishAgentSignInParams = { agent: Agent, code: string | null, };
+
 export type Folder = { name: string, path: string, };
 
 export type Theme = "system" | "light" | "dark";
@@ -20,13 +24,21 @@ export type Repo = { host: string, owner: string, name: string, };
 
 export type RemoteRepo = { host: string, owner: string, name: string, cloned: boolean, };
 
+export type ServerCheckParams = { target: string, trust: string | null, };
+
+export type SshKey = { name: string, fingerprint: string, };
+
+export type ServerCheck = { "state": "ready" } | { "state": "untrusted", fingerprint: string, } | { "state": "keyRejected", keys: Array<SshKey>, };
+
 export type Methods = {
   "client.local": { params: null; result: boolean };
   "github.accounts": { params: null; result: Array<{ host: string, login: string, }> };
   "github.startSignIn": { params: string; result: { code: string, url: string, } };
   "github.finishSignIn": { params: null; result: null };
   "agents.list": { params: null; result: Array<{ agent: Agent, state: AgentState, }> };
-  "agents.signIn": { params: "claude" | "codex" | "copilot"; result: null };
+  "agents.startSignIn": { params: "claude" | "codex" | "copilot"; result: { "kind": "done" } | { "kind": "browser" } | { "kind": "code", code: string, url: string, } | { "kind": "paste", url: string, } };
+  "agents.finishSignIn": { params: { agent: Agent, code: string | null, }; result: null };
+  "agents.cancelSignIn": { params: "claude" | "codex" | "copilot"; result: null };
   "agents.install": { params: "claude" | "codex" | "copilot"; result: null };
   "onboarding.done": { params: null; result: boolean };
   "onboarding.finish": { params: null; result: null };
@@ -38,4 +50,9 @@ export type Methods = {
   "repos.clone": { params: { host: string, owner: string, name: string, }; result: null };
   "theme.get": { params: null; result: "system" | "light" | "dark" };
   "theme.set": { params: "system" | "light" | "dark"; result: null };
+  "server.get": { params: null; result: string | null };
+  "server.hosts": { params: null; result: Array<string> };
+  "server.check": { params: { target: string, trust: string | null, }; result: { "state": "ready" } | { "state": "untrusted", fingerprint: string, } | { "state": "keyRejected", keys: Array<SshKey>, } };
+  "server.setUp": { params: string; result: null };
+  "server.clear": { params: null; result: null };
 };

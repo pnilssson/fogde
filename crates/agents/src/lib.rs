@@ -1,10 +1,12 @@
 mod agent;
 mod error;
 mod install;
+mod signin;
 mod status;
 
 pub use agent::{Agent, State};
 pub use error::Error;
+pub use signin::{Prompt, SignIn};
 
 const ALL: [Agent; 3] = [Agent::Claude, Agent::Codex, Agent::Copilot];
 

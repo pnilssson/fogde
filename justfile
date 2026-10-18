@@ -3,8 +3,16 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
 default:
     @just --list
 
-dev:
+dev: server
     npm run --prefix apps/desktop tauri dev
+
+# The host for 64-bit Linux servers, which the app installs over SSH.
+server:
+    cargo build -p host --bin fogde-host --release --target x86_64-unknown-linux-musl
+    cargo build -p host --bin fogde-host --release --target aarch64-unknown-linux-musl
+
+build: server
+    npm run --prefix apps/desktop tauri build -- --config src-tauri/tauri.release.conf.json
 
 fmt:
     cargo fmt --all

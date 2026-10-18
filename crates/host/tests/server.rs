@@ -14,7 +14,9 @@ async fn exchange(url: &str, message: &str) -> Result<Value, Box<dyn std::error:
 
 #[tokio::test]
 async fn rejects_wrong_token() {
-    let connection = host::start().await.unwrap();
+    let connection = host::start(host::Binaries::built(std::env::temp_dir()))
+        .await
+        .unwrap();
 
     let result = connect_async(format!("{}?token=wrong", connection.url)).await;
 
@@ -23,14 +25,18 @@ async fn rejects_wrong_token() {
 
 #[tokio::test]
 async fn rejects_missing_token() {
-    let connection = host::start().await.unwrap();
+    let connection = host::start(host::Binaries::built(std::env::temp_dir()))
+        .await
+        .unwrap();
 
     assert!(connect_async(connection.url).await.is_err());
 }
 
 #[tokio::test]
 async fn reports_a_loopback_client_as_local() {
-    let connection = host::start().await.unwrap();
+    let connection = host::start(host::Binaries::built(std::env::temp_dir()))
+        .await
+        .unwrap();
     let url = format!("{}?token={}", connection.url, connection.token);
 
     let reply = exchange(&url, r#"{"jsonrpc":"2.0","id":1,"method":"client.local"}"#)
@@ -42,7 +48,9 @@ async fn reports_a_loopback_client_as_local() {
 
 #[tokio::test]
 async fn answers_unknown_method_and_bad_json() {
-    let connection = host::start().await.unwrap();
+    let connection = host::start(host::Binaries::built(std::env::temp_dir()))
+        .await
+        .unwrap();
     let url = format!("{}?token={}", connection.url, connection.token);
 
     let unknown = exchange(&url, r#"{"jsonrpc":"2.0","id":7,"method":"nope"}"#)

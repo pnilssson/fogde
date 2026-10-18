@@ -2,7 +2,6 @@ import { cubicBezier, type MotionProps, type Transition } from "motion/react";
 
 let curve: ((progress: number) => number) | undefined;
 
-// Reads the shared --ease-out token on first use, once the styles have loaded.
 function easeOut(progress: number) {
   curve ??= cubicBezier(
     ...(getComputedStyle(document.documentElement)

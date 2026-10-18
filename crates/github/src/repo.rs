@@ -69,7 +69,6 @@ impl Gh {
 }
 
 impl Repo {
-    /// Whether `into` already holds a clone of this repo, judged by its `origin` remote.
     pub async fn cloned_in(&self, into: &Path) -> bool {
         let path = into.join(&self.name);
         if !fs::metadata(&path).await.is_ok_and(|m| m.is_dir()) {
@@ -99,7 +98,6 @@ impl Repo {
     }
 }
 
-/// `gh api --paginate` prints each page as its own JSON array, one after another.
 fn pages(host: &str, output: &[u8]) -> Result<Vec<Repo>, Error> {
     let mut repos = Vec::new();
     for page in serde_json::Deserializer::from_slice(output).into_iter::<Vec<Entry>>() {
@@ -120,7 +118,6 @@ fn visible(host: &str, entries: Vec<Entry>) -> impl Iterator<Item = Repo> {
         })
 }
 
-/// Reads host, owner and name from an HTTPS, SSH or scp-style remote, dropping any user info.
 fn remote(url: &str) -> Option<Repo> {
     let (authority, path) = match url.split_once("://") {
         Some((_, rest)) => rest.split_once('/')?,

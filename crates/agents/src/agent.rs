@@ -2,9 +2,11 @@ use std::fmt;
 use std::path::PathBuf;
 use std::process::{Output, Stdio};
 
+use tokio::process::Command;
+
 use crate::{Error, install, status};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Agent {
     Claude,
     Codex,
@@ -46,22 +48,6 @@ impl Agent {
         })
     }
 
-    pub async fn sign_in(self) -> Result<(), Error> {
-        let Some(args) = self.login() else {
-            return if self.installed().await {
-                Ok(())
-            } else {
-                Err(Error::Missing(self))
-            };
-        };
-        let output = self.run(args).await?;
-        if !output.status.success() {
-            return Err(self.failure(&output));
-        }
-
-        Ok(())
-    }
-
     pub async fn install(self) -> Result<(), Error> {
         let output = install::installer(self)
             .stdin(Stdio::null())
@@ -85,11 +71,10 @@ impl Agent {
         self == Self::Copilot
     }
 
-    async fn installed(self) -> bool {
+    pub(crate) async fn installed(self) -> bool {
         self.locate().await.is_some()
     }
 
-    /// Searching the disk blocks, so it runs off the async runtime.
     async fn locate(self) -> Option<PathBuf> {
         tokio::task::spawn_blocking(move || {
             process::find(self.binary())
@@ -116,20 +101,27 @@ impl Agent {
         }
     }
 
-    fn login(self) -> Option<&'static [&'static str]> {
+    pub(crate) fn login(self, remote: bool) -> Option<&'static [&'static str]> {
         match self {
             Self::Claude => Some(&["auth", "login"]),
+            Self::Codex if remote => Some(&["login", "--device-auth"]),
             Self::Codex => Some(&["login"]),
             Self::Copilot => None,
         }
     }
 
-    async fn run(self, args: &[&str]) -> Result<Output, Error> {
+    pub(crate) async fn command(self) -> Result<Command, Error> {
         let program = self.locate().await.ok_or(Error::Missing(self))?;
+        let mut command = process::command(program);
+        command.env("NO_COLOR", "1");
 
-        process::command(program)
+        Ok(command)
+    }
+
+    async fn run(self, args: &[&str]) -> Result<Output, Error> {
+        self.command()
+            .await?
             .args(args)
-            .env("NO_COLOR", "1")
             .stdin(Stdio::null())
             .output()
             .await

@@ -4,56 +4,63 @@ import { Connection } from "@/components/connection";
 import { toast } from "@/components/ui/toast";
 import { agentsQuery } from "@/features/agents/api/agents";
 import { AgentIcon } from "@/features/agents/components/agent-icon";
+import { accountName } from "@/features/agents/lib/account-name";
 import type { Agent, AgentState } from "@/generated/protocol";
 import { call } from "@/lib/host";
-
-const accounts: Record<Agent, string> = {
-  claude: "Claude",
-  codex: "ChatGPT",
-  copilot: "GitHub Copilot",
-};
 
 interface Props {
   agent: Agent;
   state: AgentState;
+  signingIn: boolean;
+  onSignIn: () => void;
+  onCancel?: () => void;
 }
 
-export function AgentSignIn({ agent, state }: Props) {
-  const name = accounts[agent];
+export function AgentSignIn({
+  agent,
+  state,
+  signingIn,
+  onSignIn,
+  onCancel,
+}: Props) {
+  const name = accountName[agent];
   const queries = useQueryClient();
-  const refresh = () => queries.invalidateQueries(agentsQuery);
-  const fail = (title: string) => (error: Error) => {
-    toast.add({ type: "error", title, description: error.message });
-  };
-
   const install = useMutation({
     mutationFn: () => call("agents.install", agent),
-    onSuccess: refresh,
-    onError: fail(`Could not install ${name}`),
+    onSuccess: () => queries.invalidateQueries(agentsQuery),
+    onError: (error) => {
+      toast.add({
+        type: "error",
+        title: `Could not install ${name}`,
+        description: error.message,
+      });
+    },
   });
-  const signIn = useMutation({
-    mutationFn: () => call("agents.signIn", agent),
-    onSuccess: refresh,
-    onError: fail(`Could not connect ${name}`),
-  });
-  const action = state === "missing" ? install : signIn;
+
+  const missing = state === "missing";
+  const busy = missing ? install.isPending : signingIn;
 
   return (
     <Connection
       name={name}
       icon={<AgentIcon agent={agent} />}
-      action={state === "missing" ? "Install" : "Connect"}
-      pending={state === "missing" ? "Installing…" : "Connect"}
+      action={missing ? "Install" : "Connect"}
+      pending={missing ? "Installing…" : "Connecting…"}
       status={
         state === "signedIn"
           ? "connected"
-          : action.isPending
+          : busy
             ? "connecting"
             : "disconnected"
       }
       onConnect={() => {
-        action.mutate();
+        if (missing) {
+          install.mutate();
+        } else {
+          onSignIn();
+        }
       }}
+      onCancel={onCancel}
     />
   );
 }

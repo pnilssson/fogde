@@ -2,7 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useSyncExternalStore } from "react";
 
 import type { Theme } from "@/generated/protocol";
-import { call } from "@/lib/host";
+import { callOwn } from "@/lib/host";
 
 const dark = window.matchMedia("(prefers-color-scheme: dark)");
 const listeners = new Set<() => void>();
@@ -29,13 +29,12 @@ export async function followTheme() {
   apply();
   dark.addEventListener("change", apply);
 
-  await show(await call("theme.get"));
+  await show(await callOwn("theme.get"));
 }
 
 export async function chooseTheme(theme: Theme) {
-  // Save even when the window cannot follow, so the choice survives a restart.
   const shown = show(theme);
-  await call("theme.set", theme);
+  await callOwn("theme.set", theme);
   await shown;
 }
 

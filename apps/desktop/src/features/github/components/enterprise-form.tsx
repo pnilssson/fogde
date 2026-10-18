@@ -39,7 +39,8 @@ export function EnterpriseForm({ starting, onSubmit }: Props) {
         />
         <InputGroupAddon align="inline-end">
           <InputGroupButton type="submit" aria-busy={starting}>
-            {starting ? <Spinner aria-hidden /> : "Connect"}
+            {starting && <Spinner aria-hidden data-icon="inline-start" />}
+            {starting ? "Connecting…" : "Connect"}
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>

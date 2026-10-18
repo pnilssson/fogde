@@ -12,4 +12,7 @@ pub enum Error {
 
     #[error("{0} failed: {1}")]
     Failed(Agent, String),
+
+    #[error("{0} did not accept the code: {1}")]
+    Code(Agent, String),
 }

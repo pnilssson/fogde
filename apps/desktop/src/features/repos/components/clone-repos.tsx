@@ -8,6 +8,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { remoteReposQuery } from "@/features/repos/api/repos";
 import { RepoList, type Progress } from "@/features/repos/components/repo-list";
@@ -17,11 +18,12 @@ import { call } from "@/lib/host";
 
 interface Props {
   hosts: string[];
+  finishing: boolean;
   onBack: () => void;
   onContinue: () => void;
 }
 
-export function CloneRepos({ hosts, onBack, onContinue }: Props) {
+export function CloneRepos({ hosts, finishing, onBack, onContinue }: Props) {
   const results = useQueries({
     queries: hosts.map((host) => ({
       ...remoteReposQuery(host),
@@ -32,7 +34,6 @@ export function CloneRepos({ hosts, onBack, onContinue }: Props) {
   const [cloning, setCloning] = useState<Record<string, Progress>>({});
   const reported = useRef(new Set<string>());
 
-  // Toast once when a host starts failing, not again on every refetch.
   useEffect(() => {
     for (const [index, host] of hosts.entries()) {
       const error = results[index]?.error;
@@ -109,8 +110,15 @@ export function CloneRepos({ hosts, onBack, onContinue }: Props) {
         <Button variant="ghost" size="sm" onClick={onBack}>
           Back
         </Button>
-        <Button variant="secondary" size="sm" onClick={onContinue}>
-          Continue
+        <Button
+          variant="secondary"
+          size="sm"
+          aria-busy={finishing}
+          disabled={finishing}
+          onClick={onContinue}
+        >
+          {finishing && <Spinner aria-hidden data-icon="inline-start" />}
+          {finishing ? "Finishing…" : "Continue"}
         </Button>
       </div>
     </section>

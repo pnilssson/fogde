@@ -3,8 +3,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { accountsQuery } from "@/features/github/api/accounts";
 import { remoteReposQuery, reposFolderQuery } from "@/features/repos/api/repos";
 import { ChooseFolder } from "@/features/repos/components/choose-folder";
+import { stepPendingMs } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/onboarding/repos")({
+  pendingMs: stepPendingMs,
   loader: ({ context: { queries } }) => {
     void queries
       .query({ ...accountsQuery, staleTime: "static" })
@@ -28,7 +30,7 @@ export const Route = createFileRoute("/onboarding/repos")({
     return (
       <ChooseFolder
         onBack={() => void navigate({ to: "/onboarding/agents" })}
-        onContinue={() => void navigate({ to: "/onboarding/clone" })}
+        onContinue={() => navigate({ to: "/onboarding/clone" })}
       />
     );
   },

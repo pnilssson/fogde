@@ -22,7 +22,7 @@ import { call, local } from "@/lib/host";
 
 interface Props {
   onBack: () => void;
-  onContinue: () => void;
+  onContinue: () => Promise<void>;
 }
 
 export function ChooseFolder({ onBack, onContinue }: Props) {
@@ -33,7 +33,7 @@ export function ChooseFolder({ onBack, onContinue }: Props) {
     mutationFn: (folder: string) => call("repos.setFolder", folder),
     onSuccess: async () => {
       await queries.query({ ...reposFolderQuery, staleTime: 0 });
-      onContinue();
+      await onContinue();
     },
   });
   const form = useForm({
@@ -139,7 +139,7 @@ export function ChooseFolder({ onBack, onContinue }: Props) {
                   disabled={busy}
                 >
                   {busy && <Spinner aria-hidden data-icon="inline-start" />}
-                  Continue
+                  {busy ? "Saving…" : "Continue"}
                 </Button>
               );
             }}

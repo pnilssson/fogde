@@ -12,7 +12,16 @@ import {
   SpinnerIcon,
 } from "@phosphor-icons/react";
 
-const toast = ToastPrimitive.createToastManager();
+const manager = ToastPrimitive.createToastManager();
+
+/** Errors stay until closed, so they can't vanish before they're read. */
+const toast: typeof manager = {
+  ...manager,
+  add: (options) =>
+    manager.add(
+      options.type === "error" ? { timeout: 0, ...options } : options,
+    ),
+};
 
 function ToastProvider({ ...props }: ToastPrimitive.Provider.Props) {
   return <ToastPrimitive.Provider {...props} />;

@@ -12,7 +12,7 @@ export function Home() {
           variant="secondary"
           size="sm"
           nativeButton={false}
-          render={<Link to="/onboarding/github" />}
+          render={<Link to="/onboarding/where" />}
         >
           Open onboarding
         </Button>

@@ -14,6 +14,14 @@ struct Values {
     repos: Option<PathBuf>,
     #[serde(default)]
     theme: Theme,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    server: Option<Server>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct Server {
+    pub target: String,
+    pub triple: String,
 }
 
 pub struct Settings {
@@ -51,6 +59,14 @@ impl Settings {
 
     pub async fn set_theme(&self, theme: Theme) -> io::Result<()> {
         self.update(|values| values.theme = theme).await
+    }
+
+    pub async fn server(&self) -> io::Result<Option<Server>> {
+        Ok(self.load().await?.server)
+    }
+
+    pub async fn set_server(&self, server: Option<Server>) -> io::Result<()> {
+        self.update(|values| values.server = server).await
     }
 
     async fn load(&self) -> io::Result<Values> {
@@ -93,11 +109,17 @@ mod tests {
         settings.set_repos(app.join("repos")).await.unwrap();
         settings.finish_onboarding().await.unwrap();
         settings.set_theme(Theme::Dark).await.unwrap();
+        let server = Server {
+            target: "my-vps".to_owned(),
+            triple: "x86_64-unknown-linux-musl".to_owned(),
+        };
+        settings.set_server(Some(server.clone())).await.unwrap();
 
         let reopened = Settings::new(&app);
         assert!(reopened.onboarded().await.unwrap());
         assert_eq!(reopened.repos().await.unwrap(), Some(app.join("repos")));
         assert_eq!(reopened.theme().await.unwrap(), Theme::Dark);
+        assert_eq!(reopened.server().await.unwrap(), Some(server));
         fs::remove_dir_all(&app).await.unwrap();
     }
 }

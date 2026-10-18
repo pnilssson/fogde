@@ -14,7 +14,6 @@ if (!root) {
 
 showFrame();
 followWindowFocus();
-// Wait for the saved theme, so the first paint does not flash the system one.
 await followTheme().catch(() => undefined);
 
 createRoot(root).render(

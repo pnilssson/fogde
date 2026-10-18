@@ -25,6 +25,21 @@ pub struct AgentStatus {
     pub state: AgentState,
 }
 
+#[derive(Clone, Debug, Serialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum AgentPrompt {
+    Done,
+    Browser,
+    Code { code: String, url: String },
+    Paste { url: String },
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct FinishAgentSignInParams {
+    pub agent: Agent,
+    pub code: Option<String>,
+}
+
 pub struct ListAgents;
 
 impl Method for ListAgents {
@@ -33,10 +48,26 @@ impl Method for ListAgents {
     type Result = Vec<AgentStatus>;
 }
 
-pub struct SignInAgent;
+pub struct StartAgentSignIn;
 
-impl Method for SignInAgent {
-    const NAME: &'static str = "agents.signIn";
+impl Method for StartAgentSignIn {
+    const NAME: &'static str = "agents.startSignIn";
+    type Params = Agent;
+    type Result = AgentPrompt;
+}
+
+pub struct FinishAgentSignIn;
+
+impl Method for FinishAgentSignIn {
+    const NAME: &'static str = "agents.finishSignIn";
+    type Params = FinishAgentSignInParams;
+    type Result = ();
+}
+
+pub struct CancelAgentSignIn;
+
+impl Method for CancelAgentSignIn {
+    const NAME: &'static str = "agents.cancelSignIn";
     type Params = Agent;
     type Result = ();
 }

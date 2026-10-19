@@ -1,0 +1,13 @@
+.dockview-theme-fogde {
+  --dv-group-view-background-color: transparent;
+  --dv-separator-border: transparent;
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: var(--border);
+  --dv-drag-over-background-color: color-mix(
+    in oklab,
+    var(--foreground) 8%,
+    transparent
+  );
+  --dv-drag-over-border-color: var(--border);
+  --dv-border-radius: var(--radius-xl);
+}

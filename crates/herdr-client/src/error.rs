@@ -23,6 +23,15 @@ pub enum Error {
     #[error("could not start Herdr")]
     Start(#[source] io::Error),
 
+    #[error("Herdr did not start in time")]
+    Timeout,
+
+    #[error("Herdr is not available for this platform")]
+    Unsupported,
+
+    #[error("could not set up Herdr: {0}")]
+    Install(#[from] download::Error),
+
     #[error("Herdr stopped the terminal stream: {0}")]
     Stream(String),
 

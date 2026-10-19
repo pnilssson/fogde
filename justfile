@@ -6,10 +6,10 @@ default:
 dev: server
     npm run --prefix apps/desktop tauri dev
 
-# The host for 64-bit Linux servers, which the app installs over SSH.
+# The host for 64-bit Linux servers, which the app installs over SSH. Zig cross-compiles its C parts.
 server:
-    cargo build -p host --bin fogde-host --release --target x86_64-unknown-linux-musl
-    cargo build -p host --bin fogde-host --release --target aarch64-unknown-linux-musl
+    cargo zigbuild -p host --bin fogde-host --release --target x86_64-unknown-linux-musl
+    cargo zigbuild -p host --bin fogde-host --release --target aarch64-unknown-linux-musl
 
 build: server
     npm run --prefix apps/desktop tauri build -- --config src-tauri/tauri.release.conf.json
@@ -26,7 +26,20 @@ lint:
     npm run --prefix apps/desktop typecheck
 
 test:
-    cargo test --workspace
+    cargo nextest run --workspace
+    npm run --prefix apps/desktop test
+
+# The scratch database that the SQL queries are checked against.
+db := "sqlite:target/sqlx.db"
+
+# Refreshes the checked queries in .sqlx after a query or migration changes.
+sqlx:
+    cargo sqlx database reset -y --source crates/host/migrations --database-url {{db}}
+    cargo sqlx prepare --workspace --database-url {{db}}
+
+sqlx-check:
+    cargo sqlx database reset -y --source crates/host/migrations --database-url {{db}}
+    cargo sqlx prepare --workspace --check --database-url {{db}}
 
 deny:
     cargo deny check
@@ -53,7 +66,7 @@ lines:
 
     const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" })
       .split("\n")
-      .filter((file) => sources.test(file) && existsSync(file));
+      .filter((file) => sources.test(file) && existsSync(file) && !file.startsWith("apps/desktop/src/components/ui/"));
 
     const long = files
       .map((file) => ({ file, count: readFileSync(file, "utf8").trimEnd().split("\n").length }))
@@ -67,4 +80,4 @@ lines:
       process.exit(1);
     }
 
-check: lint lines test deny shear typos zizmor knip
+check: lint lines test sqlx-check deny shear typos zizmor knip

@@ -1,30 +1,95 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { useEffect } from "react";
 
-import { agentsQuery } from "@/features/agents/api/agents";
-import { accountsQuery } from "@/features/github/api/accounts";
+import { SidebarInset } from "@/components/ui/sidebar";
 import { onboardedQuery } from "@/features/onboarding/api/onboarding";
-import { serverQuery } from "@/features/server/api/server";
+import { SettingsDialog } from "@/features/settings/components/settings-dialog";
+import { StatusBar } from "@/features/terminals/components/status-bar";
+import { WorkspaceSidebar } from "@/features/terminals/components/workspace-sidebar";
+import { useGroups } from "@/features/terminals/hooks/use-terminals";
+import { keepMachines, useTiles } from "@/features/terminals/lib/layouts";
+import {
+  findTerminal,
+  resolveWorkspace,
+  WorkspaceContext,
+} from "@/features/terminals/lib/selection";
+import {
+  openStart,
+  selectWorkspace,
+  show,
+} from "@/features/terminals/lib/tiles";
+import { useMachines } from "@/hooks/use-machines";
+import { useRetryOnReturn } from "@/hooks/use-retry-on-return";
+import { entryId, machinesQuery } from "@/lib/machines";
 
 export const Route = createFileRoute("/_onboarded")({
   beforeLoad: async ({ context }) => {
-    if (await context.queries.query(onboardedQuery)) {
+    const [onboarded, machines] = await Promise.all([
+      context.queries.query(onboardedQuery),
+      context.queries.query(machinesQuery),
+    ]);
+    if (onboarded && machines.length > 0) {
       return;
     }
 
-    if ((await context.queries.query(serverQuery)) !== null) {
-      throw redirect({ to: "/onboarding/where" });
+    const [only] = machines;
+    if (!onboarded && only && machines.length === 1) {
+      throw redirect({
+        to: "/onboarding/github",
+        search: { machine: entryId(only) },
+      });
     }
 
-    const accounts = await context.queries.query(accountsQuery);
-    if (accounts.length === 0) {
-      throw redirect({ to: "/onboarding/where" });
-    }
+    throw redirect({ to: "/onboarding/where" });
+  },
+  component: function WorkspaceRoute() {
+    const machines = useMachines();
+    const groups = useGroups(machines);
+    const active = useTiles((tiles) => tiles.active);
+    const stored = useTiles((tiles) => tiles.workspace);
+    const workspace = resolveWorkspace(groups, stored);
+    const terminal = active && findTerminal(groups, active)?.terminal;
 
-    const agents = await context.queries.query(agentsQuery);
-    throw redirect({
-      to: agents.some((status) => status.state === "signedIn")
-        ? "/onboarding/repos"
-        : "/onboarding/agents",
-    });
+    useRetryOnReturn(machines);
+
+    useEffect(() => {
+      if (machines.length > 0) {
+        keepMachines(machines.map(({ id }) => id));
+      }
+    }, [machines]);
+
+    useEffect(() => {
+      if (workspace) {
+        selectWorkspace(workspace);
+      }
+    }, [workspace]);
+
+    return (
+      <WorkspaceContext value={{ groups, workspace }}>
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="relative flex min-h-0 flex-1">
+            <WorkspaceSidebar
+              groups={groups}
+              selected={workspace}
+              active={active}
+              onSelect={(next, selection) => {
+                selectWorkspace(next);
+                if (selection) {
+                  show(selection);
+                }
+              }}
+              onStart={(next, folder) => {
+                selectWorkspace(next);
+                openStart(folder);
+              }}
+            />
+            <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-transparent">
+              <Outlet />
+            </SidebarInset>
+          </div>
+          <StatusBar start={<SettingsDialog />} folder={terminal?.folder} />
+        </div>
+      </WorkspaceContext>
+    );
   },
 });

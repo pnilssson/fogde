@@ -23,7 +23,6 @@ export function ThemeSwitcher() {
       size="sm"
       spacing={0}
       aria-label="Theme"
-      className="fixed bottom-4 left-4"
       value={[theme]}
       onValueChange={(values) => {
         const next = themes.find(({ value }) => value === values[0]);

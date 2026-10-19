@@ -10,10 +10,10 @@ Early development.
 
 ## Development
 
-Requires [rustup](https://rustup.rs), [just](https://just.systems), [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), [Node.js](https://nodejs.org) LTS and the [Tauri system prerequisites](https://tauri.app/start/prerequisites/). The pinned Rust toolchain installs itself on first use. Install the check tools and frontend dependencies once:
+Requires [rustup](https://rustup.rs), [just](https://just.systems), [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), [Zig](https://ziglang.org/download/), [Node.js](https://nodejs.org) LTS and the [Tauri system prerequisites](https://tauri.app/start/prerequisites/). The pinned Rust toolchain installs itself on first use. Install the check tools and frontend dependencies once:
 
 ```sh
-cargo binstall cargo-deny cargo-shear typos-cli zizmor
+cargo binstall cargo-deny cargo-shear cargo-nextest typos-cli zizmor cargo-zigbuild sqlx-cli
 npm ci --prefix apps/desktop
 ```
 

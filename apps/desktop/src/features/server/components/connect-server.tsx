@@ -2,6 +2,7 @@ import { InfoIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -13,12 +14,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { serverQuery, sshHostsQuery } from "@/features/server/api/server";
+import { sshHostsQuery } from "@/features/server/api/server";
 import { KeyHelp } from "@/features/server/components/key-help";
 import { TrustServer } from "@/features/server/components/trust-server";
-import { switchHost } from "@/features/server/lib/switch-host";
 import type { ServerCheck } from "@/generated/protocol";
 import { callOwn } from "@/lib/host";
+import { machinesQuery } from "@/lib/machines";
 
 type Phase = "connecting" | "settingUp";
 
@@ -31,11 +32,10 @@ type Problem = Exclude<ServerCheck, { state: "ready" }> & { target: string };
 
 interface Props {
   onBack: () => void;
-  onContinue: () => Promise<void>;
+  onContinue: (machine: string) => Promise<void>;
 }
 
 export function ConnectServer({ onBack, onContinue }: Props) {
-  const { data: saved } = useSuspenseQuery(serverQuery);
   const { data: hosts } = useSuspenseQuery(sshHostsQuery);
   const queries = useQueryClient();
   const [phase, setPhase] = useState<Phase>();
@@ -54,10 +54,9 @@ export function ConnectServer({ onBack, onContinue }: Props) {
 
       setProblem(undefined);
       setPhase("settingUp");
-      await callOwn("server.setUp", target);
-      switchHost(queries);
-      queries.setQueryData(serverQuery.queryKey, target);
-      await onContinue();
+      const machine = await callOwn("server.setUp", target);
+      await queries.invalidateQueries(machinesQuery);
+      await onContinue(machine);
     } catch (error) {
       setPhase(undefined);
       toast.add({
@@ -69,7 +68,7 @@ export function ConnectServer({ onBack, onContinue }: Props) {
   };
 
   const form = useForm({
-    defaultValues: { target: saved ?? "" },
+    defaultValues: { target: "" },
     onSubmit: ({ value }) => {
       setProblem(undefined);
       return connect(value.target.trim(), null);
@@ -93,8 +92,7 @@ export function ConnectServer({ onBack, onContinue }: Props) {
         <form.Field
           name="target"
           validators={{
-            onSubmit: ({ value }) =>
-              value.trim() ? undefined : "Enter a server",
+            onSubmit: z.string().trim().min(1, "Enter a server"),
           }}
         >
           {(field) => (
@@ -151,7 +149,7 @@ export function ConnectServer({ onBack, onContinue }: Props) {
                   ))}
                 </div>
               )}
-              <FieldError>{field.state.meta.errors.join(" ")}</FieldError>
+              <FieldError errors={field.state.meta.errors} />
             </Field>
           )}
         </form.Field>

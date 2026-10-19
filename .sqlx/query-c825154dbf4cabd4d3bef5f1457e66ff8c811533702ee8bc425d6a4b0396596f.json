@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT workspace, terminal FROM members ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "workspace",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "workspace"
+          }
+        }
+      },
+      {
+        "name": "terminal",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "terminal"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "c825154dbf4cabd4d3bef5f1457e66ff8c811533702ee8bc425d6a4b0396596f"
+}

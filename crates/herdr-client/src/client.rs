@@ -1,52 +1,48 @@
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use interprocess::local_socket::Name;
-use interprocess::local_socket::tokio::{RecvHalf, SendHalf, Stream, prelude::*};
+use interprocess::local_socket::tokio::{Stream, prelude::*};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use crate::Error;
 
+const ID: &str = "fogde";
+
+#[derive(Clone, Debug)]
 pub struct Client {
-    reader: BufReader<RecvHalf>,
-    writer: SendHalf,
-    next: u64,
+    socket: PathBuf,
 }
 
 impl Client {
-    pub async fn connect(socket: &Path) -> Result<Self, Error> {
-        let stream = Stream::connect(name(socket).map_err(Error::Connect)?)
-            .await
-            .map_err(Error::Connect)?;
-        let (reader, writer) = stream.split();
-
-        Ok(Self {
-            reader: BufReader::new(reader),
-            writer,
-            next: 0,
-        })
+    pub fn new(socket: &Path) -> Self {
+        Self {
+            socket: socket.to_owned(),
+        }
     }
 
     pub(crate) async fn request<R: DeserializeOwned>(
-        &mut self,
+        &self,
         method: &str,
         params: impl Serialize,
     ) -> Result<R, Error> {
-        self.next += 1;
-        let id = self.next.to_string();
+        let stream = Stream::connect(name(&self.socket).map_err(Error::Connect)?)
+            .await
+            .map_err(Error::Connect)?;
+        let (reader, mut writer) = stream.split();
 
         let mut line = serde_json::to_vec(&Request {
-            id: &id,
+            id: ID,
             method,
             params,
         })?;
         line.push(b'\n');
-        self.writer.write_all(&line).await?;
+        writer.write_all(&line).await?;
 
         let mut reply = String::new();
-        if self.reader.read_line(&mut reply).await? == 0 {
+        if BufReader::new(reader).read_line(&mut reply).await? == 0 {
             return Err(Error::Closed);
         }
 
@@ -56,8 +52,8 @@ impl Client {
                 code: failure.code,
                 message: failure.message,
             }),
-            Outcome::Result(_) if response.id != id => Err(Error::Mismatch {
-                expected: id,
+            Outcome::Result(_) if response.id != ID => Err(Error::Mismatch {
+                expected: ID.to_owned(),
                 actual: response.id,
             }),
             Outcome::Result(result) => Ok(result),
@@ -78,6 +74,9 @@ fn name(socket: &Path) -> io::Result<Name<'_>> {
 
     socket.as_os_str().to_ns_name::<GenericNamespaced>()
 }
+
+#[derive(Serialize)]
+pub(crate) struct Empty {}
 
 #[derive(Serialize)]
 struct Request<'a, P> {
@@ -143,15 +142,12 @@ mod tests {
     }
 
     async fn ping(socket: &Path) -> Result<Value, Error> {
-        Client::connect(socket)
-            .await?
-            .request("ping", json!({}))
-            .await
+        Client::new(socket).request("ping", json!({})).await
     }
 
     #[tokio::test]
     async fn returns_result() {
-        let socket = serve("result", Some(r#"{"id":"1","result":{"type":"pong"}}"#));
+        let socket = serve("result", Some(r#"{"id":"fogde","result":{"type":"pong"}}"#));
 
         assert_eq!(ping(&socket).await.unwrap(), json!({"type": "pong"}));
     }
@@ -160,7 +156,7 @@ mod tests {
     async fn returns_herdr_error() {
         let socket = serve(
             "error",
-            Some(r#"{"id":"1","error":{"code":"not_found","message":"pane not found"}}"#),
+            Some(r#"{"id":"fogde","error":{"code":"not_found","message":"pane not found"}}"#),
         );
 
         assert!(matches!(

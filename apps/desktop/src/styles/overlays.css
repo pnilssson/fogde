@@ -1,0 +1,19 @@
+@layer base {
+  [data-slot="sidebar"][data-mobile="true"] {
+    --sidebar: var(--popover);
+  }
+
+  [data-slot="alert-dialog-content"],
+  [data-slot="combobox-content"],
+  [data-slot="context-menu-content"],
+  [data-slot="dialog-content"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="hover-card-content"],
+  [data-slot="popover-content"],
+  [data-slot="select-content"],
+  [data-slot="sheet-content"],
+  [data-slot="sidebar"][data-mobile="true"],
+  [data-slot="toast"] {
+    backdrop-filter: blur(40px) saturate(150%);
+  }
+}

@@ -1,6 +1,7 @@
 use std::env;
 use std::ffi::OsStr;
 use std::path::PathBuf;
+use std::process::Stdio;
 
 use tokio::process::Command;
 
@@ -12,6 +13,26 @@ pub fn command(program: impl AsRef<OsStr>) -> Command {
     {
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    command
+}
+
+pub fn detached(program: impl AsRef<OsStr>) -> Command {
+    let mut command = Command::new(program);
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+
+    #[cfg(unix)]
+    command.process_group(0);
+
+    #[cfg(windows)]
+    {
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
     }
 
     command

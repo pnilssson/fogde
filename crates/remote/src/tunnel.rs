@@ -72,6 +72,7 @@ impl Binaries {
 
 pub struct Tunnel {
     pub socket: WebSocketStream<Join<ChildStdout, ChildStdin>>,
+    pub host: String,
     ssh: Child,
 }
 
@@ -88,6 +89,10 @@ enum Attempt {
 }
 
 const BIN: &str = "$HOME/Fogde/.app/bin";
+
+pub const HOST_HEADER: &str = "fogde-host";
+
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 impl Server {
     pub async fn open(&self, system: &System, binaries: &Binaries) -> Result<Tunnel, Error> {
@@ -135,13 +140,34 @@ impl Server {
             )));
         };
 
-        let url = format!("ws://fogde/?build={build}");
+        let url = format!("ws://fogde/?build={build}&version={VERSION}");
         match tokio_tungstenite::client_async(url, tokio::io::join(stdout, stdin)).await {
-            Ok((socket, _)) => Ok(Tunnel { socket, ssh }),
+            Ok((socket, response)) => {
+                let host = response
+                    .headers()
+                    .get(HOST_HEADER)
+                    .and_then(|value| value.to_str().ok())
+                    .ok_or_else(|| {
+                        Attempt::Failed(Error::Tunnel(
+                            "the server did not identify itself".to_owned(),
+                        ))
+                    })?;
+
+                Ok(Tunnel {
+                    socket,
+                    host: host.to_owned(),
+                    ssh,
+                })
+            }
             Err(tungstenite::Error::Http(response))
                 if response.status() == StatusCode::CONFLICT =>
             {
                 Err(Attempt::Restarting)
+            }
+            Err(tungstenite::Error::Http(response))
+                if response.status() == StatusCode::UPGRADE_REQUIRED =>
+            {
+                Err(Attempt::Failed(Error::Outdated(self.target().to_owned())))
             }
             Err(error) => Err(self.ended(ssh, &error).await),
         }
@@ -174,7 +200,7 @@ impl Server {
 
     async fn install(&self, binary: &[u8], build: &str) -> Result<(), Error> {
         let script = format!(
-            "d=\"{BIN}\"; f=\"$d/fogde-host-{build}\"; mkdir -p \"$d\" && cat > \"$f.partial\" && chmod 700 \"$f.partial\" && mv \"$f.partial\" \"$f\" && for old in \"$d\"/fogde-host-*; do [ \"$old\" = \"$f\" ] || rm -f \"$old\"; done"
+            "d=\"{BIN}\"; f=\"$d/fogde-host-{build}\"; mkdir -p \"$d\" && cat > \"$f.partial\" && chmod 700 \"$f.partial\" && mv \"$f.partial\" \"$f\""
         );
         let mut ssh = self
             .command(&[], &script)

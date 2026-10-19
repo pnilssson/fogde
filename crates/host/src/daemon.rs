@@ -10,7 +10,7 @@ use std::time::Duration;
 use axum::Router;
 use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use serde::Deserialize;
@@ -20,18 +20,19 @@ use tokio::process::Command;
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::Notify;
 
-use crate::server;
 use crate::shared::{self, Shared};
 
 struct Daemon {
     shared: Arc<Shared>,
     build: String,
+    id: HeaderValue,
     stop: Notify,
 }
 
 #[derive(Deserialize)]
 struct Client {
     build: String,
+    version: String,
 }
 
 pub async fn serve(build: String) -> io::Result<()> {
@@ -43,6 +44,8 @@ pub async fn serve(build: String) -> io::Result<()> {
     fs::set_permissions(app, Permissions::from_mode(0o700)).await?;
     let lock = claim(&app.join("host.lock")).await?;
     let _ = fs::remove_file(&path).await;
+    prune(&app.join("bin"), &build).await;
+    let id = HeaderValue::from_str(&identity(&app.join("id")).await?).map_err(io::Error::other)?;
 
     let listener = UnixListener::bind(&path)?;
     fs::set_permissions(&path, Permissions::from_mode(0o600)).await?;
@@ -51,6 +54,7 @@ pub async fn serve(build: String) -> io::Result<()> {
     let daemon = Arc::new(Daemon {
         shared: Arc::new(Shared::new(None)?),
         build,
+        id,
         stop: Notify::new(),
     });
     let mut terminate = signal(SignalKind::terminate())?;
@@ -96,13 +100,61 @@ async fn upgrade(
     State(daemon): State<Arc<Daemon>>,
 ) -> Response {
     if client.build != daemon.build {
+        if older(&client.version) {
+            tracing::info!(version = %client.version, "refusing an older app");
+            return StatusCode::UPGRADE_REQUIRED.into_response();
+        }
+
         tracing::info!(wanted = %client.build, "stopping for another build");
         daemon.stop.notify_one();
         return StatusCode::CONFLICT.into_response();
     }
 
     let shared = Arc::clone(&daemon.shared);
-    upgrade.on_upgrade(move |socket| server::serve(socket, shared, false))
+    let mut response = upgrade.on_upgrade(move |ws| crate::socket::serve(ws, shared, false));
+    response
+        .headers_mut()
+        .insert(remote::HOST_HEADER, daemon.id.clone());
+
+    response
+}
+
+fn older(version: &str) -> bool {
+    match (
+        semver::Version::parse(version),
+        semver::Version::parse(remote::VERSION),
+    ) {
+        (Ok(client), Ok(host)) => client < host,
+        _ => false,
+    }
+}
+
+async fn identity(path: &Path) -> io::Result<String> {
+    match fs::read_to_string(path).await {
+        Ok(id) if !id.trim().is_empty() => return Ok(id.trim().to_owned()),
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
+    }
+
+    let id = crate::token::generate()?[..16].to_owned();
+    fs::write(path, &id).await?;
+
+    Ok(id)
+}
+
+async fn prune(bin: &Path, build: &str) {
+    let Ok(mut entries) = fs::read_dir(bin).await else {
+        return;
+    };
+    let current = format!("fogde-host-{build}");
+
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with("fogde-host-") && !name.ends_with(".partial") && name != current {
+            let _ = fs::remove_file(entry.path()).await;
+        }
+    }
 }
 
 async fn claim(path: &Path) -> io::Result<File> {

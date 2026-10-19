@@ -14,19 +14,26 @@ import { remoteReposQuery } from "@/features/repos/api/repos";
 import { RepoList, type Progress } from "@/features/repos/components/repo-list";
 import { repoKey } from "@/features/repos/lib/repo-key";
 import type { RemoteRepo } from "@/generated/protocol";
-import { call } from "@/lib/host";
+import type { Machine } from "@/lib/machines";
 
 interface Props {
+  machine: Machine;
   hosts: string[];
   finishing: boolean;
   onBack: () => void;
   onContinue: () => void;
 }
 
-export function CloneRepos({ hosts, finishing, onBack, onContinue }: Props) {
+export function CloneRepos({
+  machine,
+  hosts,
+  finishing,
+  onBack,
+  onContinue,
+}: Props) {
   const results = useQueries({
     queries: hosts.map((host) => ({
-      ...remoteReposQuery(host),
+      ...remoteReposQuery(machine, host),
       refetchOnWindowFocus: true,
     })),
   });
@@ -59,7 +66,7 @@ export function CloneRepos({ hosts, finishing, onBack, onContinue }: Props) {
     setCloning((current) => ({ ...current, [key]: "cloning" }));
 
     try {
-      await call("repos.clone", { host, owner, name });
+      await machine.client.call("repos.clone", { host, owner, name });
       setCloning((current) => ({ ...current, [key]: "cloned" }));
     } catch (error) {
       setCloning((current) =>

@@ -1,3 +1,4 @@
+import { FolderDialog } from "@/components/folder-dialog";
 import { useForm } from "@tanstack/react-form";
 import {
   useMutation,
@@ -6,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { open as pick } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -16,23 +18,24 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { reposFolderQuery } from "@/features/repos/api/repos";
-import { FolderDialog } from "@/features/repos/components/folder-dialog";
-import { call, local } from "@/lib/host";
+import { reposFolderQuery } from "@/lib/folders";
+import type { Machine } from "@/lib/machines";
 
 interface Props {
+  machine: Machine;
   onBack: () => void;
   onContinue: () => Promise<void>;
 }
 
-export function ChooseFolder({ onBack, onContinue }: Props) {
-  const { data: saved } = useSuspenseQuery(reposFolderQuery);
+export function ChooseFolder({ machine, onBack, onContinue }: Props) {
+  const { data: saved } = useSuspenseQuery(reposFolderQuery(machine));
   const [browsing, setBrowsing] = useState(false);
   const queries = useQueryClient();
   const save = useMutation({
-    mutationFn: (folder: string) => call("repos.setFolder", folder),
+    mutationFn: (folder: string) =>
+      machine.client.call("repos.setFolder", folder),
     onSuccess: async () => {
-      await queries.query({ ...reposFolderQuery, staleTime: 0 });
+      await queries.query({ ...reposFolderQuery(machine), staleTime: 0 });
       await onContinue();
     },
   });
@@ -41,12 +44,14 @@ export function ChooseFolder({ onBack, onContinue }: Props) {
     validators: {
       onSubmitAsync: async ({ value }) => {
         try {
-          await call("repos.checkFolder", value.folder);
+          await machine.client.call("repos.checkFolder", value.folder);
           return null;
         } catch (error) {
           return {
             fields: {
-              folder: error instanceof Error ? error.message : String(error),
+              folder: {
+                message: error instanceof Error ? error.message : String(error),
+              },
             },
           };
         }
@@ -58,7 +63,7 @@ export function ChooseFolder({ onBack, onContinue }: Props) {
   });
 
   const browse = async () => {
-    if (!(await local())) {
+    if (!machine.local) {
       setBrowsing(true);
       return;
     }
@@ -90,8 +95,7 @@ export function ChooseFolder({ onBack, onContinue }: Props) {
         <form.Field
           name="folder"
           validators={{
-            onSubmit: ({ value }) =>
-              value.trim() ? undefined : "Enter a folder",
+            onSubmit: z.string().trim().min(1, "Enter a folder"),
           }}
         >
           {(field) => (
@@ -117,7 +121,7 @@ export function ChooseFolder({ onBack, onContinue }: Props) {
                   </InputGroupButton>
                 </InputGroupAddon>
               </InputGroup>
-              <FieldError>{field.state.meta.errors.join(" ")}</FieldError>
+              <FieldError errors={field.state.meta.errors} />
             </Field>
           )}
         </form.Field>
@@ -147,6 +151,7 @@ export function ChooseFolder({ onBack, onContinue }: Props) {
         </div>
       </form>
       <FolderDialog
+        machine={machine}
         open={browsing}
         start={form.getFieldValue("folder")}
         onOpenChange={setBrowsing}

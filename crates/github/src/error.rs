@@ -10,10 +10,7 @@ pub enum Error {
     Unsupported,
 
     #[error("could not set up the GitHub CLI: {0}")]
-    Install(String),
-
-    #[error("the downloaded GitHub CLI did not match its checksum")]
-    Checksum,
+    Install(#[from] download::Error),
 
     #[error("could not run the GitHub CLI")]
     Io(#[from] io::Error),

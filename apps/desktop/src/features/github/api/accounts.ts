@@ -1,8 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { call } from "@/lib/host";
+import type { Machine } from "@/lib/machines";
 
-export const accountsQuery = queryOptions({
-  queryKey: ["github.accounts"],
-  queryFn: () => call("github.accounts"),
-});
+export const accountsQuery = (machine: Machine) =>
+  queryOptions({
+    queryKey: [machine.id, "github.accounts"],
+    queryFn: () => machine.client.call("github.accounts"),
+  });

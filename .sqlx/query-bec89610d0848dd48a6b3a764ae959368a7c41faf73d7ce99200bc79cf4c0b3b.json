@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM members WHERE terminal = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "bec89610d0848dd48a6b3a764ae959368a7c41faf73d7ce99200bc79cf4c0b3b"
+}

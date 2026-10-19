@@ -1,20 +1,26 @@
+use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
 
 use github::Gh;
+use herdr_client::Herdr;
 use remote::{Binaries, Tunnel};
 use tokio::fs;
 use tokio::sync::{Mutex, OnceCell};
 
+use crate::db::Db;
 use crate::settings::Settings;
 
 pub struct Shared {
     pub settings: Settings,
+    pub db: Db,
     pub binaries: Option<Binaries>,
-    pub tunnel: Mutex<Option<Tunnel>>,
+    pub tunnels: Mutex<HashMap<String, Tunnel>>,
+    pub placing: Mutex<()>,
     fogde: PathBuf,
     tools: PathBuf,
     gh: OnceCell<Gh>,
+    herdr: OnceCell<Herdr>,
 }
 
 impl Shared {
@@ -24,16 +30,27 @@ impl Shared {
 
         Ok(Self {
             settings: Settings::new(&app),
+            db: Db::new(app.join("fogde.db")),
             binaries,
-            tunnel: Mutex::new(None),
+            tunnels: Mutex::default(),
+            placing: Mutex::default(),
             tools: app.join("tools"),
             fogde,
             gh: OnceCell::new(),
+            herdr: OnceCell::new(),
         })
     }
 
     pub async fn gh(&self) -> Result<&Gh, github::Error> {
         self.gh.get_or_try_init(|| Gh::locate(&self.tools)).await
+    }
+
+    pub async fn herdr(&self) -> Result<&Herdr, herdr_client::Error> {
+        let home = self.fogde.join(".app").join("herdr");
+
+        self.herdr
+            .get_or_try_init(|| async move { Herdr::start(&self.tools, &home).await })
+            .await
     }
 
     pub async fn repos(&self) -> io::Result<PathBuf> {
@@ -42,6 +59,10 @@ impl Shared {
             .repos()
             .await?
             .unwrap_or_else(|| self.fogde.join("repos")))
+    }
+
+    pub fn worktrees(&self) -> PathBuf {
+        self.fogde.join("worktrees")
     }
 
     pub async fn set_repos(&self, path: PathBuf) -> io::Result<()> {

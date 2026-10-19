@@ -1,40 +1,31 @@
-import { useQuery } from "@tanstack/react-query";
 import {
   Outlet,
   createFileRoute,
   useRouterState,
+  useSearch,
 } from "@tanstack/react-router";
 import { useLayoutEffect } from "react";
 
 import { Centered } from "@/components/centered";
 import { OnboardingProgress } from "@/components/onboarding-progress";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import { toast } from "@/components/ui/toast";
-import { agentsQuery } from "@/features/agents/api/agents";
-import { accountsQuery } from "@/features/github/api/accounts";
-import { reposFolderQuery } from "@/features/repos/api/repos";
-import { serverQuery } from "@/features/server/api/server";
+import { computer, machinesQuery } from "@/lib/machines";
 import { stepOf, steps } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/onboarding")({
-  loader: ({ context: { queries }, location }) => {
-    void queries.query({ ...serverQuery, staleTime: "static" });
-    const step = stepOf(location.pathname);
-    if (step === "where" || step === "server") {
-      return;
-    }
-    void Promise.allSettled([
-      queries.query({ ...accountsQuery, staleTime: "static" }),
-      queries.query({ ...agentsQuery, staleTime: "static" }),
-      queries.query({ ...reposFolderQuery, staleTime: "static" }),
-    ]);
+  loader: ({ context: { queries } }) => {
+    void queries.query(machinesQuery).catch(() => undefined);
   },
   component: function OnboardingRoute() {
     const pathname = useRouterState({
       select: (state) => (state.resolvedLocation ?? state.location).pathname,
     });
-    const { data: server } = useQuery(serverQuery);
+    const { machine } = useSearch({ strict: false });
     const step = stepOf(pathname);
-    const shown = steps(step === "server" || (server ?? null) !== null);
+    const shown = steps(
+      step === "server" || (machine !== undefined && machine !== computer.id),
+    );
 
     useLayoutEffect(() => {
       toast.close();
@@ -53,6 +44,11 @@ export const Route = createFileRoute("/onboarding")({
             <Outlet />
           </div>
         </div>
+        {import.meta.env.DEV && (
+          <div className="fixed bottom-4 left-4">
+            <ThemeSwitcher />
+          </div>
+        )}
       </Centered>
     );
   },

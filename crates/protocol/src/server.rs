@@ -3,14 +3,6 @@ use ts_rs::TS;
 
 use crate::Method;
 
-pub struct GetServer;
-
-impl Method for GetServer {
-    const NAME: &'static str = "server.get";
-    type Params = ();
-    type Result = Option<String>;
-}
-
 pub struct ListSshHosts;
 
 impl Method for ListSshHosts {
@@ -52,13 +44,21 @@ pub struct SetUpServer;
 impl Method for SetUpServer {
     const NAME: &'static str = "server.setUp";
     type Params = String;
+    type Result = String;
+}
+
+pub struct ConnectServer;
+
+impl Method for ConnectServer {
+    const NAME: &'static str = "server.connect";
+    type Params = String;
     type Result = ();
 }
 
-pub struct ClearServer;
+pub struct RemoveServer;
 
-impl Method for ClearServer {
-    const NAME: &'static str = "server.clear";
-    type Params = ();
+impl Method for RemoveServer {
+    const NAME: &'static str = "server.remove";
+    type Params = String;
     type Result = ();
 }

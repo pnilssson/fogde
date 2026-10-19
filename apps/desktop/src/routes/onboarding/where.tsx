@@ -1,19 +1,27 @@
+import { onboardedQuery } from "@/features/onboarding/api/onboarding";
+import { ChooseWhere } from "@/features/server/components/choose-where";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
-import { serverQuery } from "@/features/server/api/server";
-import { ChooseWhere } from "@/features/server/components/choose-where";
+import { computer } from "@/lib/machines";
 import { stepPendingMs } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/onboarding/where")({
   pendingMs: stepPendingMs,
-  loader: ({ context: { queries } }) =>
-    queries.query({ ...serverQuery, staleTime: "static" }),
+  loader: ({ context: { queries } }) => queries.query(onboardedQuery),
   component: function WhereRoute() {
+    const onboarded = Route.useLoaderData();
     const navigate = useNavigate();
 
     return (
       <ChooseWhere
-        onComputer={() => navigate({ to: "/onboarding/github" })}
+        onboarded={onboarded}
+        onCancel={() => void navigate({ to: "/" })}
+        onComputer={() =>
+          navigate({
+            to: "/onboarding/github",
+            search: { machine: computer.id },
+          })
+        }
         onServer={() => navigate({ to: "/onboarding/server" })}
       />
     );

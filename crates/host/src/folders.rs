@@ -1,11 +1,28 @@
+use std::ffi::OsStr;
 use std::fs::Metadata;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use protocol::folders::{Folder, Folders};
+use protocol::folders::{Folder, Folders, ListFolders};
+use protocol::rpc::Failure;
 use tokio::fs;
 
-pub async fn list(path: &Path) -> io::Result<Folders> {
+use crate::rpc::{Handler, Router, failure};
+use crate::session::Session;
+
+pub fn register(router: &mut Router) {
+    router.add::<ListFolders>();
+}
+
+impl Handler for ListFolders {
+    async fn handle(_: &Session, path: String) -> Result<Folders, Failure> {
+        list(&absolute(&path).map_err(failure)?)
+            .await
+            .map_err(failure)
+    }
+}
+
+async fn list(path: &Path) -> io::Result<Folders> {
     let path = existing(path).await?;
     let mut entries = fs::read_dir(&path).await?;
     let mut folders = Vec::new();
@@ -42,6 +59,35 @@ pub async fn usable(path: &Path) -> io::Result<()> {
     }
 
     existing(path).await.map(|_| ())
+}
+
+pub async fn directory(path: &Path) -> io::Result<()> {
+    if fs::metadata(path).await.is_ok_and(|m| m.is_dir()) {
+        return Ok(());
+    }
+
+    Err(io::Error::new(
+        io::ErrorKind::NotFound,
+        format!("{} is not a folder", path.display()),
+    ))
+}
+
+pub fn home() -> io::Result<PathBuf> {
+    std::env::home_dir().ok_or_else(|| io::Error::other("could not find the home folder"))
+}
+
+pub fn same(a: &Path, b: &Path) -> bool {
+    inside(a, b) && inside(b, a)
+}
+
+pub fn inside(path: &Path, root: &Path) -> bool {
+    let mut parts = path.components();
+
+    root.components().all(|part| {
+        parts
+            .next()
+            .is_some_and(|next| same_part(next.as_os_str(), part.as_os_str()))
+    })
 }
 
 pub fn absolute(path: &str) -> io::Result<PathBuf> {
@@ -83,14 +129,25 @@ fn hidden(name: &str, _metadata: &Metadata) -> bool {
     name.starts_with('.')
 }
 
+#[cfg(windows)]
+fn same_part(a: &OsStr, b: &OsStr) -> bool {
+    a.to_string_lossy()
+        .eq_ignore_ascii_case(&b.to_string_lossy())
+}
+
+#[cfg(not(windows))]
+fn same_part(a: &OsStr, b: &OsStr) -> bool {
+    a == b
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
     async fn lists_visible_folders_from_the_nearest_existing_one() {
-        let root = std::env::temp_dir().join(format!("fogde-folders-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root).await;
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
         for folder in ["beta", "Alpha", ".git"] {
             fs::create_dir_all(root.join(folder)).await.unwrap();
         }
@@ -111,20 +168,36 @@ mod tests {
             listing.folders[0].path,
             root.join("Alpha").display().to_string()
         );
-        fs::remove_dir_all(&root).await.unwrap();
     }
 
     #[tokio::test]
     async fn accepts_folders_to_create_but_not_files() {
-        let root = std::env::temp_dir().join(format!("fogde-usable-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root).await;
-        fs::create_dir_all(&root).await.unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
         fs::write(root.join("notes.txt"), "").await.unwrap();
 
-        assert!(usable(&root).await.is_ok());
+        assert!(usable(root).await.is_ok());
         assert!(usable(&root.join("repos")).await.is_ok());
         assert!(usable(&root.join("notes.txt")).await.is_err());
-        fs::remove_dir_all(&root).await.unwrap();
+    }
+
+    #[test]
+    fn compares_folders_by_their_parts() {
+        let repo = std::env::temp_dir().join("fogde");
+
+        assert!(inside(&repo.join("src"), &repo));
+        assert!(inside(&repo, &repo));
+        assert!(!inside(&repo, &repo.join("src")));
+        assert!(!inside(&std::env::temp_dir().join("fogde-old"), &repo));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn ignores_case_and_separators_on_windows() {
+        assert!(inside(
+            Path::new(r"c:\users\dev\Fogde\crates\"),
+            Path::new("C:/Users/dev/fogde")
+        ));
     }
 
     #[test]

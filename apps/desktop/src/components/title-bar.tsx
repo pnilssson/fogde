@@ -7,15 +7,24 @@ import { frame } from "@/lib/frame";
 
 const current = getCurrentWindow();
 
-export function TitleBar() {
-  if (frame.platform === "linux") {
+export function TitleBar({ children }: { children?: ReactNode }) {
+  if (frame.platform === "linux" && !children) {
     return null;
   }
 
   return (
-    <header data-tauri-drag-region className="flex h-10 shrink-0 justify-end">
+    <header
+      className={cn(
+        "flex h-10 shrink-0 items-center",
+        frame.platform === "macos" && "pl-20",
+      )}
+    >
+      {children && (
+        <div className="flex items-center gap-2 px-2">{children}</div>
+      )}
+      <div data-tauri-drag-region className="h-full flex-1" />
       {frame.platform === "windows" && (
-        <>
+        <div className="flex h-full shrink-0">
           <Control label="Minimize" onClick={() => void current.minimize()}>
             <MinusIcon />
           </Control>
@@ -32,7 +41,7 @@ export function TitleBar() {
           >
             <XIcon />
           </Control>
-        </>
+        </div>
       )}
     </header>
   );

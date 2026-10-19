@@ -2,17 +2,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { accountsQuery } from "@/features/github/api/accounts";
-import { call } from "@/lib/host";
+import type { Machine } from "@/lib/machines";
 
-export function useSignIn() {
+export function useSignIn(machine: Machine) {
   const queries = useQueryClient();
 
   const finish = useMutation({
-    mutationFn: () => call("github.finishSignIn"),
-    onSuccess: () => queries.invalidateQueries(accountsQuery),
+    mutationFn: () => machine.client.call("github.finishSignIn"),
+    onSuccess: () => queries.invalidateQueries(accountsQuery(machine)),
   });
   const start = useMutation({
-    mutationFn: (host: string) => call("github.startSignIn", host),
+    mutationFn: (host: string) =>
+      machine.client.call("github.startSignIn", host),
     onSuccess: (prompt) => {
       void openUrl(prompt.url);
       finish.mutate();

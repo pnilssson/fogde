@@ -1,123 +1,62 @@
-mod agents;
-mod github;
-mod repos;
-mod server;
-mod settings;
-
-use std::convert::Infallible;
-use std::fmt::Display;
 use std::sync::Arc;
 
-use ::github::{Gh, SignIn};
-use protocol::Method;
-use protocol::agents::{
-    CancelAgentSignIn, FinishAgentSignIn, InstallAgent, ListAgents, StartAgentSignIn,
-};
-use protocol::client::IsLocal;
-use protocol::folders::ListFolders;
-use protocol::github::{FinishSignIn, GetAccounts, StartSignIn};
-use protocol::onboarding::{FinishOnboarding, GetOnboarded};
-use protocol::repos::{CheckReposFolder, CloneRepo, GetReposFolder, ListRepos, SetReposFolder};
-use protocol::rpc::{Failure, INVALID_PARAMS, METHOD_NOT_FOUND, Request, Response, SERVER_ERROR};
-use protocol::server::{CheckServer, ClearServer, GetServer, ListSshHosts, SetUpServer};
-use protocol::theme::{GetTheme, SetTheme};
-use serde_json::Value;
-use tokio::sync::{Mutex, watch};
+use github::Gh;
+use herdr_client::Herdr;
+use protocol::rpc::{Failure, Message, Request, Response};
+use tokio::sync::{mpsc, watch};
 
+use crate::rpc::{ROUTER, failure};
 use crate::shared::Shared;
 
 pub struct Session {
-    shared: Arc<Shared>,
-    local: bool,
-    signin: Mutex<Option<SignIn>>,
-    agent_sign_ins: Mutex<agents::SignIns>,
-    checked: Mutex<Option<(String, remote::System)>>,
+    pub shared: Arc<Shared>,
+    pub local: bool,
+    pub outgoing: mpsc::UnboundedSender<Message>,
+    pub github: crate::github::State,
+    pub agents: crate::agents::State,
+    pub server: crate::server::State,
+    pub terminals: crate::terminals::State,
     closed: watch::Sender<bool>,
 }
 
 impl Session {
-    pub fn new(shared: Arc<Shared>, local: bool) -> Self {
+    pub fn new(shared: Arc<Shared>, local: bool, outgoing: mpsc::UnboundedSender<Message>) -> Self {
         Self {
             shared,
             local,
-            signin: Mutex::new(None),
-            agent_sign_ins: Mutex::default(),
-            checked: Mutex::new(None),
+            outgoing,
+            github: crate::github::State::default(),
+            agents: crate::agents::State::default(),
+            server: crate::server::State::default(),
+            terminals: crate::terminals::State::default(),
             closed: watch::Sender::new(false),
         }
     }
 
-    pub fn close(&self) {
-        self.closed.send_replace(true);
-    }
-
-    async fn closed(&self) {
-        let _ = self.closed.subscribe().wait_for(|closed| *closed).await;
-    }
-
-    async fn gh(&self) -> Result<&Gh, Failure> {
-        self.shared.gh().await.map_err(|error| failure(&error))
-    }
-
     pub async fn handle(&self, request: Request) -> Response {
-        let outcome = self.dispatch(&request.method, request.params).await;
+        let outcome = ROUTER.dispatch(self, &request.method, request.params).await;
 
         Response::new(Some(request.id), outcome)
     }
 
-    async fn dispatch(&self, method: &str, params: Value) -> Result<Value, Failure> {
-        match method {
-            IsLocal::NAME => {
-                parse::<IsLocal>(params)?;
-                reply::<IsLocal, Infallible>(Ok(self.local))
-            }
-            GetAccounts::NAME => self.accounts(params).await,
-            StartSignIn::NAME => self.start_sign_in(params).await,
-            FinishSignIn::NAME => self.finish_sign_in(params).await,
-            ListAgents::NAME => self.agents(params).await,
-            StartAgentSignIn::NAME => self.start_agent_sign_in(params).await,
-            FinishAgentSignIn::NAME => self.finish_agent_sign_in(params).await,
-            CancelAgentSignIn::NAME => self.cancel_agent_sign_in(params).await,
-            InstallAgent::NAME => self.install_agent(params).await,
-            GetOnboarded::NAME => self.onboarded(params).await,
-            FinishOnboarding::NAME => self.finish_onboarding(params).await,
-            GetReposFolder::NAME => self.repos_folder(params).await,
-            CheckReposFolder::NAME => self.check_repos_folder(params).await,
-            SetReposFolder::NAME => self.set_repos_folder(params).await,
-            ListFolders::NAME => self.folders(params).await,
-            ListRepos::NAME => self.repos(params).await,
-            CloneRepo::NAME => self.clone_repo(params).await,
-            GetTheme::NAME => self.theme(params).await,
-            SetTheme::NAME => self.set_theme(params).await,
-            GetServer::NAME => self.server(params).await,
-            ListSshHosts::NAME => self.ssh_hosts(params).await,
-            CheckServer::NAME => self.check_server(params).await,
-            SetUpServer::NAME => self.set_up_server(params).await,
-            ClearServer::NAME => self.clear_server(params).await,
-            _ => Err(Failure::new(
-                METHOD_NOT_FOUND,
-                format!("unknown method {method}"),
-            )),
-        }
+    pub fn close(&self) {
+        self.closed.send_replace(true);
+        self.terminals.clear();
     }
-}
 
-fn parse<M: Method>(params: Value) -> Result<M::Params, Failure> {
-    serde_json::from_value(params).map_err(|error| Failure::new(INVALID_PARAMS, error.to_string()))
-}
+    pub fn is_closed(&self) -> bool {
+        *self.closed.borrow()
+    }
 
-fn reply<M: Method, E: Display>(result: Result<M::Result, E>) -> Result<Value, Failure> {
-    let result = result.map_err(|error| failure(&error))?;
+    pub async fn closed(&self) {
+        let _ = self.closed.subscribe().wait_for(|closed| *closed).await;
+    }
 
-    serde_json::to_value(result).map_err(|error| Failure::new(SERVER_ERROR, error.to_string()))
-}
+    pub async fn gh(&self) -> Result<&Gh, Failure> {
+        self.shared.gh().await.map_err(failure)
+    }
 
-fn failure(error: &impl Display) -> Failure {
-    tracing::warn!(%error, "request failed");
-
-    Failure::new(SERVER_ERROR, error.to_string())
-}
-
-fn cancelled() -> Failure {
-    Failure::new(SERVER_ERROR, "the sign-in was cancelled")
+    pub async fn herdr(&self) -> Result<&Herdr, Failure> {
+        self.shared.herdr().await.map_err(failure)
+    }
 }

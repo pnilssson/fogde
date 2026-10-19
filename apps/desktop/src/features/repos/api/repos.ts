@@ -1,22 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { call } from "@/lib/host";
+import type { Machine } from "@/lib/machines";
 
-export const reposFolderQuery = queryOptions({
-  queryKey: ["repos.folder"],
-  queryFn: () => call("repos.folder"),
-});
-
-export function foldersQuery(path: string) {
-  return queryOptions({
-    queryKey: ["folders.list", path],
-    queryFn: () => call("folders.list", path),
+export const remoteReposQuery = (machine: Machine, host: string) =>
+  queryOptions({
+    queryKey: [machine.id, "repos.list", host],
+    queryFn: () => machine.client.call("repos.list", host),
   });
-}
-
-export function remoteReposQuery(host: string) {
-  return queryOptions({
-    queryKey: ["repos.list", host],
-    queryFn: () => call("repos.list", host),
-  });
-}

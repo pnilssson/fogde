@@ -5,26 +5,28 @@ import { useState } from "react";
 
 import { Connection } from "@/components/connection";
 import { ContinueButton } from "@/components/continue-button";
+import { DeviceCode } from "@/components/device-code";
 import { Button } from "@/components/ui/button";
 import { accountsQuery } from "@/features/github/api/accounts";
-import { DeviceCode } from "@/components/device-code";
 import { EnterpriseForm } from "@/features/github/components/enterprise-form";
 import { useSignIn } from "@/features/github/hooks/use-sign-in";
+import type { Machine } from "@/lib/machines";
 import { expand, swap } from "@/lib/motion";
 
 const github = "github.com";
 
 interface Props {
+  machine: Machine;
   onBack: () => void;
   onContinue: () => Promise<void>;
 }
 
-export function ConnectGitHub({ onBack, onContinue }: Props) {
+export function ConnectGitHub({ machine, onBack, onContinue }: Props) {
   const { data: accounts } = useSuspenseQuery({
-    ...accountsQuery,
+    ...accountsQuery(machine),
     refetchOnWindowFocus: true,
   });
-  const { prompt, starting, error, begin } = useSignIn();
+  const { prompt, starting, error, begin } = useSignIn(machine);
   const [enterprise, setEnterprise] = useState(false);
 
   const hasGitHub = accounts.some((account) => account.host === github);

@@ -1,7 +1,8 @@
 import { CaretRightIcon } from "@phosphor-icons/react";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
   Item,
   ItemActions,
@@ -12,19 +13,24 @@ import {
 } from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-import { serverQuery } from "@/features/server/api/server";
-import { switchHost } from "@/features/server/lib/switch-host";
 import { callOwn } from "@/lib/host";
+import { machinesQuery } from "@/lib/machines";
 
 type Place = "computer" | "server";
 
 interface Props {
+  onboarded: boolean;
+  onCancel: () => void;
   onComputer: () => Promise<void>;
   onServer: () => Promise<void>;
 }
 
-export function ChooseWhere({ onComputer, onServer }: Props) {
-  const { data: server } = useSuspenseQuery(serverQuery);
+export function ChooseWhere({
+  onboarded,
+  onCancel,
+  onComputer,
+  onServer,
+}: Props) {
   const queries = useQueryClient();
   const [going, setGoing] = useState<Place>();
 
@@ -35,16 +41,13 @@ export function ChooseWhere({ onComputer, onServer }: Props) {
         await onServer();
         return;
       }
-      if (server !== null) {
-        await callOwn("server.clear");
-        switchHost(queries);
-        queries.setQueryData(serverQuery.queryKey, null);
-      }
+      await callOwn("machines.addComputer");
+      await queries.invalidateQueries(machinesQuery);
       await onComputer();
     } catch (error) {
       toast.add({
         type: "error",
-        title: "Could not switch to this computer",
+        title: "Could not add this computer",
         description: error instanceof Error ? error.message : String(error),
       });
     } finally {
@@ -68,9 +71,13 @@ export function ChooseWhere({ onComputer, onServer }: Props) {
 
   return (
     <section className="flex max-w-sm flex-col items-start gap-4">
-      <h1 className="type-display">Where should your agents run?</h1>
+      <h1 className="type-display">
+        {onboarded ? "Add a machine" : "Where should your agents run?"}
+      </h1>
       <p className="type-body">
-        Set up your first workspace. You can add more anytime in Settings.
+        {onboarded
+          ? "Each machine keeps its own repos, sign-ins and agents."
+          : "Start with one machine. You can add more anytime in Settings."}
       </p>
       <ItemGroup className="gap-2">
         {places.map(({ place, title, description }) => (
@@ -96,6 +103,11 @@ export function ChooseWhere({ onComputer, onServer }: Props) {
           </Item>
         ))}
       </ItemGroup>
+      {onboarded && (
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Back
+        </Button>
+      )}
     </section>
   );
 }

@@ -23,6 +23,9 @@ pub enum Error {
     #[error("the server build for {0} is missing from this build of the app")]
     Binary(String),
 
+    #[error("{0} runs a newer version, so update the app to connect")]
+    Outdated(String),
+
     #[error("SSH failed: {0}")]
     Ssh(String),
 
@@ -31,4 +34,13 @@ pub enum Error {
 
     #[error("could not run SSH")]
     Io(#[from] io::Error),
+}
+
+impl Error {
+    pub fn transient(&self) -> bool {
+        matches!(
+            self,
+            Self::Unreachable(_) | Self::Ssh(_) | Self::Tunnel(_) | Self::Io(_)
+        )
+    }
 }

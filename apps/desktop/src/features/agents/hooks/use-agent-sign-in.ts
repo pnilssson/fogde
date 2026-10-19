@@ -3,10 +3,10 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useRef, useState } from "react";
 
 import { toast } from "@/components/ui/toast";
-import { agentsQuery } from "@/features/agents/api/agents";
 import { accountName } from "@/features/agents/lib/account-name";
 import type { Agent, AgentPrompt } from "@/generated/protocol";
-import { call } from "@/lib/host";
+import { agentsQuery } from "@/lib/agents";
+import type { Machine } from "@/lib/machines";
 
 interface Active {
   agent: Agent;
@@ -14,7 +14,7 @@ interface Active {
   submitting: boolean;
 }
 
-export function useAgentSignIn() {
+export function useAgentSignIn(machine: Machine) {
   const queries = useQueryClient();
   const [active, setActive] = useState<Active>();
   const attempt = useRef(0);
@@ -28,7 +28,7 @@ export function useAgentSignIn() {
   };
   const done = async (id: number) => {
     if (current(id)) {
-      await queries.invalidateQueries(agentsQuery);
+      await queries.invalidateQueries(agentsQuery(machine));
     }
 
     end(id);
@@ -46,7 +46,7 @@ export function useAgentSignIn() {
   };
   const finish = (id: number, agent: Agent, code: string | null) => {
     setActive((shown) => shown && { ...shown, submitting: true });
-    call("agents.finishSignIn", { agent, code }).then(
+    machine.client.call("agents.finishSignIn", { agent, code }).then(
       () => done(id),
       (error: unknown) => {
         fail(id, agent, error);
@@ -61,7 +61,7 @@ export function useAgentSignIn() {
 
     let prompt: AgentPrompt;
     try {
-      prompt = await call("agents.startSignIn", agent);
+      prompt = await machine.client.call("agents.startSignIn", agent);
     } catch (error) {
       fail(id, agent, error);
       return;
@@ -101,7 +101,8 @@ export function useAgentSignIn() {
       }
 
       end(attempt.current);
-      call("agents.cancelSignIn", active.agent)
+      machine.client
+        .call("agents.cancelSignIn", active.agent)
         .catch((error: unknown) => {
           toast.add({
             type: "error",
@@ -109,7 +110,7 @@ export function useAgentSignIn() {
             description: error instanceof Error ? error.message : String(error),
           });
         })
-        .finally(() => void queries.invalidateQueries(agentsQuery));
+        .finally(() => void queries.invalidateQueries(agentsQuery(machine)));
     },
   };
 }

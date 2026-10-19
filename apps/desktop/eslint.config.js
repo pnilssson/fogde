@@ -60,6 +60,21 @@ export default defineConfig([
     rules: { "react-refresh/only-export-components": "off" },
   },
   {
+    files: ["src/components/ui/sidebar.tsx"],
+    rules: { "@typescript-eslint/consistent-type-definitions": "off" },
+  },
+  {
+    files: ["src/components/ui/sidebar.tsx", "src/hooks/use-mobile.ts"],
+    rules: {
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  {
+    files: ["src/hooks/use-mobile.ts"],
+    rules: { "react-hooks/set-state-in-effect": "off" },
+  },
+  {
     files: ["src/components/**", "src/hooks/**", "src/lib/**"],
     rules: restrict(layers, {
       group: ["@/features/*"],

@@ -1,33 +1,65 @@
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt, StreamExt};
+use protocol::rpc::{Failure, OFFLINE, SERVER_ERROR};
 use remote::Tunnel;
 use tokio_tungstenite::tungstenite;
 
+use crate::rpc::failure;
 use crate::shared::Shared;
 
-pub async fn open(shared: &Shared) -> Result<Tunnel, String> {
-    if let Some(mut tunnel) = shared.tunnel.lock().await.take()
+pub async fn connect(shared: &Shared, id: &str) -> Result<(), Failure> {
+    if shared
+        .tunnels
+        .lock()
+        .await
+        .get_mut(id)
+        .is_some_and(Tunnel::alive)
+    {
+        return Ok(());
+    }
+
+    let tunnel = open(shared, id).await?;
+    shared.tunnels.lock().await.insert(id.to_owned(), tunnel);
+
+    Ok(())
+}
+
+pub async fn take(shared: &Shared, id: &str) -> Result<Tunnel, Failure> {
+    if let Some(mut tunnel) = shared.tunnels.lock().await.remove(id)
         && tunnel.alive()
     {
         return Ok(tunnel);
     }
 
+    open(shared, id).await
+}
+
+async fn open(shared: &Shared, id: &str) -> Result<Tunnel, Failure> {
     let server = shared
         .settings
-        .server()
+        .server(id)
         .await
-        .map_err(|error| error.to_string())?
-        .ok_or("no server is set up")?;
-    let binaries = shared.binaries.as_ref().ok_or("no host builds")?;
-    let target = remote::Server::new(&server.target).map_err(|error| error.to_string())?;
+        .map_err(failure)?
+        .ok_or_else(|| Failure::new(SERVER_ERROR, "that server is no longer set up"))?;
+    let binaries = shared
+        .binaries
+        .as_ref()
+        .ok_or_else(|| Failure::new(SERVER_ERROR, "only the desktop app can reach a server"))?;
+    let target = remote::Server::new(&server.target).map_err(failure)?;
     let system = remote::System {
         triple: server.triple,
     };
 
-    target
-        .open(&system, binaries)
-        .await
-        .map_err(|error| error.to_string())
+    target.open(&system, binaries).await.map_err(unreachable)
+}
+
+pub fn unreachable(error: remote::Error) -> Failure {
+    if !error.transient() {
+        return failure(error);
+    }
+
+    tracing::warn!(%error, "could not reach the server");
+    Failure::new(OFFLINE, error.to_string())
 }
 
 pub async fn relay(mut page: WebSocket, tunnel: Tunnel) {

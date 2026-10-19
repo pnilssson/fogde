@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT terminal FROM members WHERE workspace = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "terminal",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "terminal"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2777cc668bfa944c4d0cf659618f01e4751d53c9ca9e952ad00497ff7d54e769"
+}

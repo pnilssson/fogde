@@ -5,24 +5,26 @@ import * as m from "motion/react-m";
 import { ContinueButton } from "@/components/continue-button";
 import { DeviceCode } from "@/components/device-code";
 import { Button } from "@/components/ui/button";
-import { agentsQuery } from "@/features/agents/api/agents";
 import { AgentSignIn } from "@/features/agents/components/agent-sign-in";
 import { PasteCode } from "@/features/agents/components/paste-code";
 import { useAgentSignIn } from "@/features/agents/hooks/use-agent-sign-in";
 import { accountName } from "@/features/agents/lib/account-name";
+import { agentsQuery } from "@/lib/agents";
+import type { Machine } from "@/lib/machines";
 import { swap } from "@/lib/motion";
 
 interface Props {
+  machine: Machine;
   onBack: () => void;
   onContinue: () => Promise<void>;
 }
 
-export function ConnectAgents({ onBack, onContinue }: Props) {
+export function ConnectAgents({ machine, onBack, onContinue }: Props) {
   const { data: agents } = useSuspenseQuery({
-    ...agentsQuery,
+    ...agentsQuery(machine),
     refetchOnWindowFocus: true,
   });
-  const { active, submitting, begin, paste, cancel } = useAgentSignIn();
+  const { active, submitting, begin, paste, cancel } = useAgentSignIn(machine);
   const prompt = active?.prompt;
 
   return (
@@ -61,6 +63,7 @@ export function ConnectAgents({ onBack, onContinue }: Props) {
             {agents.map(({ agent, state }) => (
               <AgentSignIn
                 key={agent}
+                machine={machine}
                 agent={agent}
                 state={state}
                 signingIn={active?.agent === agent}

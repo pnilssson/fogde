@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO members (terminal, workspace) VALUES (?, ?)\n         ON CONFLICT (terminal) DO UPDATE SET workspace = excluded.workspace",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "b50d042cc2786d71a79ba8a614894e1a19129bfeca3ea344ccb515d11b7ebb95"
+}

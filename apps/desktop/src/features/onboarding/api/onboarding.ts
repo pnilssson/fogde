@@ -6,5 +6,4 @@ export const onboardedQuery = queryOptions({
   queryKey: ["onboarding.done"],
   queryFn: () => callOwn("onboarding.done"),
   staleTime: "static",
-  meta: { own: true },
 });

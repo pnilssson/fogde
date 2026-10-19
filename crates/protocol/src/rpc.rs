@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::Event;
+
 pub const PARSE_ERROR: i32 = -32700;
 pub const METHOD_NOT_FOUND: i32 = -32601;
 pub const INVALID_PARAMS: i32 = -32602;
 pub const SERVER_ERROR: i32 = -32000;
+pub const OFFLINE: i32 = -32001;
 
 #[derive(Debug, Deserialize)]
 pub struct Request {
@@ -27,6 +30,30 @@ pub struct Response {
 enum Outcome {
     Result(Value),
     Error(Failure),
+}
+
+#[derive(Debug, Serialize)]
+pub struct Notification {
+    jsonrpc: &'static str,
+    method: &'static str,
+    params: Value,
+}
+
+impl Notification {
+    pub fn new<E: Event>(params: E::Params) -> serde_json::Result<Self> {
+        Ok(Self {
+            jsonrpc: "2.0",
+            method: E::NAME,
+            params: serde_json::to_value(params)?,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum Message {
+    Response(Response),
+    Notification(Notification),
 }
 
 #[derive(Debug, Serialize)]
@@ -62,6 +89,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use crate::terminals::{EndedEvent, TerminalEnded};
 
     #[test]
     fn writes_result_and_error() {
@@ -75,6 +103,22 @@ mod tests {
         assert_eq!(
             serde_json::to_value(error).unwrap(),
             json!({"jsonrpc": "2.0", "id": null, "error": {"code": -32700, "message": "bad json"}})
+        );
+    }
+
+    #[test]
+    fn writes_notification() {
+        let notification = Message::Notification(
+            Notification::new::<EndedEvent>(TerminalEnded {
+                id: "w1".into(),
+                error: None,
+            })
+            .unwrap(),
+        );
+
+        assert_eq!(
+            serde_json::to_value(notification).unwrap(),
+            json!({"jsonrpc": "2.0", "method": "terminals.ended", "params": {"id": "w1", "error": null}})
         );
     }
 

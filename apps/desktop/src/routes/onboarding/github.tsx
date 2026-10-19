@@ -1,30 +1,43 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { accountsQuery } from "@/features/github/api/accounts";
 import { ConnectGitHub } from "@/features/github/components/connect-github";
-import { serverQuery } from "@/features/server/api/server";
+import {
+  StepSearch,
+  stepMachine,
+} from "@/features/onboarding/lib/step-machine";
+import { computer } from "@/lib/machines";
 import { stepPendingMs } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/onboarding/github")({
   pendingMs: stepPendingMs,
-  loader: ({ context: { queries } }) =>
-    Promise.all([
-      queries.query({ ...accountsQuery, staleTime: "static" }),
-      queries.query({ ...serverQuery, staleTime: "static" }),
-    ]),
+  validateSearch: StepSearch,
+  loaderDeps: ({ search }) => ({ machine: search.machine }),
+  loader: async ({ context: { queries }, deps }) => {
+    const machine = await stepMachine(queries, deps.machine);
+    await queries.query({ ...accountsQuery(machine), staleTime: "static" });
+
+    return machine;
+  },
   component: function GitHubRoute() {
+    const machine = Route.useLoaderData();
     const navigate = useNavigate();
-    const { data: server } = useSuspenseQuery(serverQuery);
 
     return (
       <ConnectGitHub
+        machine={machine}
         onBack={() =>
           void navigate({
-            to: server === null ? "/onboarding/where" : "/onboarding/server",
+            to:
+              machine === computer ? "/onboarding/where" : "/onboarding/server",
           })
         }
-        onContinue={() => navigate({ to: "/onboarding/agents" })}
+        onContinue={() =>
+          navigate({
+            to: "/onboarding/agents",
+            search: { machine: machine.id },
+          })
+        }
       />
     );
   },

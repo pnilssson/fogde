@@ -18,6 +18,10 @@ impl Gh {
         })
     }
 
+    pub fn program(&self) -> &Path {
+        &self.program
+    }
+
     pub(crate) fn command(&self) -> Command {
         process::command(&self.program)
     }

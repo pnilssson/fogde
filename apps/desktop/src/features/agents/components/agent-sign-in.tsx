@@ -1,14 +1,15 @@
+import { AgentIcon } from "@/components/agent-icon";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Connection } from "@/components/connection";
 import { toast } from "@/components/ui/toast";
-import { agentsQuery } from "@/features/agents/api/agents";
-import { AgentIcon } from "@/features/agents/components/agent-icon";
 import { accountName } from "@/features/agents/lib/account-name";
 import type { Agent, AgentState } from "@/generated/protocol";
-import { call } from "@/lib/host";
+import { agentsQuery } from "@/lib/agents";
+import type { Machine } from "@/lib/machines";
 
 interface Props {
+  machine: Machine;
   agent: Agent;
   state: AgentState;
   signingIn: boolean;
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function AgentSignIn({
+  machine,
   agent,
   state,
   signingIn,
@@ -26,8 +28,8 @@ export function AgentSignIn({
   const name = accountName[agent];
   const queries = useQueryClient();
   const install = useMutation({
-    mutationFn: () => call("agents.install", agent),
-    onSuccess: () => queries.invalidateQueries(agentsQuery),
+    mutationFn: () => machine.client.call("agents.install", agent),
+    onSuccess: () => queries.invalidateQueries(agentsQuery(machine)),
     onError: (error) => {
       toast.add({
         type: "error",

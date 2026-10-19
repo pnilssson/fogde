@@ -1,0 +1,19 @@
+[package]
+name = "git"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+process.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["fs", "io-util", "process"] }
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "time"] }
+
+[lints]
+workspace = true

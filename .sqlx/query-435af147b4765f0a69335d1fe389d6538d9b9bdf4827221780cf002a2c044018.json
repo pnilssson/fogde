@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT terminal FROM members",
+  "describe": {
+    "columns": [
+      {
+        "name": "terminal",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "terminal"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "435af147b4765f0a69335d1fe389d6538d9b9bdf4827221780cf002a2c044018"
+}

@@ -1,14 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { Centered } from "@/components/centered";
-import { Home } from "@/features/home/components/home";
+import { TerminalTiles } from "@/features/terminals/components/terminal-tiles";
 
 export const Route = createFileRoute("/_onboarded/")({
-  component: function HomeRoute() {
-    return (
-      <Centered>
-        <Home />
-      </Centered>
-    );
-  },
+  component: TerminalTiles,
 });

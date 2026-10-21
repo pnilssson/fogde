@@ -71,11 +71,14 @@ export function findWorkspace(
 
 export function findTerminal(groups: Groups, { machine, id }: Selection) {
   const group = findGroup(groups, machine);
-  const terminal = group?.workspaces.data
-    ?.flatMap(({ terminals }) => terminals)
-    .find((current) => current.id === id);
+  const owns = ({ terminals }: Workspace) =>
+    terminals.some((current) => current.id === id);
+  const workspace = group?.workspaces.data?.find(owns);
+  const terminal = workspace?.terminals.find((current) => current.id === id);
 
-  return group && terminal ? { machine: group.machine, terminal } : undefined;
+  return group && workspace && terminal
+    ? { machine: group.machine, workspace, terminal }
+    : undefined;
 }
 
 export function resolveWorkspace(

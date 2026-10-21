@@ -1,23 +1,10 @@
-import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
-
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
-import { workspacesQuery } from "@/features/workspaces/api/workspaces";
-import { checkoutOf } from "@/features/workspaces/lib/checkouts";
-import { forget } from "@/features/workspaces/lib/layouts";
-import { closeStart, selectWorkspace } from "@/features/workspaces/lib/tiles";
-import type { Checkout, Workspace } from "@/generated/protocol";
-import { inside } from "@/lib/folders";
+import { WorktreeForm } from "@/features/workspaces/components/new-worktree";
+import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
+import { checkoutOf, mainCheckout } from "@/features/workspaces/lib/checkouts";
+import { closeStart } from "@/features/workspaces/lib/tiles";
+import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -27,7 +14,7 @@ interface Props {
 }
 
 export function WorktreeActions({ machine, workspace, folder }: Props) {
-  const main = workspace.checkouts.find((checkout) => checkout.main);
+  const main = mainCheckout(workspace);
   const checkout = checkoutOf(workspace, folder);
   if (!main || !checkout) {
     return null;
@@ -35,10 +22,13 @@ export function WorktreeActions({ machine, workspace, folder }: Props) {
 
   if (checkout.main) {
     return (
-      <NewWorktree
+      <WorktreeForm
         machine={machine}
         workspace={workspace.id}
         repo={main.path}
+        label="New worktree"
+        className="w-full max-w-xs"
+        onCreated={closeStart}
       />
     );
   }
@@ -46,149 +36,33 @@ export function WorktreeActions({ machine, workspace, folder }: Props) {
   return (
     <RemoveWorktree
       machine={machine}
-      workspace={workspace.id}
-      repo={main.path}
-      checkout={checkout}
-      open={workspace.terminals.some(
-        (terminal) =>
-          terminal.checkout === checkout.path ||
-          inside(terminal.folder, checkout.path),
-      )}
+      workspace={workspace}
+      path={checkout.path}
     />
-  );
-}
-
-interface NewProps {
-  machine: Machine;
-  workspace: string;
-  repo: string;
-}
-
-function NewWorktree({ machine, workspace, repo }: NewProps) {
-  const queries = useQueryClient();
-  const create = useMutation({
-    mutationFn: (name: string) =>
-      machine.client.call("worktrees.create", { repo, name }),
-    onSuccess: async (path) => {
-      await queries.invalidateQueries(workspacesQuery(machine));
-      closeStart();
-      selectWorkspace({ machine: machine.id, id: workspace, checkout: path });
-    },
-    onError: (error) => {
-      toast.add({
-        type: "error",
-        title: "Could not create the worktree",
-        description: error.message,
-      });
-    },
-  });
-  const form = useForm({
-    defaultValues: { name: "" },
-    onSubmit: ({ value }) => create.mutateAsync(value.name.trim()),
-  });
-
-  return (
-    <form
-      className="w-full max-w-xs"
-      onSubmit={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        void form.handleSubmit().catch(() => undefined);
-      }}
-    >
-      <form.Field
-        name="name"
-        validators={{ onSubmit: z.string().trim().min(1, "Enter a name") }}
-      >
-        {(field) => (
-          <Field data-invalid={!field.state.meta.isValid}>
-            <FieldLabel htmlFor="worktree">New worktree</FieldLabel>
-            <InputGroup>
-              <InputGroupInput
-                id="worktree"
-                name={field.name}
-                value={field.state.value}
-                placeholder="fix-login"
-                spellCheck={false}
-                autoCapitalize="off"
-                aria-invalid={!field.state.meta.isValid}
-                onBlur={field.handleBlur}
-                onChange={(event) => {
-                  field.handleChange(event.target.value);
-                }}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  type="submit"
-                  disabled={create.isPending}
-                  aria-busy={create.isPending}
-                >
-                  {create.isPending && (
-                    <Spinner aria-hidden data-icon="inline-start" />
-                  )}
-                  {create.isPending ? "Creating…" : "Create"}
-                </InputGroupButton>
-              </InputGroupAddon>
-            </InputGroup>
-            <FieldError errors={field.state.meta.errors} />
-          </Field>
-        )}
-      </form.Field>
-    </form>
   );
 }
 
 interface RemoveProps {
   machine: Machine;
-  workspace: string;
-  repo: string;
-  checkout: Checkout;
-  open: boolean;
+  workspace: Workspace;
+  path: string;
 }
 
-function RemoveWorktree({
-  machine,
-  workspace,
-  repo,
-  checkout,
-  open,
-}: RemoveProps) {
-  const queries = useQueryClient();
-  const remove = useMutation({
-    mutationFn: () =>
-      machine.client.call("worktrees.remove", { repo, path: checkout.path }),
-    onSuccess: async () => {
-      const gone = { machine: machine.id, id: workspace };
-      selectWorkspace(gone);
-      forget({ ...gone, checkout: checkout.path });
-      await queries.invalidateQueries(workspacesQuery(machine));
-    },
-    onError: (error) => {
-      toast.add({
-        type: "error",
-        title: "Could not remove the worktree",
-        description: error.message,
-      });
-    },
-  });
+function RemoveWorktree({ machine, workspace, path }: RemoveProps) {
+  const remove = useRemoveWorktree(machine, workspace);
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={open || remove.isPending}
-        aria-busy={remove.isPending}
-        onClick={() => {
-          remove.mutate();
-        }}
-      >
-        {remove.isPending && <Spinner aria-hidden data-icon="inline-start" />}
-        {remove.isPending ? "Removing…" : "Remove worktree"}
-      </Button>
-      {open && (
-        <p className="type-caption">Close its terminals to remove it.</p>
-      )}
-    </div>
+    <Button
+      variant="secondary"
+      size="sm"
+      disabled={remove.isPending}
+      aria-busy={remove.isPending}
+      onClick={() => {
+        remove.mutate(path);
+      }}
+    >
+      {remove.isPending && <Spinner aria-hidden data-icon="inline-start" />}
+      {remove.isPending ? "Removing…" : "Remove worktree"}
+    </Button>
   );
 }

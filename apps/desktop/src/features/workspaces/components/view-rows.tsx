@@ -1,6 +1,7 @@
 import { StartItem } from "@/features/workspaces/components/start-item";
 import { TerminalItem } from "@/features/workspaces/components/terminal-item";
-import { useStart } from "@/features/workspaces/lib/layouts";
+import { useFocused } from "@/features/workspaces/hooks/use-focused";
+import { startId, useStart } from "@/features/workspaces/lib/layouts";
 import {
   inView,
   type Selection,
@@ -29,6 +30,7 @@ export function ViewRows({
   onStart,
 }: Props) {
   const start = useStart(view);
+  const focused = useFocused(workspace, view);
 
   return (
     <>
@@ -39,6 +41,7 @@ export function ViewRows({
           key={terminal.id}
           machine={machine}
           terminal={terminal}
+          active={focused === terminal.id}
           onSelect={(selection) => {
             onSelect(view, selection);
           }}
@@ -46,6 +49,7 @@ export function ViewRows({
       ))}
       {start !== undefined && (
         <StartItem
+          active={focused === startId}
           onSelect={() => {
             onStart(view, start);
           }}

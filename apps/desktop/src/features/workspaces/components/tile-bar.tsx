@@ -16,9 +16,14 @@ interface Props {
   active: boolean;
   icon: ReactNode;
   title: string;
-  detail?: string | undefined;
+  place?: Place | undefined;
   branch?: string | null | undefined;
   onClose?: (() => void) | undefined;
+}
+
+interface Place {
+  label: string;
+  path: string;
 }
 
 export function TileBar({
@@ -26,7 +31,7 @@ export function TileBar({
   active,
   icon,
   title,
-  detail,
+  place,
   branch,
   onClose,
 }: Props) {
@@ -42,8 +47,19 @@ export function TileBar({
       )}
     >
       {icon}
-      <span className="sr-only">{title}</span>
-      <span className="min-w-0 flex-1 truncate">{detail}</span>
+      <span className="min-w-0 flex-1 truncate">{title}</span>
+      {place && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <span className="max-w-1/3 min-w-0 shrink-0 truncate text-muted-foreground" />
+            }
+          >
+            {place.label}
+          </TooltipTrigger>
+          <TooltipContent>{place.path}</TooltipContent>
+        </Tooltip>
+      )}
       {branch && (
         <span className="flex max-w-1/3 min-w-0 shrink-0 items-center gap-2">
           <GitBranchIcon aria-label="Branch" className="size-4 shrink-0" />

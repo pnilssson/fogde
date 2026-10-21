@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT folder FROM workspaces",
+  "describe": {
+    "columns": [
+      {
+        "name": "folder",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspaces",
+            "name": "folder"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9509963bd6c9f9effef6c82cf0eee9691ae7525ebab5cdf97296e2f6c1be0e21"
+}

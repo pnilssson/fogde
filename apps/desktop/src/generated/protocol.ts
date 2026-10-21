@@ -149,6 +149,7 @@ export type Events = {
   "terminals.ended": TerminalEnded;
   "terminals.failed": TerminalFailed;
   "terminals.state": TerminalState;
+  "workspaces.changed": null;
 };
 
 export const offline = -32001;

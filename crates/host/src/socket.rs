@@ -11,6 +11,7 @@ use axum::routing::get;
 use protocol::Connection;
 use protocol::rpc::{self, Failure, PARSE_ERROR};
 use protocol::terminals::StateEvent;
+use protocol::workspaces::ChangedEvent;
 use serde::Deserialize;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
@@ -97,6 +98,7 @@ pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: boo
     let (replies, mut outgoing) = mpsc::unbounded_channel::<rpc::Message>();
     let (frames, mut queued) = mpsc::channel::<rpc::Message>(BACKLOG);
     let mut changes = shared.tracker.changes();
+    let mut checkouts = crate::workspaces::changes(&shared);
     let session = Arc::new(Session::new(shared, local, replies.clone(), frames));
 
     loop {
@@ -129,6 +131,9 @@ pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: boo
                         )));
                     }
                 }
+            }
+            Ok(()) = checkouts.recv() => {
+                notify::<ChangedEvent>(&replies, ());
             }
             Some(states) = session.shared.tracker.next(&mut changes) => {
                 for state in states {

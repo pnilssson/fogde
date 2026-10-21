@@ -1,7 +1,9 @@
 mod identity;
 mod store;
+mod watch;
 
 pub use identity::Searches;
+pub use watch::{Watch, changes};
 
 use std::path::{Path, PathBuf};
 

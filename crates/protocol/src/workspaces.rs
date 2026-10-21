@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::Method;
 use crate::terminals::Terminal;
+use crate::{Event, Method};
 
 #[derive(Clone, Debug, Serialize, TS)]
 pub struct Workspace {
@@ -58,4 +58,11 @@ impl Method for PlaceTerminal {
     const NAME: &'static str = "workspaces.place";
     type Params = PlaceTerminalParams;
     type Result = ();
+}
+
+pub struct ChangedEvent;
+
+impl Event for ChangedEvent {
+    const NAME: &'static str = "workspaces.changed";
+    type Params = ();
 }

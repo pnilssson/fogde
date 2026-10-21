@@ -10,12 +10,14 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -30,6 +32,7 @@ import {
   ViewRows,
 } from "@/features/workspaces/components/view-rows";
 import { useShown } from "@/features/workspaces/hooks/use-shown";
+import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
 import { checkoutName } from "@/features/workspaces/lib/checkouts";
 import { setOpen, useOpen } from "@/features/workspaces/lib/layouts";
 import { inView, type View } from "@/features/workspaces/lib/selection";
@@ -53,9 +56,14 @@ export function WorktreeItem({ checkout, current, down, ...props }: Props) {
   const open = useOpen(own);
   const shown = useShown(workspace, own);
   const name = checkoutName(checkout);
+  const removal = useRemoveWorktree(machine, workspace);
 
   const start = () => {
     onStart(own, checkout.path);
+  };
+
+  const remove = () => {
+    removal.mutate(checkout.path);
   };
 
   return (
@@ -102,6 +110,10 @@ export function WorktreeItem({ checkout, current, down, ...props }: Props) {
           </ContextMenuTrigger>
           <ContextMenuContent>
             <ContextMenuItem onClick={start}>New tile</ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={remove}>
+              Remove
+            </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
         {!down && (
@@ -118,6 +130,10 @@ export function WorktreeItem({ checkout, current, down, ...props }: Props) {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={start}>New tile</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={remove}>
+                Remove
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}

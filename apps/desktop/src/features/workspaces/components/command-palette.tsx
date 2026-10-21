@@ -1,5 +1,5 @@
-import { BellIcon, FolderIcon, PlusCircleIcon } from "@phosphor-icons/react";
-import { useContext, useRef } from "react";
+import { BellIcon, FolderIcon } from "@phosphor-icons/react";
+import { useContext, useRef, useState } from "react";
 
 import {
   Command,
@@ -16,37 +16,39 @@ import {
   setPaletteOpen,
   usePaletteOpen,
 } from "@/features/workspaces/lib/palette";
-import {
-  useChoices,
-  useCreateTerminal,
-} from "@/features/workspaces/hooks/use-terminals";
+import { NewWorktree } from "@/features/workspaces/components/new-worktree";
 import { PaletteTiles } from "@/features/workspaces/components/palette-tiles";
+import { PaletteWorkspace } from "@/features/workspaces/components/palette-workspace";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
 import {
   findWorkspace,
-  viewFolder,
   viewOf,
   waiting,
   WorkspaceContext,
 } from "@/features/workspaces/lib/selection";
 import {
   dockview,
-  openStart,
   reveal,
   revealNext,
   selectWorkspace,
 } from "@/features/workspaces/lib/tiles";
-import { useConnection } from "@/hooks/use-connection";
 import type { Workspace } from "@/generated/protocol";
-import { agentName } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 import { shortcuts } from "@/lib/shortcuts";
 
 type Run = (action: () => void) => void;
 
+interface CommandsProps {
+  run: Run;
+  onNewWorktree: () => void;
+}
+
 export function CommandPalette() {
+  const { groups, workspace } = useContext(WorkspaceContext);
+  const found = findWorkspace(groups, workspace);
   const open = usePaletteOpen();
   const pending = useRef<(() => void) | undefined>(undefined);
+  const [naming, setNaming] = useState(false);
 
   const run: Run = (action) => {
     pending.current = action;
@@ -54,34 +56,49 @@ export function CommandPalette() {
   };
 
   return (
-    <CommandDialog
-      open={open}
-      onOpenChange={setPaletteOpen}
-      onOpenChangeComplete={(next) => {
-        if (next) {
-          return;
-        }
+    <>
+      <CommandDialog
+        open={open}
+        onOpenChange={setPaletteOpen}
+        onOpenChangeComplete={(next) => {
+          if (next) {
+            return;
+          }
 
-        const action = pending.current;
-        pending.current = undefined;
-        action?.();
-      }}
-      finalFocus={() => pending.current === undefined}
-      title="Commands"
-      description="Go to a terminal or workspace, or run a command."
-    >
-      <Command loop>
-        <CommandInput placeholder="Go to or run…" />
-        <CommandList>
-          <CommandEmpty>Nothing matches.</CommandEmpty>
-          <Commands run={run} />
-        </CommandList>
-      </Command>
-    </CommandDialog>
+          const action = pending.current;
+          pending.current = undefined;
+          action?.();
+        }}
+        finalFocus={() => pending.current === undefined}
+        title="Commands"
+        description="Go to a terminal or workspace, or run a command."
+      >
+        <Command loop>
+          <CommandInput placeholder="Go to or run…" />
+          <CommandList>
+            <CommandEmpty>Nothing matches.</CommandEmpty>
+            <Commands
+              run={run}
+              onNewWorktree={() => {
+                setNaming(true);
+              }}
+            />
+          </CommandList>
+        </Command>
+      </CommandDialog>
+      {found && (
+        <NewWorktree
+          machine={found.group.machine}
+          workspace={found.workspace}
+          open={naming}
+          onOpenChange={setNaming}
+        />
+      )}
+    </>
   );
 }
 
-function Commands({ run }: { run: Run }) {
+function Commands({ run, onNewWorktree }: CommandsProps) {
   const { groups, workspace } = useContext(WorkspaceContext);
   const found = findWorkspace(groups, workspace);
   const needs = waiting(groups);
@@ -128,11 +145,12 @@ function Commands({ run }: { run: Run }) {
         </CommandGroup>
       )}
       {found && !found.workspace.missing && (
-        <NewTerminals
+        <PaletteWorkspace
           machine={found.group.machine}
           workspace={found.workspace}
-          folder={viewFolder(found.workspace, workspace)}
+          view={workspace}
           run={run}
+          onNewWorktree={onNewWorktree}
         />
       )}
       <CommandGroup heading="Terminals">
@@ -196,65 +214,6 @@ function Commands({ run }: { run: Run }) {
       </CommandGroup>
       {tiles > 0 && <PaletteTiles tiles={tiles} run={run} />}
     </>
-  );
-}
-
-interface NewProps {
-  machine: Machine;
-  workspace: Workspace;
-  folder: string;
-  run: Run;
-}
-
-function NewTerminals({ machine, workspace, folder, run }: NewProps) {
-  const connection = useConnection(machine);
-  const choices = useChoices(machine);
-  const create = useCreateTerminal();
-  if (connection.state !== "connected") {
-    return null;
-  }
-
-  return (
-    <CommandGroup heading={`New in ${workspace.name}`}>
-      <CommandItem
-        value="new tile"
-        keywords={["new", "open", "start"]}
-        onSelect={() => {
-          run(() => {
-            openStart(folder, true);
-          });
-        }}
-      >
-        <PlusCircleIcon />
-        New tile
-        <CommandShortcut>
-          <Keys letter={shortcuts.tile} />
-        </CommandShortcut>
-      </CommandItem>
-      {choices.map((agent) => {
-        const name = agent ? agentName[agent] : "terminal";
-
-        return (
-          <CommandItem
-            key={agent ?? "terminal"}
-            value={`new ${name}`}
-            keywords={["new", "open", "start"]}
-            onSelect={() => {
-              create.mutate({
-                machine,
-                workspace: workspace.id,
-                folder,
-                agent,
-              });
-              run(() => undefined);
-            }}
-          >
-            <TerminalIcon agent={agent} />
-            New {name}
-          </CommandItem>
-        );
-      })}
-    </CommandGroup>
   );
 }
 

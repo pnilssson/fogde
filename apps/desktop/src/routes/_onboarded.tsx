@@ -8,6 +8,7 @@ import { SettingsDialog } from "@/features/settings/components/settings-dialog";
 import { CommandPalette } from "@/features/workspaces/components/command-palette";
 import { WorkspaceSidebar } from "@/features/workspaces/components/workspace-sidebar";
 import { useAttention } from "@/features/workspaces/hooks/use-attention";
+import { useCheckouts } from "@/features/workspaces/hooks/use-checkouts";
 import { useFailures } from "@/features/workspaces/hooks/use-failures";
 import { useShortcuts } from "@/features/workspaces/hooks/use-shortcuts";
 import { useGroups } from "@/features/workspaces/hooks/use-terminals";
@@ -55,6 +56,7 @@ export const Route = createFileRoute("/_onboarded")({
     useRetryOnReturn(machines);
     useAttention(machines);
     useFailures(machines);
+    useCheckouts(machines);
     useViewing(machines);
     useShortcuts(groups, workspace);
 

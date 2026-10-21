@@ -20,10 +20,11 @@ import type { Machine } from "@/lib/machines";
 interface Props {
   machine: Machine;
   terminal: Terminal;
+  active: boolean;
   onSelect: (selection: Selection) => void;
 }
 
-export function TerminalItem({ machine, terminal, onSelect }: Props) {
+export function TerminalItem({ machine, terminal, active, onSelect }: Props) {
   const selection = { machine: machine.id, id: terminal.id };
   const close = useClose(machine, terminal);
 
@@ -34,6 +35,7 @@ export function TerminalItem({ machine, terminal, onSelect }: Props) {
           render={
             <SidebarMenuSubButton
               size="sm"
+              isActive={active}
               render={<button type="button" />}
               {...dragProps(selection)}
               onClick={() => {

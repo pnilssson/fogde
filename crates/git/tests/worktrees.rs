@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use git::{add_worktree, remove_merged_branch, remove_worktree, worktrees};
+use git::{add_worktree, heads, remove_merged_branch, remove_worktree, worktrees};
 use tokio::fs;
 use tokio::process::Command;
 
@@ -181,4 +181,75 @@ async fn reports_a_folder_that_is_not_a_repo() {
     let dir = tempfile::tempdir().unwrap();
 
     assert!(worktrees(dir.path()).await.is_err());
+}
+
+#[tokio::test]
+async fn heads_change_when_worktrees_come_go_or_switch_branch() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = repo(dir.path(), &[]).await.unwrap();
+    let worktree = dir.path().join("worktrees").join("login");
+    let before = heads(&repo).await;
+
+    run(
+        &repo,
+        &[
+            "worktree",
+            "add",
+            "-b",
+            "feature/login",
+            worktree.to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
+    let added = heads(&repo).await;
+
+    assert_ne!(added, before);
+    assert_eq!(heads(&worktree).await, added);
+
+    run(&worktree, &["switch", "--quiet", "-c", "feature/signup"])
+        .await
+        .unwrap();
+    let switched = heads(&repo).await;
+
+    assert_ne!(switched, added);
+
+    run(&repo, &["worktree", "remove", worktree.to_str().unwrap()])
+        .await
+        .unwrap();
+
+    assert_eq!(heads(&repo).await, before);
+    assert_eq!(heads(dir.path()).await, Vec::new());
+}
+
+#[tokio::test]
+async fn heads_follow_branch_switches_in_reftable_repos() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = dir.path().join("app");
+    fs::create_dir_all(&repo).await.unwrap();
+    run(
+        &repo,
+        &[
+            "init",
+            "--quiet",
+            "--ref-format=reftable",
+            "--initial-branch",
+            "main",
+        ],
+    )
+    .await
+    .unwrap();
+    run(
+        &repo,
+        &["commit", "--quiet", "--allow-empty", "-m", "first"],
+    )
+    .await
+    .unwrap();
+    let before = heads(&repo).await;
+
+    run(&repo, &["switch", "--quiet", "-c", "feature/login"])
+        .await
+        .unwrap();
+
+    assert_ne!(heads(&repo).await, before);
 }

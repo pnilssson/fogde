@@ -12,7 +12,7 @@ use tokio::sync::{Mutex, OnceCell};
 use crate::db::Db;
 use crate::settings::Settings;
 use crate::terminals::Tracker;
-use crate::workspaces::Searches;
+use crate::workspaces::{Searches, Watch};
 
 pub struct Shared {
     pub settings: Settings,
@@ -22,6 +22,7 @@ pub struct Shared {
     pub placing: Mutex<()>,
     pub searches: Searches,
     pub tracker: Arc<Tracker>,
+    pub watch: Watch,
     fogde: PathBuf,
     tools: PathBuf,
     gh: OnceCell<Gh>,
@@ -41,6 +42,7 @@ impl Shared {
             placing: Mutex::default(),
             searches: Searches::default(),
             tracker: Arc::default(),
+            watch: Watch::default(),
             tools: app.join("tools"),
             fogde,
             gh: OnceCell::new(),

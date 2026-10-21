@@ -24,6 +24,38 @@ pub async fn branch(folder: &Path) -> Option<String> {
     }
 }
 
+pub async fn heads(folder: &Path) -> Vec<(String, String)> {
+    let Some((_, dir)) = repo(folder).await else {
+        return Vec::new();
+    };
+    let common = match fs::read_to_string(dir.join("commondir")).await {
+        Ok(link) => dir.join(link.trim()),
+        Err(_) => dir,
+    };
+
+    let mut heads = vec![(String::new(), head(&common).await)];
+    if let Ok(mut entries) = fs::read_dir(common.join("worktrees")).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            heads.push((name, head(&entry.path()).await));
+        }
+    }
+    heads.sort();
+
+    heads
+}
+
+async fn head(dir: &Path) -> String {
+    let head = fs::read_to_string(dir.join("HEAD"))
+        .await
+        .unwrap_or_default();
+    let tables = fs::read_to_string(dir.join("reftable").join("tables.list"))
+        .await
+        .unwrap_or_default();
+
+    head + &tables
+}
+
 async fn repo(folder: &Path) -> Option<(PathBuf, PathBuf)> {
     for dir in folder.ancestors() {
         if let Some(git_dir) = git_dir(dir).await {

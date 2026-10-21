@@ -128,6 +128,12 @@ pub async fn relocate(
     Ok(())
 }
 
+pub async fn folders(pool: &SqlitePool) -> Result<Vec<String>, Error> {
+    Ok(sqlx::query_scalar!("SELECT folder FROM workspaces")
+        .fetch_all(pool)
+        .await?)
+}
+
 pub async fn members(pool: &SqlitePool, workspace: &str) -> Result<Vec<String>, Error> {
     let id: i64 = workspace.parse().map_err(|_| Error::Missing)?;
 

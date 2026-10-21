@@ -35,3 +35,17 @@ export function inside(path: string, root: string) {
 export function folderName(path: string) {
   return path.split(/[\\/]/).findLast((part) => part.length > 0) ?? path;
 }
+
+export function relative(path: string, root: string) {
+  if (!inside(path, root)) {
+    return undefined;
+  }
+
+  const separator = path.includes("\\") ? "\\" : "/";
+
+  return path
+    .split(/[\\/]/)
+    .filter((part) => part.length > 0)
+    .slice(parts(root).length)
+    .join(separator);
+}

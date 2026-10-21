@@ -13,10 +13,11 @@ import {
 import { closeStart } from "@/features/workspaces/lib/tiles";
 
 interface Props {
+  active: boolean;
   onSelect: () => void;
 }
 
-export function StartItem({ onSelect }: Props) {
+export function StartItem({ active, onSelect }: Props) {
   return (
     <SidebarMenuSubItem>
       <ContextMenu>
@@ -24,6 +25,7 @@ export function StartItem({ onSelect }: Props) {
           render={
             <SidebarMenuSubButton
               size="sm"
+              isActive={active}
               render={<button type="button" />}
               onClick={onSelect}
             />

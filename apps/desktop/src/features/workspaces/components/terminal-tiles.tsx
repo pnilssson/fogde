@@ -72,12 +72,13 @@ function TerminalTile({ api, params }: IDockviewPanelProps<Selection>) {
     <TerminalPane
       panel={api}
       machine={found.machine}
+      workspace={found.workspace}
       terminal={found.terminal}
     />
   );
 }
 
-function StartTile({ params }: IDockviewPanelProps<{ folder?: string }>) {
+function StartTile({ api, params }: IDockviewPanelProps<{ folder?: string }>) {
   const workspace = useTiles((tiles) => tiles.workspace);
   const active = useTiles((tiles) => tiles.startActive);
   const shared = useStart(workspace) !== undefined;
@@ -90,7 +91,13 @@ function StartTile({ params }: IDockviewPanelProps<{ folder?: string }>) {
   }, [focus]);
 
   return (
-    <section aria-label="New tile" className="flex h-full min-h-0 flex-col">
+    <section
+      aria-label="New tile"
+      className="flex h-full min-h-0 flex-col"
+      onPointerDown={() => {
+        api.setActive();
+      }}
+    >
       <TileBar
         item={shared ? startId : undefined}
         active={active}

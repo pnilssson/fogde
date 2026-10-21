@@ -27,8 +27,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { DeleteWorkspace } from "@/features/workspaces/components/delete-workspace";
+import { NewWorktree } from "@/features/workspaces/components/new-worktree";
 import { StateIcon } from "@/features/workspaces/components/state-icon";
 import { WorkspaceTree } from "@/features/workspaces/components/workspace-tree";
+import { mainCheckout } from "@/features/workspaces/lib/checkouts";
 import { setOpen, useOpen } from "@/features/workspaces/lib/layouts";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
 import { attention } from "@/features/workspaces/lib/status";
@@ -56,9 +58,15 @@ export function WorkspaceItem({
   const current = view !== undefined && view.checkout === undefined;
   const open = useOpen(place);
   const [deleting, setDeleting] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const repo = mainCheckout(workspace) !== undefined;
 
   const start = () => {
     onStart(place, workspace.folder);
+  };
+
+  const branch = () => {
+    setNaming(true);
   };
 
   const remove = () => {
@@ -72,7 +80,7 @@ export function WorkspaceItem({
           <ContextMenuTrigger
             render={
               <SidebarMenuButton
-                isActive={current}
+                isActive={view !== undefined}
                 aria-expanded={open}
                 onClick={() => {
                   if (current) {
@@ -112,6 +120,11 @@ export function WorkspaceItem({
             {!workspace.missing && (
               <>
                 <ContextMenuItem onClick={start}>New tile</ContextMenuItem>
+                {repo && (
+                  <ContextMenuItem onClick={branch}>
+                    New worktree
+                  </ContextMenuItem>
+                )}
                 <ContextMenuSeparator />
               </>
             )}
@@ -136,6 +149,11 @@ export function WorkspaceItem({
               {!workspace.missing && (
                 <>
                   <DropdownMenuItem onClick={start}>New tile</DropdownMenuItem>
+                  {repo && (
+                    <DropdownMenuItem onClick={branch}>
+                      New worktree
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                 </>
               )}
@@ -161,6 +179,12 @@ export function WorkspaceItem({
         workspace={workspace}
         open={deleting}
         onOpenChange={setDeleting}
+      />
+      <NewWorktree
+        machine={machine}
+        workspace={workspace}
+        open={naming}
+        onOpenChange={setNaming}
       />
     </SidebarMenuItem>
   );

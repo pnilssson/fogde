@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO machines (connected) VALUES (TRUE)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "5fdc255411a1a9926367a4a6ae6db674383a2381381f79f5b50fc7b0d723d863"
+}

@@ -1,6 +1,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use protocol::notifications::Notifications;
 use protocol::theme::Theme;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
@@ -15,16 +16,7 @@ struct Values {
     #[serde(default)]
     theme: Theme,
     #[serde(default)]
-    computer: bool,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    servers: Vec<Server>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct Server {
-    pub id: String,
-    pub target: String,
-    pub triple: String,
+    notifications: Notifications,
 }
 
 pub struct Settings {
@@ -64,39 +56,12 @@ impl Settings {
         self.update(|values| values.theme = theme).await
     }
 
-    pub async fn computer(&self) -> io::Result<bool> {
-        Ok(self.load().await?.computer)
+    pub async fn notifications(&self) -> io::Result<Notifications> {
+        Ok(self.load().await?.notifications)
     }
 
-    pub async fn set_computer(&self, used: bool) -> io::Result<()> {
-        self.update(|values| values.computer = used).await
-    }
-
-    pub async fn servers(&self) -> io::Result<Vec<Server>> {
-        Ok(self.load().await?.servers)
-    }
-
-    pub async fn server(&self, id: &str) -> io::Result<Option<Server>> {
-        Ok(self
-            .load()
-            .await?
-            .servers
-            .into_iter()
-            .find(|server| server.id == id))
-    }
-
-    pub async fn add_server(&self, server: Server) -> io::Result<()> {
-        self.update(|values| {
-            values
-                .servers
-                .retain(|known| known.id != server.id && known.target != server.target);
-            values.servers.push(server);
-        })
-        .await
-    }
-
-    pub async fn remove_server(&self, id: &str) -> io::Result<()> {
-        self.update(|values| values.servers.retain(|server| server.id != id))
+    pub async fn set_notifications(&self, notifications: Notifications) -> io::Result<()> {
+        self.update(|values| values.notifications = notifications)
             .await
     }
 
@@ -127,14 +92,6 @@ impl Settings {
 mod tests {
     use super::*;
 
-    fn server(id: &str, target: &str) -> Server {
-        Server {
-            id: id.to_owned(),
-            target: target.to_owned(),
-            triple: "x86_64-unknown-linux-musl".to_owned(),
-        }
-    }
-
     #[tokio::test]
     async fn remembers_what_was_saved() {
         let dir = tempfile::tempdir().unwrap();
@@ -144,45 +101,24 @@ mod tests {
         assert!(!settings.onboarded().await.unwrap());
         assert_eq!(settings.repos().await.unwrap(), None);
         assert_eq!(settings.theme().await.unwrap(), Theme::System);
-        assert!(!settings.computer().await.unwrap());
+        assert_eq!(
+            settings.notifications().await.unwrap(),
+            Notifications::default()
+        );
 
         settings.set_repos(app.join("repos")).await.unwrap();
         settings.finish_onboarding().await.unwrap();
         settings.set_theme(Theme::Dark).await.unwrap();
-        settings.set_computer(true).await.unwrap();
-        settings.add_server(server("a1", "my-vps")).await.unwrap();
+        let quiet = Notifications {
+            enabled: true,
+            sound: false,
+        };
+        settings.set_notifications(quiet).await.unwrap();
 
         let reopened = Settings::new(&app);
         assert!(reopened.onboarded().await.unwrap());
         assert_eq!(reopened.repos().await.unwrap(), Some(app.join("repos")));
         assert_eq!(reopened.theme().await.unwrap(), Theme::Dark);
-        assert!(reopened.computer().await.unwrap());
-        assert_eq!(
-            reopened.server("a1").await.unwrap(),
-            Some(server("a1", "my-vps"))
-        );
-    }
-
-    #[tokio::test]
-    async fn keeps_one_entry_per_server() {
-        let dir = tempfile::tempdir().unwrap();
-        let settings = Settings::new(dir.path());
-
-        settings.add_server(server("a1", "my-vps")).await.unwrap();
-        settings.add_server(server("b2", "work")).await.unwrap();
-        settings
-            .add_server(server("a1", "root@1.2.3.4"))
-            .await
-            .unwrap();
-        settings.add_server(server("c3", "work")).await.unwrap();
-
-        assert_eq!(
-            settings.servers().await.unwrap(),
-            [server("a1", "root@1.2.3.4"), server("c3", "work")]
-        );
-
-        settings.remove_server("a1").await.unwrap();
-
-        assert_eq!(settings.servers().await.unwrap(), [server("c3", "work")]);
+        assert_eq!(reopened.notifications().await.unwrap(), quiet);
     }
 }

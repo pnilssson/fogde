@@ -1,4 +1,29 @@
+@theme {
+  --text-*: initial;
+  --text-display: 28px;
+  --text-display--line-height: 34px;
+  --text-title: 14px;
+  --text-title--line-height: 20px;
+  --text-body: 13px;
+  --text-body--line-height: 20px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --font-weight-*: initial;
+  --font-weight-normal: 400;
+  --font-weight-semibold: 550;
+  --font-weight-bold: 700;
+}
+
 @theme inline {
+  --text-xs: var(--text-caption);
+  --text-xs--line-height: var(--text-caption--line-height);
+  --text-sm: var(--text-body);
+  --text-sm--line-height: var(--text-body--line-height);
+  --text-base: var(--text-body);
+  --text-base--line-height: var(--text-body--line-height);
+  --text-lg: var(--text-title);
+  --text-lg--line-height: var(--text-title--line-height);
+  --font-weight-medium: var(--font-weight-semibold);
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
@@ -17,6 +42,26 @@
   --shadow-surface-8: var(--shadow-8);
   --color-hover: var(--hover);
   --color-selected: var(--selected);
+}
+
+@utility type-display {
+  @apply text-display font-bold;
+}
+
+@utility type-title {
+  @apply text-title font-semibold;
+}
+
+@utility type-body {
+  @apply text-body font-normal;
+}
+
+@utility type-caption {
+  @apply text-caption font-normal;
+}
+
+@utility type-code {
+  @apply font-mono text-body font-normal;
 }
 
 :root {
@@ -41,6 +86,26 @@
   --shadow-6: var(--shadow-5), 0 24px 24px -12px var(--shadow-color);
   --shadow-7: var(--shadow-6), 0 48px 48px -24px var(--shadow-color);
   --shadow-8: var(--shadow-7), 0 96px 96px -48px var(--shadow-color);
+  --terminal-selection: #18181b24;
+  --terminal-scrollbar: #18181b26;
+  --terminal-scrollbar-hover: #18181b40;
+  --terminal-scrollbar-active: #18181b59;
+  --terminal-black: #27272a;
+  --terminal-red: #b91c1c;
+  --terminal-green: #15803d;
+  --terminal-yellow: #a16207;
+  --terminal-blue: #1d4ed8;
+  --terminal-magenta: #a21caf;
+  --terminal-cyan: #0e7490;
+  --terminal-white: #52525b;
+  --terminal-bright-black: #71717a;
+  --terminal-bright-red: #991b1b;
+  --terminal-bright-green: #166534;
+  --terminal-bright-yellow: #854d0e;
+  --terminal-bright-blue: #1e40af;
+  --terminal-bright-magenta: #86198f;
+  --terminal-bright-cyan: #155e75;
+  --terminal-bright-white: #18181b;
 }
 
 .dark {
@@ -93,6 +158,26 @@
   --shadow-8:
     inset 0 1px 0 0 var(--highlight-peak), inset 0 0 0 1px var(--ring-high),
     0 0 0 1px rgb(0 0 0 / 22%), var(--drops-8);
+  --terminal-selection: #ffffff2e;
+  --terminal-scrollbar: #ffffff26;
+  --terminal-scrollbar-hover: #ffffff40;
+  --terminal-scrollbar-active: #ffffff59;
+  --terminal-black: #3f3f46;
+  --terminal-red: #f87171;
+  --terminal-green: #86efac;
+  --terminal-yellow: #fde047;
+  --terminal-blue: #93c5fd;
+  --terminal-magenta: #d8b4fe;
+  --terminal-cyan: #67e8f9;
+  --terminal-white: #e4e4e7;
+  --terminal-bright-black: #a1a1aa;
+  --terminal-bright-red: #fca5a5;
+  --terminal-bright-green: #bbf7d0;
+  --terminal-bright-yellow: #fef08a;
+  --terminal-bright-blue: #bfdbfe;
+  --terminal-bright-magenta: #e9d5ff;
+  --terminal-bright-cyan: #a5f3fc;
+  --terminal-bright-white: #fafafa;
 }
 
 @layer base {

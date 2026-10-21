@@ -6,17 +6,24 @@ import type {
 } from "dockview-react";
 import { positionToDirection } from "dockview-react";
 
-import { layoutKey, startId, store } from "@/features/terminals/lib/layouts";
+import {
+  holdId,
+  layoutKey,
+  setOpen,
+  startId,
+  store,
+} from "@/features/terminals/lib/layouts";
 import { Selection } from "@/features/terminals/lib/selection";
-
-export const dragType = "application/x-fogde-terminal";
 
 let current: DockviewApi | undefined;
 let pending: Selection | undefined;
-let dragging: Selection | undefined;
 let loading = false;
 
-function tileId({ machine, id }: Selection) {
+export function dockview() {
+  return current;
+}
+
+export function tileId({ machine, id }: Selection) {
   return `${machine}:${id}`;
 }
 
@@ -39,6 +46,16 @@ function hideHeader(group: DockviewGroupPanel) {
   group.header.hidden = true;
 }
 
+function separate(api: DockviewApi) {
+  api.getPanel(holdId)?.api.close();
+
+  for (const group of [...api.groups]) {
+    for (const panel of group.panels.slice(1)) {
+      panel.api.moveTo({ group, position: "right" });
+    }
+  }
+}
+
 function load(api: DockviewApi) {
   const { workspace, layouts } = store.getState();
   const layout = workspace && layouts[layoutKey(workspace)];
@@ -58,9 +75,12 @@ function load(api: DockviewApi) {
   for (const group of api.groups) {
     hideHeader(group);
   }
+  separate(api);
 }
 
 export function selectWorkspace(next: Selection) {
+  setOpen(next, true);
+
   const { workspace } = store.getState();
   if (next.machine === workspace?.machine && next.id === workspace.id) {
     return;
@@ -69,16 +89,6 @@ export function selectWorkspace(next: Selection) {
   store.setState({ workspace: next });
   if (current) {
     load(current);
-  }
-}
-
-export function dragged(event: DragEvent) {
-  try {
-    const data = event.dataTransfer?.getData(dragType);
-
-    return data ? Selection.safeParse(JSON.parse(data)).data : undefined;
-  } catch {
-    return undefined;
   }
 }
 
@@ -97,29 +107,64 @@ function replace(
   old?.api.close();
 }
 
-export function show(selection: Selection) {
-  if (!current) {
-    pending = selection;
-    return;
-  }
+export function place(
+  api: DockviewApi,
+  selection: Selection,
+  position: Position,
+  group: DockviewGroupPanel | undefined,
+) {
+  const direction =
+    position === "center" ? "right" : positionToDirection(position);
 
-  const existing = current.getPanel(tileId(selection));
+  api.addPanel({
+    id: tileId(selection),
+    component: "terminal",
+    params: selection,
+    position: group ? { referenceGroup: group, direction } : { direction },
+  });
+}
+
+export function show(selection: Selection) {
+  const existing = current?.getPanel(tileId(selection));
   if (existing) {
     existing.focus();
     return;
   }
 
-  const focused = current.activePanel;
-  if (focused) {
-    replace(current, selection, focused.group);
+  pending = selection;
+}
+
+export function isShown(selection: Selection) {
+  return current?.getPanel(tileId(selection)) !== undefined;
+}
+
+export function sync(
+  terminals: Selection[],
+  keep: (selection: Selection) => boolean,
+) {
+  if (!current) {
     return;
   }
 
-  current.addPanel({
-    id: tileId(selection),
-    component: "terminal",
-    params: selection,
-  });
+  const ids = new Set(terminals.map(tileId));
+  for (const panel of [...current.panels]) {
+    const selection = selectionOf(panel);
+    if (selection && !ids.has(panel.id) && !keep(selection)) {
+      panel.api.close();
+    }
+  }
+
+  for (const terminal of terminals) {
+    if (!current.getPanel(tileId(terminal))) {
+      place(current, terminal, "right", undefined);
+    }
+  }
+
+  const next = pending;
+  if (next && isShown(next)) {
+    pending = undefined;
+    show(next);
+  }
 }
 
 export function openStart(folder: string) {
@@ -139,78 +184,31 @@ export function openStart(folder: string) {
     id: startId,
     component: "start",
     params: { folder },
-    position: focused && { referencePanel: focused, direction: "right" },
+    position: focused
+      ? { referencePanel: focused, direction: "right" }
+      : { direction: "right" },
   });
+}
+
+export function closeStart() {
+  current?.getPanel(startId)?.api.close();
 }
 
 export function opened(selection: Selection) {
   const start = current?.getPanel(startId);
-  if (current && start) {
-    replace(current, selection, start.group);
-    return;
-  }
-
-  show(selection);
-}
-
-export function startDrag(selection: Selection) {
-  dragging = selection;
-}
-
-export function endDrag() {
-  dragging = undefined;
-}
-
-export function canDrop(group: DockviewGroupPanel | undefined) {
-  if (!dragging || dragging.machine !== store.getState().workspace?.machine) {
-    return false;
-  }
-
-  const existing = current?.getPanel(tileId(dragging));
-
-  return !existing || (group !== undefined && group !== existing.group);
-}
-
-export function drop(
-  selection: Selection,
-  position: Position,
-  group: DockviewGroupPanel | undefined,
-) {
-  if (!current) {
+  if (!current || !start) {
+    show(selection);
     return;
   }
 
   const existing = current.getPanel(tileId(selection));
   if (existing) {
-    if (group && group !== existing.group) {
-      existing.api.moveTo({ group, position });
-    }
-
+    existing.api.moveTo({ group: start.group, position: "center" });
+    start.api.close();
     return;
   }
 
-  if (group && position === "center") {
-    replace(current, selection, group);
-    return;
-  }
-
-  current.addPanel({
-    id: tileId(selection),
-    component: "terminal",
-    params: selection,
-    position: group
-      ? { referenceGroup: group, direction: positionToDirection(position) }
-      : { direction: positionToDirection(position) },
-  });
-}
-
-export function prune(keep: (selection: Selection) => boolean) {
-  for (const panel of current?.panels ?? []) {
-    const selection = selectionOf(panel);
-    if (selection && !keep(selection)) {
-      panel.api.close();
-    }
-  }
+  replace(current, selection, start.group);
 }
 
 export function restore(api: DockviewApi) {
@@ -233,10 +231,6 @@ export function attach(api: DockviewApi) {
   });
 
   focus(api.activePanel);
-  if (pending) {
-    show(pending);
-    pending = undefined;
-  }
 
   return () => {
     added.dispose();

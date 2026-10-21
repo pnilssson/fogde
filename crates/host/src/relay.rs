@@ -4,6 +4,7 @@ use protocol::rpc::{Failure, OFFLINE, SERVER_ERROR};
 use remote::Tunnel;
 use tokio_tungstenite::tungstenite;
 
+use crate::machines;
 use crate::rpc::failure;
 use crate::shared::Shared;
 
@@ -35,12 +36,7 @@ pub async fn take(shared: &Shared, id: &str) -> Result<Tunnel, Failure> {
 }
 
 async fn open(shared: &Shared, id: &str) -> Result<Tunnel, Failure> {
-    let server = shared
-        .settings
-        .server(id)
-        .await
-        .map_err(failure)?
-        .ok_or_else(|| Failure::new(SERVER_ERROR, "that server is no longer set up"))?;
+    let server = machines::server(shared, id).await?;
     let binaries = shared
         .binaries
         .as_ref()

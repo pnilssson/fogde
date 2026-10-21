@@ -7,7 +7,6 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { DeleteWorkspace } from "@/features/terminals/components/delete-workspace";
 import { StartActions } from "@/features/terminals/components/start-actions";
 import { WorktreeActions } from "@/features/terminals/components/worktree-actions";
 import { useConnection } from "@/features/terminals/hooks/use-terminals";
@@ -17,7 +16,7 @@ import {
   WorkspaceContext,
 } from "@/features/terminals/lib/selection";
 import type { Workspace } from "@/generated/protocol";
-import type { Machine } from "@/lib/machines";
+import { isComputer, type Machine } from "@/lib/machines";
 
 interface Props {
   folder?: string | undefined;
@@ -31,13 +30,15 @@ export function StartPage({ folder }: Props) {
     found && target ? checkoutOf(found.workspace, target) : undefined;
   const worktree = checkout !== undefined && !checkout.main;
   const place = worktree ? checkoutName(checkout) : found?.workspace.name;
-  const home = found?.group.workspaces.data?.[0];
+  const machine = found?.group.machine;
 
   return (
     <Empty>
       <EmptyHeader>
         <EmptyTitle>
-          {place ? `Start in ${place}` : "Start something"}
+          {place && machine
+            ? `Continue working in ${place} on ${spoken(machine)}`
+            : "Start something"}
         </EmptyTitle>
         {target && <EmptyDescription>{target}</EmptyDescription>}
       </EmptyHeader>
@@ -46,7 +47,6 @@ export function StartPage({ folder }: Props) {
           machine={found.group.machine}
           workspace={found.workspace}
           folder={target}
-          removable={!worktree && home?.id !== found.workspace.id}
         />
       )}
     </Empty>
@@ -57,10 +57,9 @@ interface StartProps {
   machine: Machine;
   workspace: Workspace;
   folder: string;
-  removable: boolean;
 }
 
-function Start({ machine, workspace, folder, removable }: StartProps) {
+function Start({ machine, workspace, folder }: StartProps) {
   const connection = useConnection(machine);
   if (connection.state !== "connected") {
     return null;
@@ -79,10 +78,11 @@ function Start({ machine, workspace, folder, removable }: StartProps) {
           workspace={workspace}
           folder={folder}
         />
-        {removable && (
-          <DeleteWorkspace machine={machine} workspace={workspace} />
-        )}
       </div>
     </EmptyContent>
   );
+}
+
+function spoken(machine: Machine) {
+  return isComputer(machine) ? "this computer" : machine.name;
 }

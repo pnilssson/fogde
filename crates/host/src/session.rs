@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use github::Gh;
 use herdr_client::Herdr;
@@ -8,7 +9,10 @@ use tokio::sync::{mpsc, watch};
 use crate::rpc::{ROUTER, failure};
 use crate::shared::Shared;
 
+static NEXT: AtomicU64 = AtomicU64::new(0);
+
 pub struct Session {
+    pub id: u64,
     pub shared: Arc<Shared>,
     pub local: bool,
     pub outgoing: mpsc::UnboundedSender<Message>,
@@ -22,6 +26,7 @@ pub struct Session {
 impl Session {
     pub fn new(shared: Arc<Shared>, local: bool, outgoing: mpsc::UnboundedSender<Message>) -> Self {
         Self {
+            id: NEXT.fetch_add(1, Ordering::Relaxed),
             shared,
             local,
             outgoing,
@@ -42,6 +47,7 @@ impl Session {
     pub fn close(&self) {
         self.closed.send_replace(true);
         self.terminals.clear();
+        self.shared.tracker.view(self.id, None);
     }
 
     pub fn is_closed(&self) -> bool {

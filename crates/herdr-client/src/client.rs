@@ -2,10 +2,10 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use interprocess::local_socket::Name;
-use interprocess::local_socket::tokio::{Stream, prelude::*};
+use interprocess::local_socket::tokio::{RecvHalf, SendHalf, Stream, prelude::*};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 
 use crate::Error;
 
@@ -28,6 +28,16 @@ impl Client {
         method: &str,
         params: impl Serialize,
     ) -> Result<R, Error> {
+        let mut connection = self.open(method, params).await?;
+
+        reply(&connection.line().await?)
+    }
+
+    pub(crate) async fn open(
+        &self,
+        method: &str,
+        params: impl Serialize,
+    ) -> Result<Connection, Error> {
         let stream = Stream::connect(name(&self.socket).map_err(Error::Connect)?)
             .await
             .map_err(Error::Connect)?;
@@ -41,23 +51,36 @@ impl Client {
         line.push(b'\n');
         writer.write_all(&line).await?;
 
-        let mut reply = String::new();
-        if BufReader::new(reader).read_line(&mut reply).await? == 0 {
-            return Err(Error::Closed);
-        }
+        Ok(Connection {
+            lines: BufReader::new(reader).lines(),
+            _writer: writer,
+        })
+    }
+}
 
-        let response: Response<R> = serde_json::from_str(&reply)?;
-        match response.outcome {
-            Outcome::Error(failure) => Err(Error::Herdr {
-                code: failure.code,
-                message: failure.message,
-            }),
-            Outcome::Result(_) if response.id != ID => Err(Error::Mismatch {
-                expected: ID.to_owned(),
-                actual: response.id,
-            }),
-            Outcome::Result(result) => Ok(result),
-        }
+pub(crate) struct Connection {
+    lines: Lines<BufReader<RecvHalf>>,
+    _writer: SendHalf,
+}
+
+impl Connection {
+    pub(crate) async fn line(&mut self) -> Result<String, Error> {
+        self.lines.next_line().await?.ok_or(Error::Closed)
+    }
+}
+
+pub(crate) fn reply<R: DeserializeOwned>(line: &str) -> Result<R, Error> {
+    let response: Response<R> = serde_json::from_str(line)?;
+    match response.outcome {
+        Outcome::Error(failure) => Err(Error::Herdr {
+            code: failure.code,
+            message: failure.message,
+        }),
+        Outcome::Result(_) if response.id != ID => Err(Error::Mismatch {
+            expected: ID.to_owned(),
+            actual: response.id,
+        }),
+        Outcome::Result(result) => Ok(result),
     }
 }
 
@@ -106,13 +129,39 @@ struct Failure {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::path::PathBuf;
 
     use interprocess::local_socket::ListenerOptions;
     use serde_json::{Value, json};
 
     use super::*;
+
+    pub(crate) fn serve_each(test: &str, replies: Vec<String>) -> PathBuf {
+        let socket = std::env::temp_dir().join(format!("fogde-{test}-{}.sock", std::process::id()));
+        let _ = std::fs::remove_file(&socket);
+        let listener = ListenerOptions::new()
+            .name(name(&socket).unwrap())
+            .create_tokio()
+            .unwrap();
+
+        tokio::spawn(async move {
+            for reply in replies {
+                let (reader, mut writer) = listener.accept().await.unwrap().split();
+                let mut request = String::new();
+                BufReader::new(reader)
+                    .read_line(&mut request)
+                    .await
+                    .unwrap();
+                writer
+                    .write_all(format!("{reply}\n").as_bytes())
+                    .await
+                    .unwrap();
+            }
+        });
+
+        socket
+    }
 
     fn serve(test: &str, reply: Option<&'static str>) -> PathBuf {
         let socket = std::env::temp_dir().join(format!("fogde-{test}-{}.sock", std::process::id()));

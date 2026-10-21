@@ -1,0 +1,121 @@
+// @vitest-environment happy-dom
+import { createDockview, type DockviewApi } from "dockview-react";
+import { afterEach, expect, test } from "vitest";
+
+import {
+  canDrop,
+  drop,
+  endDrag,
+  startDrag,
+} from "@/features/terminals/lib/drag";
+import { layoutKey, store } from "@/features/terminals/lib/layouts";
+import { attach, selectWorkspace, sync } from "@/features/terminals/lib/tiles";
+
+const a = { machine: "m1", id: "a" };
+const b = { machine: "m1", id: "b" };
+const c = { machine: "m1", id: "c" };
+
+let detach: (() => void) | undefined;
+
+function dockview() {
+  const element = document.createElement("div");
+  document.body.append(element);
+  const api = createDockview(element, {
+    createComponent: () => ({
+      element: document.createElement("div"),
+      init: () => undefined,
+    }),
+  });
+  api.layout(900, 600);
+  detach = attach(api);
+
+  return api;
+}
+
+function tiles(api: DockviewApi) {
+  return api.groups.map((group) => group.panels.map(({ id }) => id));
+}
+
+function groupOf(api: DockviewApi, id: string) {
+  const panel = api.getPanel(id);
+  if (!panel) {
+    throw new Error(`no tile ${id}`);
+  }
+
+  return panel.group;
+}
+
+afterEach(() => {
+  detach?.();
+  document.body.replaceChildren();
+});
+
+test("dropping a tile on another tile's centre swaps them", () => {
+  const api = dockview();
+  drop(a, "right", undefined);
+  drop(b, "right", undefined);
+  drop(c, "right", undefined);
+
+  drop(a, "center", groupOf(api, "m1:c"));
+
+  expect(tiles(api)).toEqual([["m1:c"], ["m1:b"], ["m1:a"]]);
+});
+
+test("every terminal in the workspace gets its own tile", () => {
+  const api = dockview();
+
+  sync([a, b, c], () => false);
+  expect(tiles(api)).toEqual([["m1:a"], ["m1:b"], ["m1:c"]]);
+
+  sync([a, c], () => false);
+  expect(tiles(api)).toEqual([["m1:a"], ["m1:c"]]);
+});
+
+test("a saved layout with stacked tiles opens with each tile apart", () => {
+  const api = dockview();
+  const workspace = { machine: "m1", id: "w1" };
+  drop(a, "right", undefined);
+  api.addPanel({
+    id: "m1:b",
+    component: "terminal",
+    params: b,
+    position: { referenceGroup: groupOf(api, "m1:a"), direction: "within" },
+  });
+  store.setState({
+    workspace: undefined,
+    layouts: { [layoutKey(workspace)]: api.toJSON() },
+  });
+
+  selectWorkspace(workspace);
+
+  expect(tiles(api)).toEqual([["m1:a"], ["m1:b"]]);
+});
+
+test("dropping a tile on the outer edge spans the whole side", () => {
+  const api = dockview();
+  sync([a, b, c], () => false);
+
+  drop(a, "bottom", undefined);
+
+  expect(groupOf(api, "m1:a").api.width).toBe(900);
+  expect(groupOf(api, "m1:b").api.width).toBeLessThan(900);
+});
+
+test("a dragged tile drops only where it would move", () => {
+  const api = dockview();
+  store.setState({ workspace: { machine: "m1", id: "w1" } });
+  sync([a, b], () => false);
+
+  startDrag(a);
+  expect(canDrop(groupOf(api, "m1:a"), "right")).toBe(false);
+  expect(canDrop(groupOf(api, "m1:b"), "center")).toBe(true);
+  expect(canDrop(undefined, "bottom")).toBe(true);
+
+  startDrag(c);
+  expect(canDrop(groupOf(api, "m1:b"), "center")).toBe(false);
+  expect(canDrop(groupOf(api, "m1:b"), "left")).toBe(true);
+
+  startDrag({ machine: "m2", id: "d" });
+  expect(canDrop(groupOf(api, "m1:b"), "left")).toBe(false);
+  endDrag();
+});

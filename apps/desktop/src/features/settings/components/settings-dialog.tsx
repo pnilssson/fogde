@@ -16,6 +16,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MachineSettings } from "@/features/settings/components/machine-settings";
+import { NotificationSettings } from "@/features/settings/components/notification-settings";
+import {
+  SettingsRow,
+  SettingsSection,
+} from "@/features/settings/components/settings-section";
 
 export function SettingsDialog() {
   const [open, setOpen] = useState(false);
@@ -32,7 +37,7 @@ export function SettingsDialog() {
             />
           }
         >
-          <GearSixIcon weight={open ? "fill" : "regular"} />
+          <GearSixIcon />
         </TooltipTrigger>
         <TooltipContent side="top">Settings</TooltipContent>
       </Tooltip>
@@ -40,15 +45,12 @@ export function SettingsDialog() {
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
-        <section
-          className="flex flex-col items-start gap-4"
-          aria-labelledby="appearance-heading"
-        >
-          <h2 id="appearance-heading" className="type-subtitle">
-            Appearance
-          </h2>
-          <ThemeSwitcher />
-        </section>
+        <SettingsSection id="appearance-heading" title="Appearance">
+          <SettingsRow label="Theme">
+            <ThemeSwitcher />
+          </SettingsRow>
+        </SettingsSection>
+        <NotificationSettings />
         <MachineSettings
           onAdd={() => {
             setOpen(false);

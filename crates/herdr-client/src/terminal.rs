@@ -109,8 +109,20 @@ impl Terminal {
         self.send(&Control::Resize { cols, rows }).await
     }
 
-    pub async fn scroll(&mut self, direction: Scroll, lines: u16) -> Result<(), Error> {
-        self.send(&Control::Scroll { direction, lines }).await
+    pub async fn scroll(
+        &mut self,
+        direction: Scroll,
+        lines: u16,
+        column: u16,
+        row: u16,
+    ) -> Result<(), Error> {
+        self.send(&Control::Scroll {
+            direction,
+            lines,
+            column,
+            row,
+        })
+        .await
     }
 
     async fn send(&mut self, control: &Control) -> Result<(), Error> {
@@ -159,7 +171,12 @@ enum Control {
     #[serde(rename = "terminal.resize")]
     Resize { cols: u16, rows: u16 },
     #[serde(rename = "terminal.scroll")]
-    Scroll { direction: Scroll, lines: u16 },
+    Scroll {
+        direction: Scroll,
+        lines: u16,
+        column: u16,
+        row: u16,
+    },
 }
 
 #[cfg(test)]
@@ -213,6 +230,8 @@ mod tests {
             Control::Scroll {
                 direction: Scroll::Up,
                 lines: 3,
+                column: 4,
+                row: 5,
             },
         ]
         .map(|control| serde_json::to_value(control).unwrap());
@@ -222,7 +241,7 @@ mod tests {
             [
                 json!({"type": "terminal.input", "bytes": "aGk="}),
                 json!({"type": "terminal.resize", "cols": 120, "rows": 40}),
-                json!({"type": "terminal.scroll", "direction": "up", "lines": 3}),
+                json!({"type": "terminal.scroll", "direction": "up", "lines": 3, "column": 4, "row": 5}),
             ]
         );
     }

@@ -9,7 +9,7 @@ export function Failure({ error }: ErrorComponentProps) {
   return (
     <Centered>
       <section className="flex max-w-sm flex-col items-start gap-4">
-        <h1 className="type-title">Something went wrong</h1>
+        <h1 className="type-display">Something went wrong</h1>
         <p className="type-body">
           {error instanceof Error ? error.message : String(error)}
         </p>

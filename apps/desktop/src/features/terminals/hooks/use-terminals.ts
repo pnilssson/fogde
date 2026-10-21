@@ -1,5 +1,6 @@
 import {
   type UseQueryResult,
+  useIsMutating,
   useMutation,
   useQueries,
   useQueryClient,
@@ -107,10 +108,28 @@ export function useCreateTerminal(
   });
 }
 
+function closeKey(machine: Machine) {
+  return [machine.id, "terminals.close"];
+}
+
+export function useClosing(machine: Machine, terminal: Terminal) {
+  return (
+    useIsMutating({
+      mutationKey: closeKey(machine),
+      predicate: ({ state: { variables } }) =>
+        typeof variables === "object" &&
+        variables !== null &&
+        "id" in variables &&
+        variables.id === terminal.id,
+    }) > 0
+  );
+}
+
 export function useCloseTerminal(machine: Machine) {
   const queries = useQueryClient();
 
   return useMutation({
+    mutationKey: closeKey(machine),
     mutationFn: (terminal: Terminal) =>
       machine.client.call("terminals.close", terminal.id),
     onSuccess: (_, closed) => {

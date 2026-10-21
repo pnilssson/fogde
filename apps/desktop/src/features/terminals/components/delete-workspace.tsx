@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,9 +7,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useDeleteWorkspace } from "@/features/terminals/hooks/use-workspaces";
 import type { Workspace } from "@/generated/protocol";
@@ -20,6 +16,8 @@ import type { Machine } from "@/lib/machines";
 interface Props {
   machine: Machine;
   workspace: Workspace;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 function outcome(count: number) {
@@ -33,17 +31,18 @@ function outcome(count: number) {
   return `This closes ${terminals} and removes it from the sidebar.`;
 }
 
-export function DeleteWorkspace({ machine, workspace }: Props) {
-  const [open, setOpen] = useState(false);
+export function DeleteWorkspace({
+  machine,
+  workspace,
+  open,
+  onOpenChange,
+}: Props) {
   const remove = useDeleteWorkspace(machine, () => {
-    setOpen(false);
+    onOpenChange(false);
   });
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={<Button variant="ghost" size="sm" />}>
-        Delete workspace
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{`Delete ${workspace.name}?`}</AlertDialogTitle>

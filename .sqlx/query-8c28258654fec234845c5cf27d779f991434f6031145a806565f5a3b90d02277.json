@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE machines SET connected = TRUE WHERE host IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "8c28258654fec234845c5cf27d779f991434f6031145a806565f5a3b90d02277"
+}

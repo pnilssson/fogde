@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use github::Gh;
 use herdr_client::Herdr;
@@ -10,6 +11,7 @@ use tokio::sync::{Mutex, OnceCell};
 
 use crate::db::Db;
 use crate::settings::Settings;
+use crate::terminals::Tracker;
 
 pub struct Shared {
     pub settings: Settings,
@@ -17,6 +19,7 @@ pub struct Shared {
     pub binaries: Option<Binaries>,
     pub tunnels: Mutex<HashMap<String, Tunnel>>,
     pub placing: Mutex<()>,
+    pub tracker: Arc<Tracker>,
     fogde: PathBuf,
     tools: PathBuf,
     gh: OnceCell<Gh>,
@@ -34,6 +37,7 @@ impl Shared {
             binaries,
             tunnels: Mutex::default(),
             placing: Mutex::default(),
+            tracker: Arc::default(),
             tools: app.join("tools"),
             fogde,
             gh: OnceCell::new(),
@@ -49,7 +53,12 @@ impl Shared {
         let home = self.fogde.join(".app").join("herdr");
 
         self.herdr
-            .get_or_try_init(|| async move { Herdr::start(&self.tools, &home).await })
+            .get_or_try_init(|| async move {
+                let herdr = Herdr::start(&self.tools, &home).await?;
+                tokio::spawn(Arc::clone(&self.tracker).run(herdr.client()));
+
+                Ok(herdr)
+            })
             .await
     }
 

@@ -10,6 +10,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use protocol::Connection;
 use protocol::rpc::{self, Failure, PARSE_ERROR};
+use protocol::terminals::StateEvent;
 use serde::Deserialize;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
@@ -17,7 +18,7 @@ use tokio::sync::mpsc;
 use remote::Binaries;
 
 use crate::relay;
-use crate::rpc::ROUTER;
+use crate::rpc::{ROUTER, notify};
 use crate::session::Session;
 use crate::shared::Shared;
 use crate::token;
@@ -92,6 +93,7 @@ async fn server(
 
 pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: bool) {
     let (replies, mut outgoing) = mpsc::unbounded_channel::<rpc::Message>();
+    let mut changes = shared.tracker.changes();
     let session = Arc::new(Session::new(shared, local, replies.clone()));
 
     loop {
@@ -121,6 +123,11 @@ pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: boo
                             Err(Failure::new(PARSE_ERROR, error.to_string())),
                         )));
                     }
+                }
+            }
+            Some(states) = session.shared.tracker.next(&mut changes) => {
+                for state in states {
+                    notify::<StateEvent>(&replies, state);
                 }
             }
             Some(reply) = outgoing.recv() => {

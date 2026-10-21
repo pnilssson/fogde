@@ -174,14 +174,14 @@ mod tests {
 
     #[test]
     fn reads_remotes() {
-        let fogde = repo("github.com", "octocat", "hello-world");
+        let hello = repo("github.com", "octocat", "hello-world");
         for url in [
             "https://github.com/octocat/hello-world.git",
             "https://user:secret@github.com/octocat/hello-world",
             "git@github.com:octocat/hello-world.git",
             "ssh://git@github.com:22/octocat/hello-world.git",
         ] {
-            assert_eq!(remote(url), Some(fogde.clone()), "{url}");
+            assert_eq!(remote(url), Some(hello.clone()), "{url}");
         }
         assert_eq!(remote("C:\\Users\\dev\\fogde"), None);
         assert_eq!(remote("https://github.com/octocat"), None);
@@ -189,10 +189,10 @@ mod tests {
 
     #[test]
     fn matches_remotes_regardless_of_case() {
-        let fogde = repo("github.com", "octocat", "hello-world");
+        let hello = repo("github.com", "octocat", "hello-world");
 
-        assert!(fogde.matches(&repo("GitHub.com", "OctoCat", "Hello-World")));
-        assert!(!fogde.matches(&repo("github.com", "fork", "fogde")));
+        assert!(hello.matches(&repo("GitHub.com", "OctoCat", "Hello-World")));
+        assert!(!hello.matches(&repo("github.com", "fork", "hello-world")));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-import { FolderIcon, PlusIcon } from "@phosphor-icons/react";
+import { FolderIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
 import { open as pick } from "@tauri-apps/plugin-dialog";
@@ -13,43 +13,24 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { SidebarGroupAction } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useCreateWorkspace } from "@/features/terminals/hooks/use-workspaces";
 import { folderName, foldersQuery, reposFolderQuery } from "@/lib/folders";
 import type { Machine } from "@/lib/machines";
 
-export function NewWorkspace({ machine }: { machine: Machine }) {
-  const [open, setOpen] = useState(false);
+interface Props {
+  machine: Machine;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 
+export function NewWorkspace({ machine, open, onOpenChange }: Props) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <DialogTrigger
-              render={
-                <SidebarGroupAction
-                  aria-label={`New workspace on ${machine.name}`}
-                />
-              }
-            />
-          }
-        >
-          <PlusIcon />
-        </TooltipTrigger>
-        <TooltipContent side="right">New workspace</TooltipContent>
-      </Tooltip>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New workspace</DialogTitle>
@@ -58,7 +39,7 @@ export function NewWorkspace({ machine }: { machine: Machine }) {
           <WorkspaceForm
             machine={machine}
             onDone={() => {
-              setOpen(false);
+              onOpenChange(false);
             }}
           />
         )}

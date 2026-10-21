@@ -7,10 +7,12 @@ import { createStore } from "zustand/vanilla";
 import { Selection } from "@/features/terminals/lib/selection";
 
 export const startId = "start";
+export const holdId = "hold";
 
 interface Tiles {
   workspace: Selection | undefined;
   layouts: Record<string, SerializedDockview>;
+  closed: string[];
   active: Selection | undefined;
   startActive: boolean;
 }
@@ -23,6 +25,7 @@ const saved = z.object({
       (layout) => typeof layout === "object" && layout !== null,
     ),
   ),
+  closed: z.array(z.string()).default([]),
 });
 
 const StartParams = z.object({ folder: z.string() });
@@ -30,6 +33,7 @@ const StartParams = z.object({ folder: z.string() });
 const initial: Tiles = {
   workspace: undefined,
   layouts: {},
+  closed: [],
   active: undefined,
   startActive: false,
 };
@@ -37,7 +41,11 @@ const initial: Tiles = {
 export const store = createStore<Tiles>()(
   persist(() => initial, {
     name: "fogde.tiles",
-    partialize: ({ workspace, layouts }) => ({ workspace, layouts }),
+    partialize: ({ workspace, layouts, closed }) => ({
+      workspace,
+      layouts,
+      closed,
+    }),
     merge: (persisted, current) => ({
       ...current,
       ...saved.safeParse(persisted).data,
@@ -54,9 +62,12 @@ export function layoutKey({ machine, id }: Selection) {
 }
 
 export function keepMachines(machines: string[]) {
-  const { workspace, layouts } = store.getState();
+  const { workspace, layouts, closed } = store.getState();
 
   store.setState({
+    closed: closed.filter((key) =>
+      machines.some((machine) => key.startsWith(`${machine}/`)),
+    ),
     workspace:
       workspace && machines.includes(workspace.machine) ? workspace : undefined,
     layouts: Object.fromEntries(
@@ -69,13 +80,27 @@ export function keepMachines(machines: string[]) {
 
 export function forget(workspace: Selection) {
   const gone = layoutKey(workspace);
-  const { layouts } = store.getState();
+  const { layouts, closed } = store.getState();
 
   store.setState({
+    closed: closed.filter((key) => key !== gone),
     layouts: Object.fromEntries(
       Object.entries(layouts).filter(([key]) => key !== gone),
     ),
   });
+}
+
+export function useOpen(workspace: Selection) {
+  const key = layoutKey(workspace);
+
+  return useTiles(({ closed }) => !closed.includes(key));
+}
+
+export function setOpen(workspace: Selection, open: boolean) {
+  const key = layoutKey(workspace);
+  const others = store.getState().closed.filter((closed) => closed !== key);
+
+  store.setState({ closed: open ? others : [...others, key] });
 }
 
 function sharedStart(layout: SerializedDockview | undefined) {

@@ -1,15 +1,13 @@
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::server::{
-    CheckServer, ConnectServer, ListSshHosts, RemoveServer, ServerCheck, ServerCheckParams,
-    SetUpServer, SshKey,
+    CheckServer, ConnectServer, ListSshHosts, ServerCheck, ServerCheckParams, SetUpServer, SshKey,
 };
 use remote::{Check, System};
 use tokio::sync::Mutex;
 
-use crate::relay;
 use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
-use crate::settings;
+use crate::{machines, relay};
 
 #[derive(Default)]
 pub struct State {
@@ -21,7 +19,6 @@ pub fn register(router: &mut Router) {
     router.add::<CheckServer>();
     router.add::<SetUpServer>();
     router.add::<ConnectServer>();
-    router.add::<RemoveServer>();
 }
 
 impl Handler for ListSshHosts {
@@ -82,16 +79,15 @@ impl Handler for SetUpServer {
             .await
             .map_err(relay::unreachable)?;
         let id = tunnel.host.clone();
-        session
-            .shared
-            .settings
-            .add_server(settings::Server {
+        machines::add_server(
+            &session.shared,
+            &machines::Server {
                 id: id.clone(),
                 target: server.target().to_owned(),
                 triple: system.triple,
-            })
-            .await
-            .map_err(failure)?;
+            },
+        )
+        .await?;
         session
             .shared
             .tunnels
@@ -106,19 +102,6 @@ impl Handler for SetUpServer {
 impl Handler for ConnectServer {
     async fn handle(session: &Session, id: String) -> Result<(), Failure> {
         relay::connect(&session.shared, &id).await
-    }
-}
-
-impl Handler for RemoveServer {
-    async fn handle(session: &Session, id: String) -> Result<(), Failure> {
-        session.shared.tunnels.lock().await.remove(&id);
-
-        session
-            .shared
-            .settings
-            .remove_server(&id)
-            .await
-            .map_err(failure)
     }
 }
 

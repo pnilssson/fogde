@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO machines (host, target, triple, name) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "859ab33755d6b982805723d33b1b7390f28ebcd2899bd1bf33e3a52eecdb37f3"
+}

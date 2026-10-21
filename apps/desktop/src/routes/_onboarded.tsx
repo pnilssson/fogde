@@ -6,7 +6,10 @@ import { onboardedQuery } from "@/features/onboarding/api/onboarding";
 import { SettingsDialog } from "@/features/settings/components/settings-dialog";
 import { StatusBar } from "@/features/terminals/components/status-bar";
 import { WorkspaceSidebar } from "@/features/terminals/components/workspace-sidebar";
+import { useAttention } from "@/features/terminals/hooks/use-attention";
+import { useFailures } from "@/features/terminals/hooks/use-failures";
 import { useGroups } from "@/features/terminals/hooks/use-terminals";
+import { useViewing } from "@/features/terminals/hooks/use-viewing";
 import { keepMachines, useTiles } from "@/features/terminals/lib/layouts";
 import {
   findTerminal,
@@ -43,7 +46,7 @@ export const Route = createFileRoute("/_onboarded")({
     throw redirect({ to: "/onboarding/where" });
   },
   component: function WorkspaceRoute() {
-    const machines = useMachines();
+    const { all, connected: machines } = useMachines();
     const groups = useGroups(machines);
     const active = useTiles((tiles) => tiles.active);
     const stored = useTiles((tiles) => tiles.workspace);
@@ -51,12 +54,15 @@ export const Route = createFileRoute("/_onboarded")({
     const terminal = active && findTerminal(groups, active)?.terminal;
 
     useRetryOnReturn(machines);
+    useAttention(machines);
+    useFailures(machines);
+    useViewing(machines);
 
     useEffect(() => {
-      if (machines.length > 0) {
-        keepMachines(machines.map(({ id }) => id));
+      if (all.length > 0) {
+        keepMachines(all.map(({ id }) => id));
       }
-    }, [machines]);
+    }, [all]);
 
     useEffect(() => {
       if (workspace) {

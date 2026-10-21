@@ -175,6 +175,8 @@ mod tests {
             .map(|&id| Terminal {
                 id: id.to_owned(),
                 name: format!("Terminal {id}"),
+                agent: None,
+                status: protocol::terminals::Status::Idle,
                 folder: "/home/me".to_owned(),
                 checkout: None,
             })

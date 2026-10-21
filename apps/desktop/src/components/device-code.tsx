@@ -58,7 +58,7 @@ export function DeviceCode({ code, url, site, hint, onCancel }: Props) {
         )}
       </div>
       <div className="flex items-center gap-2">
-        <span className="type-code-display">{code}</span>
+        <span className="font-mono type-display tabular-nums">{code}</span>
         <Button
           variant="ghost"
           size="icon-sm"

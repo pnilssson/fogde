@@ -5,6 +5,7 @@ mod db;
 mod folders;
 mod github;
 mod machines;
+mod notifications;
 mod onboarding;
 mod relay;
 mod repos;

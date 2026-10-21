@@ -212,7 +212,8 @@ mod tests {
 
     #[test]
     fn reads_windows_line_endings() {
-        let porcelain = "worktree C:/Users/dev/fogde\r\nHEAD 3f2a\r\nbranch refs/heads/main\r\n\r\n";
+        let porcelain =
+            "worktree C:/Users/dev/fogde\r\nHEAD 3f2a\r\nbranch refs/heads/main\r\n\r\n";
 
         assert_eq!(
             parse(porcelain),

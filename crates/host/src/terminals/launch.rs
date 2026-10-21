@@ -1,44 +1,66 @@
 use std::path::Path;
 
-use herdr_client::{Herdr, Pane};
+use herdr_client::{Client, Pane};
 use protocol::agents::Agent;
-use protocol::rpc::Failure;
+use protocol::rpc::Message;
+use protocol::terminals::{FailedEvent, TerminalFailed};
+use tokio::sync::mpsc;
 
-use crate::folders;
-use crate::rpc::failure;
+use crate::rpc::notify;
 
-pub async fn start(herdr: &Herdr, pane: &Pane, agent: Agent) -> Result<(), Failure> {
-    let kind = match agent {
-        Agent::Claude => "claude",
-        Agent::Codex => "codex",
-        Agent::Copilot => "copilot",
-    };
+pub fn start(client: Client, pane: &Pane, agent: Agent, outgoing: mpsc::UnboundedSender<Message>) {
+    let kind = kind(agent);
     let name = format!("{kind}-{}", pane.workspace.to_lowercase());
+    let id = pane.workspace.clone();
+    let pane = pane.id.clone();
 
-    match herdr.client().start_agent(&name, kind, &pane.id, &[]).await {
-        Ok(_) => Ok(()),
-        Err(herdr_client::Error::Herdr { code, .. }) if code == "agent_not_ready" => Ok(()),
-        Err(error) => Err(failure(error)),
-    }
+    tokio::spawn(async move {
+        let Err(error) = client.start_agent(&name, kind, &pane).await else {
+            return;
+        };
+
+        tracing::warn!(%error, %pane, "could not start the agent");
+        if let Err(error) = client.close_workspace(&id).await {
+            tracing::warn!(%error, %id, "could not close the terminal");
+        }
+        notify::<FailedEvent>(
+            &outgoing,
+            TerminalFailed {
+                id,
+                agent,
+                error: error.to_string(),
+            },
+        );
+    });
 }
 
-pub fn label(folder: &Path, home: &Path, agent: Option<Agent>) -> String {
-    let place = if folders::same(folder, home) {
-        "~".to_owned()
-    } else {
-        folder.file_name().map_or_else(
-            || folder.display().to_string(),
-            |name| name.to_string_lossy().into_owned(),
-        )
-    };
-    let what = match agent {
+pub fn launched(label: &str) -> Option<Agent> {
+    [Agent::Claude, Agent::Codex, Agent::Copilot]
+        .into_iter()
+        .find(|&agent| self::label(Some(agent)) == label)
+}
+
+pub fn label(agent: Option<Agent>) -> &'static str {
+    match agent {
         None => "Terminal",
         Some(Agent::Claude) => "Claude",
         Some(Agent::Codex) => "Codex",
-        Some(Agent::Copilot) => "Copilot",
-    };
+        Some(Agent::Copilot) => "GitHub Copilot",
+    }
+}
 
-    format!("{place} · {what}")
+pub fn agent(kind: &str) -> Option<Agent> {
+    [Agent::Claude, Agent::Codex, Agent::Copilot]
+        .into_iter()
+        .find(|&agent| self::kind(agent) == kind)
+}
+
+fn kind(agent: Agent) -> &'static str {
+    match agent {
+        Agent::Claude => "claude",
+        Agent::Codex => "codex",
+        Agent::Copilot => "copilot",
+    }
 }
 
 pub fn path_with(program: &Path) -> String {

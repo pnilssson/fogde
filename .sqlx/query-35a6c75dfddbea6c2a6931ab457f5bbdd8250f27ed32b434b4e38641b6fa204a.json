@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT host, target, triple, name, connected AS \"connected: bool\"\n        FROM machines ORDER BY host IS NOT NULL, id",
+  "describe": {
+    "columns": [
+      {
+        "name": "host",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "machines",
+            "name": "host"
+          }
+        }
+      },
+      {
+        "name": "target",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "machines",
+            "name": "target"
+          }
+        }
+      },
+      {
+        "name": "triple",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "machines",
+            "name": "triple"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "machines",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "connected: bool",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "machines",
+            "name": "connected"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "35a6c75dfddbea6c2a6931ab457f5bbdd8250f27ed32b434b4e38641b6fa204a"
+}

@@ -1,6 +1,5 @@
 import "dockview-react/dist/styles/dockview.css";
 
-import { XIcon } from "@phosphor-icons/react";
 import {
   DockviewReact,
   type DockviewApi,
@@ -10,35 +9,41 @@ import {
 } from "dockview-react";
 import { type ReactNode, useContext, useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { StartPage } from "@/features/terminals/components/start-page";
 import { TerminalPane } from "@/features/terminals/components/terminal-pane";
+import { TileGrip } from "@/features/terminals/components/tile-grip";
 import {
   isPlacing,
   usePlaceTerminal,
 } from "@/features/terminals/hooks/use-workspaces";
-import { useStart, useTiles } from "@/features/terminals/lib/layouts";
-import type { Selection } from "@/features/terminals/lib/selection";
+import { Trash } from "@/features/terminals/components/trash";
 import {
-  findTerminal,
-  WorkspaceContext,
-} from "@/features/terminals/lib/selection";
-import {
-  attach,
   canDrop,
   dragType,
   drop,
   dragged,
-  prune,
-  restore,
-} from "@/features/terminals/lib/tiles";
+  endDrag,
+} from "@/features/terminals/lib/drag";
+import {
+  holdId,
+  startId,
+  useStart,
+  useTiles,
+} from "@/features/terminals/lib/layouts";
+import type { Selection } from "@/features/terminals/lib/selection";
+import {
+  findTerminal,
+  findWorkspace,
+  WorkspaceContext,
+} from "@/features/terminals/lib/selection";
+import { attach, isShown, restore, sync } from "@/features/terminals/lib/tiles";
 
 const theme = { name: "fogde", className: "dockview-theme-fogde" };
+
+const edges = {
+  activationSize: { type: "percentage", value: 15 },
+  size: { type: "percentage", value: 15 },
+} as const;
 
 function Tile({ children }: { children: ReactNode }) {
   return <div className="h-full p-1">{children}</div>;
@@ -64,35 +69,17 @@ function TerminalTile({ api, params }: IDockviewPanelProps<Selection>) {
 
 interface StartProps {
   folder?: string | undefined;
-  onClose?: (() => void) | undefined;
+  movable?: boolean;
 }
 
-function StartSurface({ folder, onClose }: StartProps) {
+function StartSurface({ folder, movable = false }: StartProps) {
   return (
     <Tile>
       <section
         aria-label="Start"
-        className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-surface-3 shadow-surface-3"
+        className="group/tile relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-surface-3 shadow-surface-3"
       >
-        <header className="flex h-8 shrink-0 items-center justify-end px-2">
-          {onClose && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Close new tile"
-                    onClick={onClose}
-                  />
-                }
-              >
-                <XIcon />
-              </TooltipTrigger>
-              <TooltipContent>Close</TooltipContent>
-            </Tooltip>
-          )}
-        </header>
+        {movable && <TileGrip item={startId} />}
         <div className="flex min-h-0 flex-1 overflow-auto">
           <StartPage folder={folder} />
         </div>
@@ -101,36 +88,33 @@ function StartSurface({ folder, onClose }: StartProps) {
   );
 }
 
-function StartTile({ api, params }: IDockviewPanelProps<{ folder?: string }>) {
+function StartTile({ params }: IDockviewPanelProps<{ folder?: string }>) {
   const workspace = useTiles((tiles) => tiles.workspace);
   const shared = useStart(workspace) !== undefined;
 
-  return (
-    <StartSurface
-      folder={params.folder}
-      onClose={
-        shared
-          ? () => {
-              api.close();
-            }
-          : undefined
-      }
-    />
-  );
+  return <StartSurface folder={params.folder} movable={shared} />;
 }
 
 function Watermark() {
   return <StartSurface />;
 }
 
-const components = { terminal: TerminalTile, start: StartTile };
+function Hold() {
+  return null;
+}
+
+const components = {
+  terminal: TerminalTile,
+  start: StartTile,
+  [holdId]: Hold,
+};
 
 function accept(event: DockviewReadyEvent) {
   event.api.onUnhandledDragOver((over) => {
     if (
       over.nativeEvent instanceof DragEvent &&
       over.nativeEvent.dataTransfer?.types.includes(dragType) &&
-      canDrop(over.group)
+      canDrop(over.group, over.position)
     ) {
       over.accept();
     }
@@ -149,52 +133,52 @@ export function TerminalTiles() {
       return;
     }
 
-    prune(({ machine, id }) => {
-      const workspaces = groups.find((group) => group.machine.id === machine)
-        ?.workspaces.data;
-      if (!workspaces) {
-        return true;
-      }
+    const found = findWorkspace(groups, workspace);
+    if (!found) {
+      return;
+    }
 
-      const owner = workspaces.find(({ terminals }) =>
-        terminals.some((terminal) => terminal.id === id),
-      );
-
-      return (
-        machine === workspace.machine &&
-        (owner?.id === workspace.id || isPlacing(machine, id))
-      );
-    });
+    sync(
+      found.workspace.terminals.map(({ id }) => ({
+        machine: workspace.machine,
+        id,
+      })),
+      ({ machine, id }) => isPlacing(machine, id),
+    );
   }, [api, groups, workspace]);
+
+  const group = groups.find(({ machine }) => machine.id === workspace?.machine);
 
   const dropped = (event: DockviewDidDropEvent) => {
     if (!(event.nativeEvent instanceof DragEvent)) {
       return;
     }
 
-    const selection = dragged(event.nativeEvent);
-    const group = groups.find(
-      ({ machine }) => machine.id === workspace?.machine,
-    );
-    if (!selection || !workspace || !group) {
+    const item = dragged(event.nativeEvent);
+    endDrag();
+    if (!item || !workspace || !group) {
       return;
     }
 
-    place.mutate({
-      machine: group.machine,
-      terminal: selection.id,
-      workspace: workspace.id,
-    });
-    drop(selection, event.position, event.group);
+    if (item !== startId && !isShown(item)) {
+      place.mutate({
+        machine: group.machine,
+        terminal: item.id,
+        workspace: workspace.id,
+      });
+    }
+    drop(item, event.position, event.group);
   };
 
   return (
-    <div className="min-h-0 flex-1 p-1">
+    <div className="relative min-h-0 flex-1 p-1">
       <DockviewReact
+        className="isolate"
         theme={theme}
         components={components}
         watermarkComponent={Watermark}
         disableFloatingGroups
+        dndEdges={edges}
         onReady={(event) => {
           accept(event);
           restore(event.api);
@@ -202,6 +186,7 @@ export function TerminalTiles() {
         }}
         onDidDrop={dropped}
       />
+      {group && <Trash machine={group.machine} />}
     </div>
   );
 }

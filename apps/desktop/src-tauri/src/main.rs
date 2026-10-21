@@ -6,6 +6,7 @@ use std::path::Path;
 
 use protocol::{Connection, Frame};
 use tauri::{Manager, State};
+use tauri_plugin_window_state::StateFlags;
 
 #[tauri::command]
 async fn connection(connection: State<'_, Connection>) -> Result<Connection, ()> {
@@ -34,7 +35,13 @@ fn main() -> anyhow::Result<()> {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::POSITION | StateFlags::SIZE | StateFlags::MAXIMIZED)
+                .build(),
+        )
         .setup(|app| {
             let host = tauri::async_runtime::block_on(host::start(binaries(app)?))?;
             app.manage(host);

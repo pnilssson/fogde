@@ -6,9 +6,12 @@ use std::fmt::Display;
 use std::pin::Pin;
 use std::sync::LazyLock;
 
-use protocol::Method;
-use protocol::rpc::{Failure, INVALID_PARAMS, METHOD_NOT_FOUND, SERVER_ERROR};
+use protocol::rpc::{
+    Failure, INVALID_PARAMS, METHOD_NOT_FOUND, Message, Notification, SERVER_ERROR,
+};
+use protocol::{Event, Method};
 use serde_json::Value;
+use tokio::sync::mpsc;
 
 use crate::session::Session;
 
@@ -18,6 +21,7 @@ pub static ROUTER: LazyLock<Router> = LazyLock::new(|| {
     crate::folders::register(&mut router);
     crate::github::register(&mut router);
     crate::machines::register(&mut router);
+    crate::notifications::register(&mut router);
     crate::onboarding::register(&mut router);
     crate::repos::register(&mut router);
     crate::server::register(&mut router);
@@ -92,6 +96,15 @@ fn call<M: Handler>(session: &Session, params: Value) -> Reply<'_> {
 
         serde_json::to_value(result).map_err(|error| Failure::new(SERVER_ERROR, error.to_string()))
     })
+}
+
+pub fn notify<E: Event>(outgoing: &mpsc::UnboundedSender<Message>, params: E::Params) {
+    match Notification::new::<E>(params) {
+        Ok(notification) => {
+            let _ = outgoing.send(Message::Notification(notification));
+        }
+        Err(error) => tracing::warn!(%error, "could not write a notification"),
+    }
 }
 
 pub fn failure(error: impl Display) -> Failure {

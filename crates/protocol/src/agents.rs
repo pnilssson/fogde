@@ -3,7 +3,7 @@ use ts_rs::TS;
 
 use crate::Method;
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum Agent {
     Claude,

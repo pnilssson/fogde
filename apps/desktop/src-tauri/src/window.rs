@@ -5,6 +5,7 @@ pub fn open(app: &App) -> tauri::Result<()> {
     let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("Fogde")
         .inner_size(1200.0, 800.0)
+        .center()
         .min_inner_size(720.0, 480.0)
         .disable_drag_drop_handler();
 

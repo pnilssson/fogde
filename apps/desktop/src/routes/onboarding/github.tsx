@@ -6,7 +6,7 @@ import {
   StepSearch,
   stepMachine,
 } from "@/features/onboarding/lib/step-machine";
-import { computer } from "@/lib/machines";
+import { isComputer } from "@/lib/machines";
 import { stepPendingMs } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/onboarding/github")({
@@ -28,8 +28,9 @@ export const Route = createFileRoute("/onboarding/github")({
         machine={machine}
         onBack={() =>
           void navigate({
-            to:
-              machine === computer ? "/onboarding/where" : "/onboarding/server",
+            to: isComputer(machine)
+              ? "/onboarding/where"
+              : "/onboarding/server",
           })
         }
         onContinue={() =>

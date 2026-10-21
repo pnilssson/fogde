@@ -13,6 +13,7 @@ import {
 import { appearance } from "@/features/terminals/lib/appearance";
 import { measure } from "@/features/terminals/lib/size";
 import { watchTerminal } from "@/features/terminals/lib/watch";
+import { scrollOnWheel } from "@/features/terminals/lib/wheel";
 import type { Size } from "@/generated/protocol";
 import { ConnectionError } from "@/lib/client";
 import type { Machine } from "@/lib/machines";
@@ -176,6 +177,19 @@ export function TerminalView({ id, machine, panel }: Props) {
           }
         });
       }
+    });
+    scrollOnWheel(terminal, element, (scroll) => {
+      if (!watching) {
+        return;
+      }
+
+      client
+        .call("terminals.scroll", { id, ...scroll })
+        .catch((error: unknown) => {
+          if (open && watching) {
+            report("Could not scroll the terminal", error);
+          }
+        });
     });
     const focusing = panel.onWillFocus(() => {
       terminal.focus();

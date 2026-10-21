@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use serde::de::IgnoredAny;
 use serde::{Deserialize, Serialize};
 
 use crate::client::Empty;
@@ -44,26 +45,11 @@ impl Client {
         Ok(list.panes)
     }
 
-    pub async fn start_agent(
-        &self,
-        name: &str,
-        kind: &str,
-        pane: &str,
-        args: &[&str],
-    ) -> Result<Pane, Error> {
-        let started: Started = self
-            .request(
-                "agent.start",
-                Start {
-                    name,
-                    kind,
-                    pane_id: pane,
-                    args,
-                },
-            )
+    pub async fn focus_pane(&self, pane: &str) -> Result<(), Error> {
+        self.request::<IgnoredAny>("pane.focus", Focus { pane_id: pane })
             .await?;
 
-        Ok(started.agent)
+        Ok(())
     }
 }
 
@@ -73,16 +59,8 @@ struct PaneList {
 }
 
 #[derive(Serialize)]
-struct Start<'a> {
-    name: &'a str,
-    kind: &'a str,
+struct Focus<'a> {
     pane_id: &'a str,
-    args: &'a [&'a str],
-}
-
-#[derive(Deserialize)]
-struct Started {
-    agent: Pane,
 }
 
 #[cfg(test)]
@@ -90,8 +68,6 @@ mod tests {
     use super::*;
 
     const LIST: &str = r#"{"panes":[{"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"0f6e1c52-3a7b-4d2e-9c1a-5b8e2f4d7a10"},"agent_status":"idle","cwd":"C:\\Users\\dev\\fogde","focused":true,"pane_id":"w3:p1","revision":10,"scroll":{"max_offset_from_bottom":0,"offset_from_bottom":0,"viewport_rows":56},"tab_id":"w3:t1","terminal_id":"term_65e188ff9e68f3","terminal_title":"✳ Claude Code","terminal_title_stripped":"Claude Code","workspace_id":"w3"},{"agent_status":"unknown","cwd":"C:\\Users\\dev\\notes","focused":false,"pane_id":"w3:p2","revision":0,"scroll":{"max_offset_from_bottom":20,"offset_from_bottom":0,"viewport_rows":14},"tab_id":"w3:t1","terminal_id":"term_65e188ff9f8c04","workspace_id":"w3"}],"type":"pane_list"}"#;
-
-    const STARTED: &str = r#"{"agent":{"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"06041bb7-9bd5-4729-bc8b-a3fdda2089b8"},"agent_status":"idle","cwd":"C:\\Users\\dev\\fogde","focused":false,"interactive_ready":true,"name":"t4","pane_id":"w4:p1","revision":2,"state_change_seq":2,"tab_id":"w4:t1","terminal_id":"term_65e20654599884","terminal_title":"✳ Claude Code","terminal_title_stripped":"Claude Code","workspace_id":"w4"},"argv":["claude"],"type":"agent_started"}"#;
 
     #[test]
     fn reads_agent_and_shell_panes() {
@@ -117,16 +93,6 @@ mod tests {
                     cwd: Some(PathBuf::from(r"C:\Users\dev\notes")),
                 },
             ]
-        );
-    }
-
-    #[test]
-    fn reads_started_agent() {
-        let started: Started = serde_json::from_str(STARTED).unwrap();
-
-        assert_eq!(
-            (started.agent.id.as_str(), started.agent.status),
-            ("w4:p1", Status::Idle)
         );
     }
 

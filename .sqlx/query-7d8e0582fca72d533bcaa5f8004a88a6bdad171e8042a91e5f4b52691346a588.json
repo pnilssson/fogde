@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS (SELECT 1 FROM machines WHERE connected) AS \"connected: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "connected: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7d8e0582fca72d533bcaa5f8004a88a6bdad171e8042a91e5f4b52691346a588"
+}

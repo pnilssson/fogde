@@ -28,7 +28,11 @@ export type Folders = { path: string, parent: string | null, folders: Array<Fold
 
 export type Frame = { platform: Platform, translucent: boolean, };
 
-export type Machine = { "kind": "computer" } | { "kind": "server", id: string, target: string, };
+export type Machine = { "kind": "computer", name: string, connected: boolean, } | { "kind": "server", id: string, name: string, target: string, connected: boolean, };
+
+export type MachineId = { "kind": "computer" } | { "kind": "server", id: string, };
+
+export type Notifications = { enabled: boolean, sound: boolean, };
 
 export type PlaceTerminalParams = { terminal: string, workspace: string, };
 
@@ -38,7 +42,13 @@ export type RemoteRepo = { host: string, owner: string, name: string, cloned: bo
 
 export type RemoveWorktreeParams = { repo: string, path: string, };
 
+export type RenameMachineParams = { machine: MachineId, name: string, };
+
 export type Repo = { host: string, owner: string, name: string, };
+
+export type Scroll = "up" | "down";
+
+export type ScrollTerminalParams = { id: string, direction: Scroll, lines: number, column: number, row: number, };
 
 export type ServerCheck = { "state": "ready" } | { "state": "untrusted", fingerprint: string, } | { "state": "keyRejected", keys: Array<SshKey>, };
 
@@ -50,13 +60,19 @@ export type Size = { cols: number, rows: number, };
 
 export type SshKey = { name: string, fingerprint: string, };
 
-export type Terminal = { id: string, name: string, folder: string, checkout: string | null, };
+export type Status = "idle" | "working" | "blocked" | "done";
+
+export type Terminal = { id: string, name: string, agent: Agent | null, status: Status, folder: string, checkout: string | null, };
 
 export type TerminalEnded = { id: string, error: string | null, };
+
+export type TerminalFailed = { id: string, agent: Agent, error: string, };
 
 export type TerminalFrame = { id: string, cols: number, rows: number, full: boolean, data: string, };
 
 export type TerminalInputParams = { id: string, data: string, };
+
+export type TerminalState = { id: string, name: string, agent: Agent | null, status: Status, };
 
 export type Theme = "system" | "light" | "dark";
 
@@ -75,8 +91,13 @@ export type Methods = {
   "github.finishSignIn": { params: null; result: null };
   "github.startSignIn": { params: string; result: SignInCode };
   "machines.addComputer": { params: null; result: null };
+  "machines.connect": { params: MachineId; result: null };
+  "machines.disconnect": { params: MachineId; result: null };
   "machines.list": { params: null; result: Array<Machine> };
-  "machines.removeComputer": { params: null; result: null };
+  "machines.remove": { params: MachineId; result: null };
+  "machines.rename": { params: RenameMachineParams; result: null };
+  "notifications.get": { params: null; result: Notifications };
+  "notifications.set": { params: Notifications; result: null };
   "onboarding.done": { params: null; result: boolean };
   "onboarding.finish": { params: null; result: null };
   "repos.checkFolder": { params: string; result: null };
@@ -87,13 +108,14 @@ export type Methods = {
   "server.check": { params: ServerCheckParams; result: ServerCheck };
   "server.connect": { params: string; result: null };
   "server.hosts": { params: null; result: Array<string> };
-  "server.remove": { params: string; result: null };
   "server.setUp": { params: string; result: string };
   "terminals.close": { params: string; result: null };
   "terminals.create": { params: CreateTerminalParams; result: Terminal };
   "terminals.input": { params: TerminalInputParams; result: null };
   "terminals.resize": { params: WatchTerminalParams; result: null };
+  "terminals.scroll": { params: ScrollTerminalParams; result: null };
   "terminals.unwatch": { params: string; result: null };
+  "terminals.view": { params: string | null; result: null };
   "terminals.watch": { params: WatchTerminalParams; result: null };
   "theme.get": { params: null; result: Theme };
   "theme.set": { params: Theme; result: null };
@@ -108,6 +130,8 @@ export type Methods = {
 export type Events = {
   "terminals.frame": TerminalFrame;
   "terminals.ended": TerminalEnded;
+  "terminals.failed": TerminalFailed;
+  "terminals.state": TerminalState;
 };
 
 export const offline = -32001;

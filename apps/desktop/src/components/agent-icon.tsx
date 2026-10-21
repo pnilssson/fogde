@@ -12,7 +12,7 @@ interface Props {
 export function AgentIcon({ agent }: Props) {
   switch (agent) {
     case "claude":
-      return <img src={claude} alt="" className="size-4" />;
+      return <img src={claude} alt="" className="size-4 shrink-0" />;
     case "codex":
       return <Themed light={openaiBlack} dark={openaiWhite} />;
     case "copilot":
@@ -28,8 +28,8 @@ interface ThemedProps {
 function Themed({ light, dark }: ThemedProps) {
   return (
     <>
-      <img src={light} alt="" className="size-4 dark:hidden" />
-      <img src={dark} alt="" className="hidden size-4 dark:block" />
+      <img src={light} alt="" className="size-4 shrink-0 dark:hidden" />
+      <img src={dark} alt="" className="hidden size-4 shrink-0 dark:block" />
     </>
   );
 }

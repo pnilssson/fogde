@@ -8,8 +8,27 @@ use crate::{Event, Method};
 pub struct Terminal {
     pub id: String,
     pub name: String,
+    pub agent: Option<Agent>,
+    pub status: Status,
     pub folder: String,
     pub checkout: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+pub enum Status {
+    Idle,
+    Working,
+    Blocked,
+    Done,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct TerminalState {
+    pub id: String,
+    pub name: String,
+    pub agent: Option<Agent>,
+    pub status: Status,
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
@@ -37,6 +56,22 @@ pub struct TerminalInputParams {
     pub data: String,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+pub enum Scroll {
+    Up,
+    Down,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct ScrollTerminalParams {
+    pub id: String,
+    pub direction: Scroll,
+    pub lines: u16,
+    pub column: u16,
+    pub row: u16,
+}
+
 #[derive(Clone, Debug, Serialize, TS)]
 pub struct TerminalFrame {
     pub id: String,
@@ -50,6 +85,13 @@ pub struct TerminalFrame {
 pub struct TerminalEnded {
     pub id: String,
     pub error: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, TS)]
+pub struct TerminalFailed {
+    pub id: String,
+    pub agent: Agent,
+    pub error: String,
 }
 
 pub struct CreateTerminal;
@@ -100,6 +142,22 @@ impl Method for ResizeTerminal {
     type Result = ();
 }
 
+pub struct ScrollTerminal;
+
+impl Method for ScrollTerminal {
+    const NAME: &'static str = "terminals.scroll";
+    type Params = ScrollTerminalParams;
+    type Result = ();
+}
+
+pub struct ViewTerminal;
+
+impl Method for ViewTerminal {
+    const NAME: &'static str = "terminals.view";
+    type Params = Option<String>;
+    type Result = ();
+}
+
 pub struct FrameEvent;
 
 impl Event for FrameEvent {
@@ -107,9 +165,23 @@ impl Event for FrameEvent {
     type Params = TerminalFrame;
 }
 
+pub struct StateEvent;
+
+impl Event for StateEvent {
+    const NAME: &'static str = "terminals.state";
+    type Params = TerminalState;
+}
+
 pub struct EndedEvent;
 
 impl Event for EndedEvent {
     const NAME: &'static str = "terminals.ended";
     type Params = TerminalEnded;
+}
+
+pub struct FailedEvent;
+
+impl Event for FailedEvent {
+    const NAME: &'static str = "terminals.failed";
+    type Params = TerminalFailed;
 }

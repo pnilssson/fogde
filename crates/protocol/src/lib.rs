@@ -5,6 +5,7 @@ mod frame;
 pub mod github;
 pub mod machines;
 mod method;
+pub mod notifications;
 pub mod onboarding;
 pub mod repos;
 pub mod rpc;

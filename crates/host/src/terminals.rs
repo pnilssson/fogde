@@ -1,19 +1,18 @@
 mod launch;
+mod stream;
+mod tracker;
 
 use std::collections::HashMap;
 use std::future;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
 use futures_util::future::join_all;
-use protocol::Event;
 use protocol::agents::Agent;
-use protocol::rpc::{Failure, Message, Notification, SERVER_ERROR};
+use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::terminals::{
-    CloseTerminal, CreateTerminal, CreateTerminalParams, EndedEvent, FrameEvent, ResizeTerminal,
-    Size, Terminal, TerminalEnded, TerminalFrame, TerminalInput, TerminalInputParams,
-    UnwatchTerminal, WatchTerminal, WatchTerminalParams,
+    CloseTerminal, CreateTerminal, CreateTerminalParams, ResizeTerminal, ScrollTerminal,
+    ScrollTerminalParams, Status, Terminal, TerminalInput, TerminalInputParams, UnwatchTerminal,
+    ViewTerminal, WatchTerminal, WatchTerminalParams,
 };
 use tokio::sync::mpsc;
 
@@ -21,14 +20,11 @@ use crate::folders;
 use crate::rpc::{Handler, Router, cancelled, failure};
 use crate::session::Session;
 use launch::{label, path_with, start};
+use stream::{Control, watch};
+pub use tracker::Tracker;
 
 #[derive(Default)]
 pub struct State(Mutex<HashMap<String, mpsc::UnboundedSender<Control>>>);
-
-enum Control {
-    Input(Vec<u8>),
-    Resize(Size),
-}
 
 impl State {
     pub fn clear(&self) {
@@ -59,6 +55,8 @@ pub fn register(router: &mut Router) {
     router.add::<UnwatchTerminal>();
     router.add::<TerminalInput>();
     router.add::<ResizeTerminal>();
+    router.add::<ScrollTerminal>();
+    router.add::<ViewTerminal>();
 }
 
 pub async fn list(session: &Session) -> Result<Vec<Terminal>, Failure> {
@@ -67,17 +65,22 @@ pub async fn list(session: &Session) -> Result<Vec<Terminal>, Failure> {
         tokio::try_join!(client.workspaces(), client.panes()).map_err(failure)?;
 
     Ok(workspaces
-        .into_iter()
-        .map(|workspace| Terminal {
-            folder: panes
-                .iter()
-                .find(|pane| pane.workspace == workspace.id)
-                .and_then(|pane| pane.cwd.as_ref())
-                .map(|cwd| cwd.display().to_string())
-                .unwrap_or_default(),
-            id: workspace.id,
-            name: workspace.label,
-            checkout: None,
+        .iter()
+        .map(|workspace| {
+            let pane = panes.iter().find(|pane| pane.workspace == workspace.id);
+            let state = session.shared.tracker.state(workspace, pane);
+
+            Terminal {
+                id: state.id,
+                name: state.name,
+                agent: state.agent,
+                status: state.status,
+                folder: pane
+                    .and_then(|pane| pane.cwd.as_ref())
+                    .map(|cwd| cwd.display().to_string())
+                    .unwrap_or_default(),
+                checkout: None,
+            }
         })
         .collect())
 }
@@ -107,9 +110,8 @@ pub async fn close(session: &Session, ids: &[String]) -> Result<(), Failure> {
 impl Handler for CreateTerminal {
     async fn handle(session: &Session, params: CreateTerminalParams) -> Result<Terminal, Failure> {
         let herdr = session.herdr().await?;
-        let home = folders::home().map_err(failure)?;
         let folder = folders::absolute(&params.folder).map_err(failure)?;
-        let name = label(&folder, &home, params.agent);
+        let name = label(params.agent);
         let mut env = herdr.pane_env().clone();
         if matches!(params.agent, Some(Agent::Copilot)) {
             env.insert("PATH".to_owned(), path_with(session.gh().await?.program()));
@@ -118,20 +120,22 @@ impl Handler for CreateTerminal {
         let placing = session.shared.placing.lock().await;
         let pane = herdr
             .client()
-            .create_workspace(&folder, &name, &env)
+            .create_workspace(&folder, name, &env)
             .await
             .map_err(failure)?;
         crate::workspaces::place(session, &pane.workspace, &params.workspace).await?;
         drop(placing);
         if let Some(agent) = params.agent {
-            start(herdr, &pane, agent).await?;
+            start(herdr.client(), &pane, agent, session.outgoing.clone());
         }
 
         let checkouts = crate::workspaces::checkouts(&folder).await;
 
         Ok(Terminal {
             id: pane.workspace,
-            name,
+            name: name.to_owned(),
+            agent: params.agent,
+            status: Status::Idle,
             folder: folder.display().to_string(),
             checkout: crate::workspaces::checkout_of(&folder, &checkouts),
         })
@@ -225,55 +229,28 @@ impl Handler for ResizeTerminal {
     }
 }
 
-async fn watch(
-    mut stream: herdr_client::Terminal,
-    id: String,
-    mut controls: mpsc::UnboundedReceiver<Control>,
-    outgoing: mpsc::UnboundedSender<Message>,
-) {
-    let error = loop {
-        tokio::select! {
-            frame = stream.next() => match frame {
-                Ok(frame) => notify::<FrameEvent>(&outgoing, TerminalFrame {
-                    id: id.clone(),
-                    cols: frame.width,
-                    rows: frame.height,
-                    full: frame.full,
-                    data: STANDARD.encode(frame.bytes),
-                }),
-                Err(error) => break error,
-            },
-            control = controls.recv() => {
-                let sent = match control {
-                    Some(Control::Input(bytes)) => stream.input(&bytes).await,
-                    Some(Control::Resize(size)) => stream.resize(size.cols, size.rows).await,
-                    None => return,
-                };
-                if let Err(error) = sent {
-                    break error;
-                }
-            }
-        }
-    };
+impl Handler for ScrollTerminal {
+    const ORDERED: bool = true;
 
-    tracing::info!(%error, %id, "terminal stream ended");
-    notify::<EndedEvent>(
-        &outgoing,
-        TerminalEnded {
-            id,
-            error: match error {
-                herdr_client::Error::Closed => None,
-                error => Some(error.to_string()),
-            },
-        },
-    );
+    fn handle(
+        session: &Session,
+        params: ScrollTerminalParams,
+    ) -> impl Future<Output = Result<(), Failure>> + Send {
+        let id = params.id.clone();
+
+        future::ready(session.terminals.send(&id, Control::Scroll(params)))
+    }
 }
 
-fn notify<E: Event>(outgoing: &mpsc::UnboundedSender<Message>, params: E::Params) {
-    match Notification::new::<E>(params) {
-        Ok(notification) => {
-            let _ = outgoing.send(Message::Notification(notification));
-        }
-        Err(error) => tracing::warn!(%error, "could not write a notification"),
+impl Handler for ViewTerminal {
+    const ORDERED: bool = true;
+
+    fn handle(
+        session: &Session,
+        id: Option<String>,
+    ) -> impl Future<Output = Result<(), Failure>> + Send {
+        session.shared.tracker.view(session.id, id);
+
+        future::ready(Ok(()))
     }
 }

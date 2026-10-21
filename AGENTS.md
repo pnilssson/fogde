@@ -11,7 +11,7 @@
 - Run `just check` before committing or pushing and fix what it finds. Add an `#[allow]`, lint override, ignore entry or lower threshold only after the user agrees.
 - Allow permissive and file-level copyleft licenses (BSD, ISC, Zlib, MPL-2.0) in cargo-deny without asking; ask before GPL, LGPL, AGPL or other strong copyleft.
 - Leave changes uncommitted until the user asks. Work on `main`, without branches or pull requests unless asked.
-- This file holds working rules and conventions only: product decisions go in the Fogde project note, and nothing `just check` already enforces is repeated here. When a rule changes, update it here and delete what it replaces.
+- This file holds working rules and conventions only: product decisions go in the Fogde notes (the hub and the note it links for that area), and nothing `just check` already enforces is repeated here. When a rule changes, update it here and delete what it replaces.
 
 ## Code
 - Prefer concise names, one word where it reads well. Name frontend files in kebab-case.
@@ -43,14 +43,13 @@
 - Keep secrets only in the OS keychain, never in files, logs or error messages.
 
 ## UI
-- Use installed shadcn/ui components, installing any that are missing. Never edit them or override their appearance unless the user agrees; restyle them globally through theme tokens and shared `data-slot` rules in `src/styles/`, never per component.
+- Use installed shadcn/ui components, installing any that are missing.
 - Show loading with a spinner or skeleton, whichever fits the content.
 - Show each state in one place; never repeat it across the sidebar, main area and status bar.
 - Use tooltips only for icon-only controls or information not visible elsewhere; never repeat visible text.
 - Keep the window chrome transparent; raise surfaces with the `surface-*` background and shadow tokens.
 - App-owned spacing uses Tailwind values divisible by four, or `2`; auto margins, shadcn/ui and third-party styles are exempt.
-- App-owned text uses only the `type-*` roles and the foreground colour; muted only for metadata such as timestamps, paths and counts.
-- Use Phosphor icons and show state with their weights (`regular` idle, `fill` active), not extra icons or badges. Brand logos use the brand's official asset.
+- App-owned text uses only the `type-*` roles and the foreground colour.
 - Meet WCAG 2.2 AA: every action works by keyboard with a visible focus state, and icon-only controls have accessible labels.
 
 ## Motion

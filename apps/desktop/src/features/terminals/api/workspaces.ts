@@ -1,6 +1,6 @@
 import { type QueryClient, queryOptions } from "@tanstack/react-query";
 
-import type { Terminal } from "@/generated/protocol";
+import type { Terminal, TerminalState } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 export const workspacesQuery = (machine: Machine) =>
@@ -17,12 +17,40 @@ export function addTerminal(
 ) {
   queries.setQueryData(workspacesQuery(machine).queryKey, (current) =>
     current?.map((entry) =>
-      entry.id === workspace
+      entry.id === workspace &&
+      !entry.terminals.some(({ id }) => id === terminal.id)
         ? { ...entry, terminals: [...entry.terminals, terminal] }
         : entry,
     ),
   );
   void queries.invalidateQueries(workspacesQuery(machine));
+}
+
+export function applyState(
+  queries: QueryClient,
+  machine: Machine,
+  state: TerminalState,
+) {
+  const { queryKey } = workspacesQuery(machine);
+  const workspace = queries
+    .getQueryData(queryKey)
+    ?.find(({ terminals }) => terminals.some(({ id }) => id === state.id));
+  const before = workspace?.terminals.find(({ id }) => id === state.id);
+  if (!workspace || !before) {
+    void queries.invalidateQueries(workspacesQuery(machine));
+    return undefined;
+  }
+
+  queries.setQueryData(queryKey, (current) =>
+    current?.map((entry) => ({
+      ...entry,
+      terminals: entry.terminals.map((terminal) =>
+        terminal.id === state.id ? { ...terminal, ...state } : terminal,
+      ),
+    })),
+  );
+
+  return { workspace, before };
 }
 
 export function removeTerminal(

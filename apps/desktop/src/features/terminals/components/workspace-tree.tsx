@@ -9,6 +9,7 @@ import { StartItem } from "@/features/terminals/components/start-item";
 import { TerminalItem } from "@/features/terminals/components/terminal-item";
 import { checkoutName } from "@/features/terminals/lib/checkouts";
 import { useStart, useTiles } from "@/features/terminals/lib/layouts";
+import { byAttention } from "@/features/terminals/lib/status";
 import type { Selection } from "@/features/terminals/lib/selection";
 import type { Terminal, Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
@@ -34,7 +35,7 @@ export function WorkspaceTree({
   const startActive = useTiles((tiles) => current && tiles.startActive);
 
   const terminals = (list: Terminal[]) =>
-    list.map((terminal) => (
+    byAttention(list).map((terminal) => (
       <TerminalItem
         key={terminal.id}
         machine={machine}

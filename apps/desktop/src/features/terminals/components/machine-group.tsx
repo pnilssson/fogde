@@ -1,20 +1,25 @@
-import {
-  ArrowClockwiseIcon,
-  PlusIcon,
-  SquaresFourIcon,
-} from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, DotsThreeIcon } from "@phosphor-icons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { cn } from "cn";
+import { useState } from "react";
 
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarGroup,
   SidebarGroupAction,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSkeleton,
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -23,7 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { NewWorkspace } from "@/features/terminals/components/new-workspace";
-import { WorkspaceTree } from "@/features/terminals/components/workspace-tree";
+import { WorkspaceItem } from "@/features/terminals/components/workspace-item";
 import { useStatus } from "@/features/terminals/hooks/use-terminals";
 import type { Selection } from "@/features/terminals/lib/selection";
 import type { Workspace } from "@/generated/protocol";
@@ -48,12 +53,29 @@ export function MachineGroup({
 }: Props) {
   const status = useStatus(machine, workspaces);
   const down = status.disconnected || status.failed;
+  const loading = workspaces.isPending && !down;
+  const [creating, setCreating] = useState(false);
+
+  const create = () => {
+    setCreating(true);
+  };
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel className={cn(down && "opacity-50")}>
-        {machine.name}
-      </SidebarGroupLabel>
+      <ContextMenu disabled={down || loading}>
+        <ContextMenuTrigger
+          render={
+            <SidebarGroupLabel
+              className={cn("peer/machine", down && "opacity-50")}
+            />
+          }
+        >
+          {machine.name}
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onClick={create}>New workspace</ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       {down ? (
         <Tooltip>
           <TooltipTrigger
@@ -76,66 +98,48 @@ export function MachineGroup({
             {status.error ?? (status.disconnected ? "Reconnect" : "Retry")}
           </TooltipContent>
         </Tooltip>
+      ) : loading ? (
+        <SidebarGroupAction render={<span />} className="pointer-events-none">
+          <Spinner aria-label={`Connecting to ${machine.name}`} />
+        </SidebarGroupAction>
       ) : (
-        <NewWorkspace machine={machine} />
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <SidebarGroupAction
+                aria-label={`Actions for ${machine.name}`}
+                className="opacity-0 peer-hover/machine:opacity-100 hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+              />
+            }
+          >
+            <DotsThreeIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={create}>New workspace</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
+      <NewWorkspace
+        machine={machine}
+        open={creating}
+        onOpenChange={setCreating}
+      />
       <SidebarMenu className={cn(down && "opacity-50")}>
-        {workspaces.isPending && !down
-          ? [0, 1].map((row) => (
-              <SidebarMenuItem key={row}>
-                <SidebarMenuSkeleton showIcon />
-              </SidebarMenuItem>
-            ))
-          : workspaces.data?.map((workspace) => {
-              const place = { machine: machine.id, id: workspace.id };
-              const current =
-                selected?.machine === machine.id &&
-                selected.id === workspace.id;
-
-              return (
-                <SidebarMenuItem key={workspace.id}>
-                  <SidebarMenuButton
-                    isActive={current}
-                    onClick={() => {
-                      onSelect(place);
-                    }}
-                  >
-                    <SquaresFourIcon weight={current ? "fill" : "regular"} />
-                    <span>{workspace.name}</span>
-                  </SidebarMenuButton>
-                  {!down && (
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <SidebarMenuAction
-                            showOnHover
-                            aria-label={`New tile in ${workspace.name}`}
-                            onClick={() => {
-                              onStart(place, workspace.folder);
-                            }}
-                          />
-                        }
-                      >
-                        <PlusIcon />
-                      </TooltipTrigger>
-                      <TooltipContent side="right">New tile</TooltipContent>
-                    </Tooltip>
-                  )}
-                  <WorkspaceTree
-                    machine={machine}
-                    workspace={workspace}
-                    current={current}
-                    active={active}
-                    onSelect={(selection) => {
-                      onSelect(place, selection);
-                    }}
-                    onStart={(folder) => {
-                      onStart(place, folder);
-                    }}
-                  />
-                </SidebarMenuItem>
-              );
-            })}
+        {workspaces.data?.map((workspace, index) => (
+          <WorkspaceItem
+            key={workspace.id}
+            machine={machine}
+            workspace={workspace}
+            current={
+              selected?.machine === machine.id && selected.id === workspace.id
+            }
+            active={active}
+            down={down}
+            removable={index > 0}
+            onSelect={onSelect}
+            onStart={onStart}
+          />
+        ))}
       </SidebarMenu>
     </SidebarGroup>
   );

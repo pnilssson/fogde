@@ -54,11 +54,3 @@ impl Method for ConnectServer {
     type Params = String;
     type Result = ();
 }
-
-pub struct RemoveServer;
-
-impl Method for RemoveServer {
-    const NAME: &'static str = "server.remove";
-    type Params = String;
-    type Result = ();
-}

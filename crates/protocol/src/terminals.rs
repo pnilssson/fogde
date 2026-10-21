@@ -11,6 +11,7 @@ pub struct Terminal {
     pub agent: Option<Agent>,
     pub status: Status,
     pub folder: String,
+    pub branch: Option<String>,
     pub checkout: Option<String>,
 }
 
@@ -29,6 +30,8 @@ pub struct TerminalState {
     pub name: String,
     pub agent: Option<Agent>,
     pub status: Status,
+    pub folder: String,
+    pub branch: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]

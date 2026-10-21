@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useRenameMachine } from "@/features/settings/hooks/use-rename-machine";
@@ -63,20 +63,18 @@ function NameForm({ machine, onDone }: FormProps) {
     >
       <form.Field name="name">
         {(field) => (
-          <Field data-invalid={rename.isError}>
+          <Field>
             <FieldLabel htmlFor={field.name}>Name</FieldLabel>
             <Input
               id={field.name}
               name={field.name}
               value={field.state.value}
               placeholder={machine.target ?? computer.name}
-              aria-invalid={rename.isError}
               onBlur={field.handleBlur}
               onChange={(event) => {
                 field.handleChange(event.target.value);
               }}
             />
-            <FieldError errors={[rename.error ?? undefined]} />
           </Field>
         )}
       </form.Field>

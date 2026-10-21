@@ -18,6 +18,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 import { reposFolderQuery } from "@/lib/folders";
 import type { Machine } from "@/lib/machines";
 
@@ -37,6 +38,13 @@ export function ChooseFolder({ machine, onBack, onContinue }: Props) {
     onSuccess: async () => {
       await queries.query({ ...reposFolderQuery(machine), staleTime: 0 });
       await onContinue();
+    },
+    onError: (error) => {
+      toast.add({
+        type: "error",
+        title: "Could not save the folder",
+        description: error.message,
+      });
     },
   });
   const form = useForm({
@@ -125,7 +133,6 @@ export function ChooseFolder({ machine, onBack, onContinue }: Props) {
             </Field>
           )}
         </form.Field>
-        {save.error && <p className="type-body">{save.error.message}</p>}
         <div className="flex gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onBack}>
             Back
@@ -154,6 +161,8 @@ export function ChooseFolder({ machine, onBack, onContinue }: Props) {
         machine={machine}
         open={browsing}
         start={form.getFieldValue("folder")}
+        title="Choose a folder"
+        action="Use this folder"
         onOpenChange={setBrowsing}
         onChoose={(path) => {
           form.setFieldValue("folder", path);

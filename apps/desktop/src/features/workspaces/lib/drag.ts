@@ -30,6 +30,18 @@ function panelId(item: Dragged) {
   return item === startId ? startId : tileId(item);
 }
 
+export function dragProps(item: Dragged) {
+  return {
+    draggable: true,
+    onDragStart: (event: { dataTransfer: DataTransfer }) => {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(dragType, JSON.stringify(item));
+      startDrag(item);
+    },
+    onDragEnd: endDrag,
+  };
+}
+
 export function startDrag(item: Dragged) {
   drags.setState({ item });
 }

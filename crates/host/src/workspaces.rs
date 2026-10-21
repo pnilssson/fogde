@@ -6,8 +6,8 @@ use futures_util::future::join_all;
 use protocol::rpc::Failure;
 use protocol::terminals::Terminal;
 use protocol::workspaces::{
-    Checkout, CreateWorkspace, CreateWorkspaceParams, DeleteWorkspace, ListWorkspaces,
-    PlaceTerminal, PlaceTerminalParams, Workspace,
+    Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, PlaceTerminal, PlaceTerminalParams,
+    RenameWorkspace, RenameWorkspaceParams, Workspace,
 };
 use sqlx::SqlitePool;
 
@@ -18,6 +18,7 @@ use crate::session::Session;
 pub fn register(router: &mut Router) {
     router.add::<ListWorkspaces>();
     router.add::<CreateWorkspace>();
+    router.add::<RenameWorkspace>();
     router.add::<DeleteWorkspace>();
     router.add::<PlaceTerminal>();
 }
@@ -54,50 +55,44 @@ impl Handler for ListWorkspaces {
     async fn handle(session: &Session, (): ()) -> Result<Vec<Workspace>, Failure> {
         let placing = session.shared.placing.lock().await;
         let terminals = crate::terminals::list(session).await?;
-        let stored = store::list(pool(session).await?, &terminals)
+        let listing = store::list(pool(session).await?, &terminals)
             .await
             .map_err(failure)?;
         drop(placing);
-        let home = folders::home().map_err(failure)?;
 
-        Ok(join_all(
-            stored
-                .into_iter()
-                .map(|workspace| compose(workspace, &home)),
-        )
-        .await)
+        if let Err(error) = crate::terminals::close(session, &listing.loose).await {
+            tracing::warn!(?error, "could not close terminals without a workspace");
+        }
+
+        Ok(join_all(listing.workspaces.into_iter().map(compose)).await)
     }
 }
 
 impl Handler for CreateWorkspace {
-    async fn handle(
-        session: &Session,
-        params: CreateWorkspaceParams,
-    ) -> Result<Workspace, Failure> {
-        let folder = folders::absolute(&params.folder).map_err(failure)?;
+    async fn handle(session: &Session, folder: String) -> Result<Workspace, Failure> {
+        let folder = folders::absolute(&folder).map_err(failure)?;
         folders::directory(&folder).await.map_err(failure)?;
-        let home = folders::home().map_err(failure)?;
 
-        let stored = store::create(
-            pool(session).await?,
-            &params.name,
-            &folder.display().to_string(),
-        )
-        .await
-        .map_err(failure)?;
+        create(session, &folder).await
+    }
+}
 
-        Ok(compose(stored, &home).await)
+impl Handler for RenameWorkspace {
+    async fn handle(session: &Session, params: RenameWorkspaceParams) -> Result<(), Failure> {
+        store::rename(pool(session).await?, &params.workspace, &params.name)
+            .await
+            .map_err(failure)
     }
 }
 
 impl Handler for DeleteWorkspace {
     async fn handle(session: &Session, id: String) -> Result<(), Failure> {
         let _placing = session.shared.placing.lock().await;
-        let terminals = store::delete(pool(session).await?, &id)
-            .await
-            .map_err(failure)?;
+        let pool = pool(session).await?;
+        let terminals = store::members(pool, &id).await.map_err(failure)?;
+        crate::terminals::close(session, &terminals).await?;
 
-        crate::terminals::close(session, &terminals).await
+        store::delete(pool, &id).await.map_err(failure)
     }
 }
 
@@ -107,16 +102,16 @@ impl Handler for PlaceTerminal {
     }
 }
 
-async fn compose(workspace: store::Workspace, home: &Path) -> Workspace {
-    let Some(folder) = workspace.folder.map(PathBuf::from) else {
-        return Workspace {
-            id: workspace.id,
-            name: workspace.name,
-            folder: home.display().to_string(),
-            checkouts: Vec::new(),
-            terminals: workspace.terminals,
-        };
-    };
+pub async fn create(session: &Session, folder: &Path) -> Result<Workspace, Failure> {
+    let stored = store::create(pool(session).await?, &folder.display().to_string())
+        .await
+        .map_err(failure)?;
+
+    Ok(compose(stored).await)
+}
+
+async fn compose(workspace: store::Workspace) -> Workspace {
+    let folder = PathBuf::from(&workspace.folder);
     let checkouts = checkouts(&folder).await;
     let terminals = workspace
         .terminals
@@ -161,7 +156,7 @@ mod tests {
     #[test]
     fn finds_the_innermost_checkout_of_a_folder() {
         let root = std::env::temp_dir();
-        let repo = root.join("fogde");
+        let repo = root.join("app");
         let nested = repo.join("worktrees").join("login");
         let checkouts = [checkout(&repo, true), checkout(&nested, false)];
 
@@ -173,6 +168,6 @@ mod tests {
             checkout_of(&nested.join("src"), &checkouts),
             Some(nested.display().to_string())
         );
-        assert_eq!(checkout_of(&root.join("fogde-old"), &checkouts), None);
+        assert_eq!(checkout_of(&root.join("app-old"), &checkouts), None);
     }
 }

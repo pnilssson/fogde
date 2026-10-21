@@ -15,15 +15,16 @@ const claude: Terminal = {
   name: "Claude",
   agent: "claude",
   status: "idle",
-  folder: "/repos/fogde",
-  checkout: "/repos/fogde",
+  folder: "/repos/app",
+  branch: "main",
+  checkout: "/repos/app",
 };
 
 function workspace(terminals: Terminal[]): Workspace {
   return {
     id: "2",
-    name: "fogde",
-    folder: "/repos/fogde",
+    name: "app",
+    folder: "/repos/app",
     checkouts: [],
     terminals,
   };
@@ -104,7 +105,7 @@ test("keeps a closed terminal gone when an older list arrives after it", async (
   expect(terminals).toEqual([]);
 });
 
-test("applies a state change to the terminal it names", () => {
+test("applies a state change, with its folder and branch, to the terminal it names", () => {
   const call = vi.fn();
   const machine = { id: "local", client: { call } } as unknown as Machine;
   const queries = new QueryClient();
@@ -116,14 +117,18 @@ test("applies a state change to the terminal it names", () => {
     name: "Fix the login",
     agent: "claude",
     status: "blocked",
+    folder: "/repos/app/src",
+    branch: "fix-login",
   });
 
   expect(applied?.before.status).toBe("idle");
-  expect(applied?.workspace.name).toBe("fogde");
+  expect(applied?.workspace.name).toBe("app");
   expect(queries.getQueryData(queryKey)?.[0]?.terminals[0]).toEqual({
     ...claude,
     name: "Fix the login",
     status: "blocked",
+    folder: "/repos/app/src",
+    branch: "fix-login",
   });
   queries.clear();
 });
@@ -141,6 +146,8 @@ test("reloads the workspaces for a terminal it doesn't know", async () => {
     name: "Claude",
     agent: "claude",
     status: "working",
+    folder: "/repos/app",
+    branch: "main",
   });
 
   expect(applied).toBeUndefined();

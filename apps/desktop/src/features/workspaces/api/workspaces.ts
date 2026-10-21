@@ -49,6 +49,9 @@ export function applyState(
       ),
     })),
   );
+  if (state.folder !== before.folder) {
+    void queries.invalidateQueries(workspacesQuery(machine));
+  }
 
   return { workspace, before };
 }

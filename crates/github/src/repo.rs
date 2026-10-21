@@ -183,7 +183,7 @@ mod tests {
         ] {
             assert_eq!(remote(url), Some(hello.clone()), "{url}");
         }
-        assert_eq!(remote("C:\\Users\\dev\\fogde"), None);
+        assert_eq!(remote("C:\\Users\\dev\\app"), None);
         assert_eq!(remote("https://github.com/octocat"), None);
     }
 
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn accepts_only_plain_names() {
-        assert!(segment("fogde.app-2_x"));
+        assert!(segment("my.app-2_x"));
         assert!(!segment(".."));
         assert!(!segment("a/b"));
         assert!(!segment("a\\b"));

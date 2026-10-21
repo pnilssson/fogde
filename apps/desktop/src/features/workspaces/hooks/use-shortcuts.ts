@@ -1,18 +1,34 @@
+import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef } from "react";
 
+import { closeActive } from "@/features/workspaces/lib/closing";
+import { moveTile } from "@/features/workspaces/lib/drag";
 import { togglePalette } from "@/features/workspaces/lib/palette";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
-import { focusTile, revealNext } from "@/features/workspaces/lib/tiles";
-import { pressed, shortcuts, tileNumber } from "@/lib/shortcuts";
+import {
+  findWorkspace,
+  type Selection,
+} from "@/features/workspaces/lib/selection";
+import {
+  focusTile,
+  openStart,
+  revealNext,
+} from "@/features/workspaces/lib/tiles";
+import { arrowSide, pressed, shortcuts, tileNumber } from "@/lib/shortcuts";
 
 type Groups = ReturnType<typeof useGroups>;
 
-export function useShortcuts(groups: Groups) {
-  const current = useRef(groups);
+interface Context {
+  groups: Groups;
+  workspace: Selection | undefined;
+}
+
+export function useShortcuts(groups: Groups, workspace: Selection | undefined) {
+  const current = useRef<Context>({ groups, workspace });
 
   useEffect(() => {
-    current.current = groups;
-  }, [groups]);
+    current.current = { groups, workspace };
+  }, [groups, workspace]);
 
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
@@ -27,14 +43,22 @@ export function useShortcuts(groups: Groups) {
     };
 
     window.addEventListener("keydown", down, { capture: true });
+    const stopMenu = listen("close-tile", () => {
+      if (!inDialog(document.activeElement)) {
+        closeActive();
+      }
+    });
 
     return () => {
       window.removeEventListener("keydown", down, { capture: true });
+      void stopMenu.then((stop) => {
+        stop();
+      });
     };
   }, []);
 }
 
-function actionFor(event: KeyboardEvent, groups: Groups) {
+function actionFor(event: KeyboardEvent, { groups, workspace }: Context) {
   if (pressed(event, shortcuts.palette)) {
     return togglePalette;
   }
@@ -45,6 +69,27 @@ function actionFor(event: KeyboardEvent, groups: Groups) {
   if (pressed(event, shortcuts.attention)) {
     return () => {
       revealNext(groups);
+    };
+  }
+
+  if (pressed(event, shortcuts.close)) {
+    return closeActive;
+  }
+
+  if (pressed(event, shortcuts.tile)) {
+    const found = findWorkspace(groups, workspace);
+
+    return found
+      ? () => {
+          openStart(found.workspace.folder, true);
+        }
+      : undefined;
+  }
+
+  const side = arrowSide(event);
+  if (side) {
+    return () => {
+      moveTile(side);
     };
   }
 

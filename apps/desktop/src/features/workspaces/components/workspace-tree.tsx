@@ -8,7 +8,7 @@ import {
 import { StartItem } from "@/features/workspaces/components/start-item";
 import { TerminalItem } from "@/features/workspaces/components/terminal-item";
 import { checkoutName } from "@/features/workspaces/lib/checkouts";
-import { useStart, useTiles } from "@/features/workspaces/lib/layouts";
+import { useStart } from "@/features/workspaces/lib/layouts";
 import { byAttention } from "@/features/workspaces/lib/status";
 import type { Selection } from "@/features/workspaces/lib/selection";
 import type { Terminal, Workspace } from "@/generated/protocol";
@@ -17,8 +17,6 @@ import type { Machine } from "@/lib/machines";
 interface Props {
   machine: Machine;
   workspace: Workspace;
-  current: boolean;
-  active: Selection | undefined;
   onSelect: (terminal: Selection) => void;
   onStart: (folder: string) => void;
 }
@@ -26,13 +24,10 @@ interface Props {
 export function WorkspaceTree({
   machine,
   workspace,
-  current,
-  active,
   onSelect,
   onStart,
 }: Props) {
   const start = useStart({ machine: machine.id, id: workspace.id });
-  const startActive = useTiles((tiles) => current && tiles.startActive);
 
   const terminals = (list: Terminal[]) =>
     byAttention(list).map((terminal) => (
@@ -40,9 +35,6 @@ export function WorkspaceTree({
         key={terminal.id}
         machine={machine}
         terminal={terminal}
-        active={
-          current && active?.machine === machine.id && active.id === terminal.id
-        }
         onSelect={onSelect}
       />
     ));
@@ -51,7 +43,6 @@ export function WorkspaceTree({
     start !== undefined &&
     shown && (
       <StartItem
-        active={startActive}
         onSelect={() => {
           onStart(start);
         }}

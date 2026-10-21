@@ -14,6 +14,7 @@ import {
   removeTerminal,
   workspacesQuery,
 } from "@/features/workspaces/api/workspaces";
+import { opened } from "@/features/workspaces/lib/tiles";
 import { useConnection } from "@/hooks/use-connection";
 import type {
   Agent,
@@ -93,18 +94,19 @@ export function useChoices(machine: Machine): (Agent | null)[] {
   ];
 }
 
-export function useCreateTerminal(
-  machine: Machine,
-  onCreated: (terminal: Terminal) => void,
-) {
+interface Create extends CreateTerminalParams {
+  machine: Machine;
+}
+
+export function useCreateTerminal() {
   const queries = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: CreateTerminalParams) =>
+    mutationFn: ({ machine, ...params }: Create) =>
       machine.client.call("terminals.create", params),
-    onSuccess: (terminal, { workspace }) => {
+    onSuccess: (terminal, { machine, workspace }) => {
       addTerminal(queries, machine, workspace, terminal);
-      onCreated(terminal);
+      opened({ machine: machine.id, id: terminal.id });
     },
     onError: (error) => {
       toast.add({

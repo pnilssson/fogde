@@ -1,4 +1,5 @@
 import { TerminalWindowIcon } from "@phosphor-icons/react";
+import { useEffect, useRef } from "react";
 
 import { AgentIcon } from "@/components/agent-icon";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,10 @@ import {
   useChoices,
   useCreateTerminal,
 } from "@/features/workspaces/hooks/use-terminals";
-import { opened } from "@/features/workspaces/lib/tiles";
+import {
+  startFocused,
+  useStartFocus,
+} from "@/features/workspaces/lib/start-focus";
 import { agentName } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 
@@ -19,9 +23,16 @@ interface Props {
 
 export function StartActions({ machine, workspace, folder }: Props) {
   const choices = useChoices(machine);
-  const create = useCreateTerminal(machine, (terminal) => {
-    opened({ machine: machine.id, id: terminal.id });
-  });
+  const create = useCreateTerminal();
+  const focus = useStartFocus();
+  const first = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (focus && first.current) {
+      first.current.focus();
+      startFocused();
+    }
+  }, [focus]);
 
   return (
     <div className="flex flex-wrap justify-center gap-2">
@@ -32,12 +43,13 @@ export function StartActions({ machine, workspace, folder }: Props) {
         return (
           <Button
             key={agent ?? "terminal"}
+            ref={agent === choices[0] ? first : undefined}
             variant="secondary"
             size="sm"
             disabled={create.isPending}
             aria-busy={opening}
             onClick={() => {
-              create.mutate({ workspace, folder, agent });
+              create.mutate({ machine, workspace, folder, agent });
             }}
           >
             {opening ? (

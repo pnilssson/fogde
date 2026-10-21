@@ -12,7 +12,6 @@ import type { Selection } from "@/features/workspaces/lib/selection";
 interface Props {
   groups: ReturnType<typeof useGroups>;
   selected: Selection | undefined;
-  active: Selection | undefined;
   onSelect: (workspace: Selection, terminal?: Selection) => void;
   onStart: (workspace: Selection, folder: string) => void;
 }
@@ -20,7 +19,6 @@ interface Props {
 export function WorkspaceSidebar({
   groups,
   selected,
-  active,
   onSelect,
   onStart,
 }: Props) {
@@ -42,7 +40,6 @@ export function WorkspaceSidebar({
             machine={machine}
             workspaces={workspaces}
             selected={selected}
-            active={active}
             onSelect={(workspace, terminal) => {
               onSelect(workspace, terminal);
               setOpenMobile(false);

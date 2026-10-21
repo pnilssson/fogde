@@ -14,7 +14,6 @@ import { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import { useViewing } from "@/features/workspaces/hooks/use-viewing";
 import { keepMachines, useTiles } from "@/features/workspaces/lib/layouts";
 import {
-  findTerminal,
   resolveWorkspace,
   WorkspaceContext,
 } from "@/features/workspaces/lib/selection";
@@ -50,16 +49,14 @@ export const Route = createFileRoute("/_onboarded")({
   component: function WorkspaceRoute() {
     const { all, connected: machines } = useMachines();
     const groups = useGroups(machines);
-    const active = useTiles((tiles) => tiles.active);
     const stored = useTiles((tiles) => tiles.workspace);
     const workspace = resolveWorkspace(groups, stored);
-    const terminal = active && findTerminal(groups, active)?.terminal;
 
     useRetryOnReturn(machines);
     useAttention(machines);
     useFailures(machines);
     useViewing(machines);
-    useShortcuts(groups);
+    useShortcuts(groups, workspace);
 
     useEffect(() => {
       if (all.length > 0) {
@@ -80,7 +77,6 @@ export const Route = createFileRoute("/_onboarded")({
             <WorkspaceSidebar
               groups={groups}
               selected={workspace}
-              active={active}
               onSelect={(next, selection) => {
                 selectWorkspace(next);
                 if (selection) {
@@ -92,11 +88,11 @@ export const Route = createFileRoute("/_onboarded")({
                 openStart(folder);
               }}
             />
-            <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-transparent">
+            <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-surface-3">
               <Outlet />
             </SidebarInset>
           </div>
-          <StatusBar start={<SettingsDialog />} folder={terminal?.folder} />
+          <StatusBar start={<SettingsDialog />} />
           <CommandPalette />
         </div>
       </WorkspaceContext>

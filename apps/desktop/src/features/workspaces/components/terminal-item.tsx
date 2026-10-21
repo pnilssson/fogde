@@ -1,7 +1,5 @@
-import { DotsThreeIcon, TerminalWindowIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { DotsThreeIcon } from "@phosphor-icons/react";
 
-import { AgentIcon } from "@/components/agent-icon";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -21,81 +19,54 @@ import {
 } from "@/components/ui/sidebar";
 import { CloseTerminal } from "@/features/workspaces/components/close-terminal";
 import { StateIcon } from "@/features/workspaces/components/state-icon";
-import {
-  useCloseTerminal,
-  useClosing,
-} from "@/features/workspaces/hooks/use-terminals";
+import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
+import { useClose } from "@/features/workspaces/hooks/use-close";
+import { dragProps } from "@/features/workspaces/lib/drag";
 import type { Selection } from "@/features/workspaces/lib/selection";
-import { dragType, endDrag, startDrag } from "@/features/workspaces/lib/drag";
-import { busy } from "@/features/workspaces/lib/status";
-import { useConnection } from "@/hooks/use-connection";
 import type { Terminal } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
   machine: Machine;
   terminal: Terminal;
-  active: boolean;
   onSelect: (selection: Selection) => void;
 }
 
-export function TerminalItem({ machine, terminal, active, onSelect }: Props) {
+export function TerminalItem({ machine, terminal, onSelect }: Props) {
   const selection = { machine: machine.id, id: terminal.id };
-  const close = useCloseTerminal(machine);
-  const connection = useConnection(machine);
-  const pending = useClosing(machine, terminal);
-  const closable = connection.state === "connected" && !pending;
-  const [confirming, setConfirming] = useState(false);
-
-  const closing = () => {
-    if (busy(terminal.status)) {
-      setConfirming(true);
-      return;
-    }
-
-    close.mutate(terminal);
-  };
+  const close = useClose(machine, terminal);
 
   return (
     <SidebarMenuSubItem>
-      <ContextMenu disabled={!closable}>
+      <ContextMenu disabled={!close.closable}>
         <ContextMenuTrigger
           render={
             <SidebarMenuSubButton
-              isActive={active}
+              size="sm"
               render={<button type="button" />}
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.setData(dragType, JSON.stringify(selection));
-                startDrag(selection);
-              }}
-              onDragEnd={endDrag}
+              {...dragProps(selection)}
               onClick={() => {
                 onSelect(selection);
               }}
             />
           }
         >
-          {terminal.agent ? (
-            <AgentIcon agent={terminal.agent} />
-          ) : (
-            <TerminalWindowIcon />
-          )}
+          <TerminalIcon agent={terminal.agent} />
           <span className="min-w-0 flex-1 truncate">{terminal.name}</span>
           <StateIcon
             status={terminal.status}
             className={
-              closable
+              close.closable
                 ? "group-focus-within/menu-sub-item:invisible group-hover/menu-sub-item:invisible"
                 : undefined
             }
           />
         </ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem onClick={closing}>Close</ContextMenuItem>
+          <ContextMenuItem onClick={close.request}>Close</ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-      {closable && (
+      {close.closable && (
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -108,15 +79,15 @@ export function TerminalItem({ machine, terminal, active, onSelect }: Props) {
             <DotsThreeIcon />
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            <DropdownMenuItem onClick={closing}>Close</DropdownMenuItem>
+            <DropdownMenuItem onClick={close.request}>Close</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )}
       <CloseTerminal
         machine={machine}
         terminal={terminal}
-        open={confirming}
-        onOpenChange={setConfirming}
+        open={close.confirming}
+        onOpenChange={close.setConfirming}
       />
     </SidebarMenuSubItem>
   );

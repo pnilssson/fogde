@@ -79,6 +79,11 @@ impl Handler for CloneRepo {
             .await?
             .clone_repo(&repo, &folder)
             .await
-            .map_err(failure)
+            .map_err(failure)?;
+        if let Err(error) = crate::workspaces::create(session, &folder.join(&repo.name)).await {
+            tracing::warn!(?error, "could not add a workspace for the cloned repo");
+        }
+
+        Ok(())
     }
 }

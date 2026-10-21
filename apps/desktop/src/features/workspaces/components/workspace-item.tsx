@@ -1,4 +1,8 @@
-import { CaretRightIcon, DotsThreeIcon } from "@phosphor-icons/react";
+import {
+  CaretRightIcon,
+  DotsThreeIcon,
+  FolderSimpleIcon,
+} from "@phosphor-icons/react";
 import { cn } from "cn";
 import { useState } from "react";
 
@@ -23,6 +27,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { DeleteWorkspace } from "@/features/workspaces/components/delete-workspace";
+import { RenameWorkspace } from "@/features/workspaces/components/rename-workspace";
 import { StateIcon } from "@/features/workspaces/components/state-icon";
 import { WorkspaceTree } from "@/features/workspaces/components/workspace-tree";
 import { setOpen, useOpen } from "@/features/workspaces/lib/layouts";
@@ -35,9 +40,7 @@ interface Props {
   machine: Machine;
   workspace: Workspace;
   current: boolean;
-  active: Selection | undefined;
   down: boolean;
-  removable: boolean;
   onSelect: (workspace: Selection, terminal?: Selection) => void;
   onStart: (workspace: Selection, folder: string) => void;
 }
@@ -46,9 +49,7 @@ export function WorkspaceItem({
   machine,
   workspace,
   current,
-  active,
   down,
-  removable,
   onSelect,
   onStart,
 }: Props) {
@@ -56,10 +57,15 @@ export function WorkspaceItem({
   const empty =
     workspace.terminals.length === 0 && workspace.checkouts.length < 2;
   const open = useOpen(place) && !empty;
+  const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const start = () => {
     onStart(place, workspace.folder);
+  };
+
+  const rename = () => {
+    setRenaming(true);
   };
 
   const remove = () => {
@@ -73,7 +79,8 @@ export function WorkspaceItem({
           <ContextMenuTrigger
             render={
               <SidebarMenuButton
-                aria-expanded={open}
+                isActive={current}
+                aria-expanded={empty ? undefined : open}
                 onClick={() => {
                   if (current && !empty) {
                     setOpen(place, !open);
@@ -89,9 +96,11 @@ export function WorkspaceItem({
             <CaretRightIcon
               className={cn(
                 "transition-transform ease-out motion-reduce:transition-none",
+                empty && "invisible",
                 open && "rotate-90",
               )}
             />
+            <FolderSimpleIcon />
             <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
             {!open && !down && (
               <StateIcon
@@ -102,14 +111,11 @@ export function WorkspaceItem({
           </ContextMenuTrigger>
           <ContextMenuContent>
             <ContextMenuItem onClick={start}>New tile</ContextMenuItem>
-            {removable && (
-              <>
-                <ContextMenuSeparator />
-                <ContextMenuItem variant="destructive" onClick={remove}>
-                  Delete
-                </ContextMenuItem>
-              </>
-            )}
+            <ContextMenuItem onClick={rename}>Rename</ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={remove}>
+              Delete
+            </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
         {!down && (
@@ -126,14 +132,11 @@ export function WorkspaceItem({
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={start}>New tile</DropdownMenuItem>
-              {removable && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive" onClick={remove}>
-                    Delete
-                  </DropdownMenuItem>
-                </>
-              )}
+              <DropdownMenuItem onClick={rename}>Rename</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={remove}>
+                Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -141,8 +144,6 @@ export function WorkspaceItem({
           <WorkspaceTree
             machine={machine}
             workspace={workspace}
-            current={current}
-            active={active}
             onSelect={(selection) => {
               onSelect(place, selection);
             }}
@@ -152,14 +153,18 @@ export function WorkspaceItem({
           />
         </CollapsibleContent>
       </Collapsible>
-      {removable && (
-        <DeleteWorkspace
-          machine={machine}
-          workspace={workspace}
-          open={deleting}
-          onOpenChange={setDeleting}
-        />
-      )}
+      <RenameWorkspace
+        machine={machine}
+        workspace={workspace}
+        open={renaming}
+        onOpenChange={setRenaming}
+      />
+      <DeleteWorkspace
+        machine={machine}
+        workspace={workspace}
+        open={deleting}
+        onOpenChange={setDeleting}
+      />
     </SidebarMenuItem>
   );
 }

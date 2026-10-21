@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
+use futures_util::future::join_all;
 use herdr_client::{Client, Error, Pane, Subscription, Workspace};
 use protocol::terminals::{Status, TerminalState};
 use tokio::sync::broadcast::error::RecvError;
@@ -10,6 +11,7 @@ use tokio::sync::{Notify, broadcast};
 use super::launch;
 
 const RETRY: Duration = Duration::from_secs(2);
+const RESYNC: Duration = Duration::from_millis(1500);
 
 const LIFECYCLE: [Subscription; 8] = [
     Subscription::WorkspaceCreated,
@@ -25,6 +27,8 @@ const LIFECYCLE: [Subscription; 8] = [
 pub struct Tracker {
     changes: broadcast::Sender<TerminalState>,
     states: Mutex<HashMap<String, TerminalState>>,
+    branches: Mutex<HashMap<String, Option<String>>>,
+    detected: Mutex<HashSet<String>>,
     views: Mutex<HashMap<u64, String>>,
     viewed: Notify,
 }
@@ -34,6 +38,8 @@ impl Default for Tracker {
         Self {
             changes: broadcast::channel(256).0,
             states: Mutex::default(),
+            branches: Mutex::default(),
+            detected: Mutex::default(),
             views: Mutex::default(),
             viewed: Notify::new(),
         }
@@ -79,8 +85,16 @@ impl Tracker {
             .get(&workspace.id)
             .map(|state| state.status);
         let viewed = self.viewed().contains(&workspace.id);
+        let detected = lock(&self.detected).contains(&workspace.id);
 
-        describe(workspace, pane, previous, viewed)
+        describe(
+            workspace,
+            pane,
+            previous,
+            viewed,
+            detected,
+            &lock(&self.branches),
+        )
     }
 
     pub async fn run(self: Arc<Self>, client: Client) {
@@ -97,6 +111,8 @@ impl Tracker {
         let mut lifecycle = client.subscribe(&LIFECYCLE).await?;
         let mut panes = Vec::new();
         let mut statuses = client.subscribe(&[]).await?;
+        let mut resync = tokio::time::interval(RESYNC);
+        resync.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
         loop {
             let current = self.sync(client).await?;
@@ -110,12 +126,14 @@ impl Tracker {
                 changed = lifecycle.next() => changed?,
                 changed = statuses.next() => changed?,
                 () = self.viewed.notified() => {}
+                _ = resync.tick(), if self.watched() => {}
             }
         }
     }
 
     async fn sync(&self, client: &Client) -> Result<Vec<String>, Error> {
         let (workspaces, panes) = tokio::try_join!(client.workspaces(), client.panes())?;
+        self.read_branches(&panes).await;
         let (seen, clearing) = self.update(&workspaces, &panes);
 
         for pane in clearing {
@@ -127,8 +145,21 @@ impl Tracker {
         Ok(seen)
     }
 
+    async fn read_branches(&self, panes: &[Pane]) {
+        let folders: HashSet<_> = panes.iter().filter_map(|pane| pane.cwd.clone()).collect();
+        let read = folders.into_iter().map(|folder| async move {
+            let branch = git::branch(&folder).await;
+            (folder.display().to_string(), branch)
+        });
+        let branches = join_all(read).await.into_iter().collect();
+
+        *lock(&self.branches) = branches;
+    }
+
     fn update(&self, workspaces: &[Workspace], panes: &[Pane]) -> (Vec<String>, Vec<String>) {
         let viewed = self.viewed();
+        let branches = lock(&self.branches).clone();
+        let mut detected = lock(&self.detected);
         let mut states = lock(&self.states);
         let mut next = HashMap::new();
         let mut seen = Vec::new();
@@ -140,11 +171,16 @@ impl Tracker {
             };
             let looking = viewed.contains(&workspace.id);
             let before = states.remove(&workspace.id);
+            if pane.agent.is_some() {
+                detected.insert(workspace.id.clone());
+            }
             let state = describe(
                 workspace,
                 Some(pane),
                 before.as_ref().map(|state| state.status),
                 looking,
+                detected.contains(&workspace.id),
+                &branches,
             );
             if looking && pane.status == herdr_client::Status::Done {
                 clearing.push(pane.id.clone());
@@ -156,10 +192,15 @@ impl Tracker {
             }
             next.insert(state.id.clone(), state);
         }
+        detected.retain(|id| next.contains_key(id));
         *states = next;
         seen.sort();
 
         (seen, clearing)
+    }
+
+    fn watched(&self) -> bool {
+        !lock(&self.views).is_empty()
     }
 
     fn viewed(&self) -> HashSet<String> {
@@ -172,18 +213,35 @@ fn describe(
     pane: Option<&Pane>,
     previous: Option<Status>,
     viewed: bool,
+    detected: bool,
+    branches: &HashMap<String, Option<String>>,
 ) -> TerminalState {
-    let agent = pane
+    let reported = pane
         .and_then(|pane| pane.agent.as_deref())
-        .and_then(launch::agent)
-        .or_else(|| launch::launched(&workspace.label));
+        .and_then(launch::agent);
+    let agent = if detected {
+        reported
+    } else {
+        reported.or_else(|| launch::launched(&workspace.label))
+    };
+    let name = if launch::default_label(&workspace.label) {
+        launch::label(agent).to_owned()
+    } else {
+        workspace.label.clone()
+    };
     let herdr = pane.map_or(herdr_client::Status::Unknown, |pane| pane.status);
+    let folder = pane
+        .and_then(|pane| pane.cwd.as_ref())
+        .map(|cwd| cwd.display().to_string())
+        .unwrap_or_default();
 
     TerminalState {
         id: workspace.id.clone(),
-        name: workspace.label.clone(),
+        name,
         agent,
         status: status(herdr, previous, viewed),
+        branch: branches.get(&folder).cloned().flatten(),
+        folder,
     }
 }
 
@@ -214,83 +272,4 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 #[cfg(test)]
-mod tests {
-    use herdr_client::Status as Herdr;
-
-    use super::*;
-
-    #[test]
-    fn an_agent_that_finishes_unseen_is_done_until_viewed() {
-        let finished = status(Herdr::Idle, Some(Status::Working), false);
-        let still = status(Herdr::Idle, Some(finished), false);
-        let seen = status(Herdr::Idle, Some(still), true);
-        let later = status(Herdr::Idle, Some(seen), false);
-
-        assert_eq!(
-            [finished, still, seen, later],
-            [Status::Done, Status::Done, Status::Idle, Status::Idle]
-        );
-    }
-
-    #[test]
-    fn herdr_done_clears_only_when_viewed() {
-        assert_eq!(status(Herdr::Done, None, false), Status::Done);
-        assert_eq!(status(Herdr::Done, Some(Status::Done), true), Status::Idle);
-    }
-
-    #[test]
-    fn an_agent_waiting_for_input_stays_blocked_while_viewed() {
-        assert_eq!(status(Herdr::Blocked, None, true), Status::Blocked);
-        assert_eq!(status(Herdr::Working, None, true), Status::Working);
-    }
-
-    #[test]
-    fn an_agent_seen_finishing_is_idle() {
-        assert_eq!(
-            status(Herdr::Idle, Some(Status::Working), true),
-            Status::Idle
-        );
-        assert_eq!(
-            status(Herdr::Unknown, Some(Status::Done), false),
-            Status::Idle
-        );
-    }
-
-    #[test]
-    fn views_count_once_per_session() {
-        let tracker = Tracker::default();
-
-        tracker.view(1, Some("w1".into()));
-        tracker.view(2, Some("w1".into()));
-        tracker.view(1, None);
-
-        assert_eq!(tracker.viewed(), HashSet::from(["w1".to_owned()]));
-        tracker.view(2, Some("w2".into()));
-        assert_eq!(tracker.viewed(), HashSet::from(["w2".to_owned()]));
-    }
-
-    #[tokio::test]
-    async fn a_session_that_falls_behind_gets_every_current_state() {
-        let tracker = Tracker::default();
-        let mut changes = tracker.changes();
-        let states: Vec<_> = (0..300)
-            .map(|index| TerminalState {
-                id: format!("w{index}"),
-                name: "Claude".into(),
-                agent: None,
-                status: Status::Working,
-            })
-            .collect();
-        for state in &states {
-            let _ = tracker.changes.send(state.clone());
-            lock(&tracker.states).insert(state.id.clone(), state.clone());
-        }
-
-        let mut received = tracker.next(&mut changes).await.unwrap_or_default();
-        received.sort_by(|a, b| a.id.cmp(&b.id));
-        let mut expected = states;
-        expected.sort_by(|a, b| a.id.cmp(&b.id));
-
-        assert_eq!(received, expected);
-    }
-}
+mod tests;

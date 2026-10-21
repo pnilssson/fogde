@@ -30,21 +30,18 @@
 }
 
 [data-sidebar="menu-sub"] {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  transform: none;
+  margin-right: 0;
+  padding-right: 0;
 }
 
 [data-sidebar="menu-sub-button"] {
   width: 100%;
   text-align: left;
-  transform: none;
 }
 
 .dockview-theme-fogde {
   --dv-group-view-background-color: transparent;
-  --dv-separator-border: transparent;
+  --dv-separator-border: var(--border);
   --dv-sash-color: transparent;
   --dv-active-sash-color: var(--border);
   --dv-drag-over-background-color: color-mix(

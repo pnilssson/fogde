@@ -134,8 +134,8 @@ mod tests {
     #[test]
     fn hashes_like_sha256sum() {
         assert_eq!(
-            hex(&Sha256::digest(b"fogde")),
-            "82a63d5a5f020b800e713d67c218f4570a694d9666275b6a3060471f306fd88d"
+            hex(&Sha256::digest(b"data")),
+            "3a6eb0790f39ac87c94f3856b2dd2c5d110e6811602261a9a923d3bb23adc8b7"
         );
     }
 }

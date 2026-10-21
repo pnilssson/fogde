@@ -3,12 +3,21 @@ import { frame } from "@/lib/frame";
 export const shortcuts = {
   palette: "K",
   attention: "G",
+  tile: "T",
+  close: "W",
 } as const;
+
+export const arrows = [
+  { code: "ArrowLeft", side: "left", glyph: "←" },
+  { code: "ArrowRight", side: "right", glyph: "→" },
+  { code: "ArrowUp", side: "top", glyph: "↑" },
+  { code: "ArrowDown", side: "bottom", glyph: "↓" },
+] as const;
 
 const mac = frame.platform === "macos";
 
-function held(event: KeyboardEvent) {
-  if (event.altKey || event.isComposing) {
+function held(event: KeyboardEvent, alt = false) {
+  if (event.altKey !== alt || event.isComposing) {
     return false;
   }
 
@@ -27,6 +36,18 @@ export function tileNumber(event: KeyboardEvent) {
   return held(event) && digit ? Number(digit) : undefined;
 }
 
-export function keys(key: string) {
-  return mac ? ["⌘", key] : ["Ctrl", "Shift", key];
+export function arrowSide(event: KeyboardEvent) {
+  if (!held(event, true)) {
+    return undefined;
+  }
+
+  return arrows.find(({ code }) => code === event.code)?.side;
+}
+
+export function keys(key: string, alt = false) {
+  if (mac) {
+    return alt ? ["⌘", "⌥", key] : ["⌘", key];
+  }
+
+  return alt ? ["Ctrl", "Shift", "Alt", key] : ["Ctrl", "Shift", key];
 }

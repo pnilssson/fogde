@@ -67,7 +67,7 @@ struct Focus<'a> {
 mod tests {
     use super::*;
 
-    const LIST: &str = r#"{"panes":[{"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"0f6e1c52-3a7b-4d2e-9c1a-5b8e2f4d7a10"},"agent_status":"idle","cwd":"C:\\Users\\dev\\fogde","focused":true,"pane_id":"w3:p1","revision":10,"scroll":{"max_offset_from_bottom":0,"offset_from_bottom":0,"viewport_rows":56},"tab_id":"w3:t1","terminal_id":"term_65e188ff9e68f3","terminal_title":"✳ Claude Code","terminal_title_stripped":"Claude Code","workspace_id":"w3"},{"agent_status":"unknown","cwd":"C:\\Users\\dev\\notes","focused":false,"pane_id":"w3:p2","revision":0,"scroll":{"max_offset_from_bottom":20,"offset_from_bottom":0,"viewport_rows":14},"tab_id":"w3:t1","terminal_id":"term_65e188ff9f8c04","workspace_id":"w3"}],"type":"pane_list"}"#;
+    const LIST: &str = r#"{"panes":[{"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"0f6e1c52-3a7b-4d2e-9c1a-5b8e2f4d7a10"},"agent_status":"idle","cwd":"C:\\Users\\dev\\app","focused":true,"pane_id":"w3:p1","revision":10,"scroll":{"max_offset_from_bottom":0,"offset_from_bottom":0,"viewport_rows":56},"tab_id":"w3:t1","terminal_id":"term_65e188ff9e68f3","terminal_title":"✳ Claude Code","terminal_title_stripped":"Claude Code","workspace_id":"w3"},{"agent_status":"unknown","cwd":"C:\\Users\\dev\\notes","focused":false,"pane_id":"w3:p2","revision":0,"scroll":{"max_offset_from_bottom":20,"offset_from_bottom":0,"viewport_rows":14},"tab_id":"w3:t1","terminal_id":"term_65e188ff9f8c04","workspace_id":"w3"}],"type":"pane_list"}"#;
 
     #[test]
     fn reads_agent_and_shell_panes() {
@@ -82,7 +82,7 @@ mod tests {
                     agent: Some("claude".into()),
                     status: Status::Idle,
                     session: Some(Session::Id("0f6e1c52-3a7b-4d2e-9c1a-5b8e2f4d7a10".into())),
-                    cwd: Some(PathBuf::from(r"C:\Users\dev\fogde")),
+                    cwd: Some(PathBuf::from(r"C:\Users\dev\app")),
                 },
                 Pane {
                     id: "w3:p2".into(),

@@ -61,6 +61,13 @@ function NewWorktree({ machine, repo }: NewProps) {
       await queries.invalidateQueries(workspacesQuery(machine));
       openStart(path);
     },
+    onError: (error) => {
+      toast.add({
+        type: "error",
+        title: "Could not create the worktree",
+        description: error.message,
+      });
+    },
   });
   const form = useForm({
     defaultValues: { name: "" },
@@ -81,7 +88,7 @@ function NewWorktree({ machine, repo }: NewProps) {
         validators={{ onSubmit: z.string().trim().min(1, "Enter a name") }}
       >
         {(field) => (
-          <Field data-invalid={!field.state.meta.isValid || create.isError}>
+          <Field data-invalid={!field.state.meta.isValid}>
             <FieldLabel htmlFor="worktree">New worktree</FieldLabel>
             <InputGroup>
               <InputGroupInput
@@ -91,11 +98,10 @@ function NewWorktree({ machine, repo }: NewProps) {
                 placeholder="fix-login"
                 spellCheck={false}
                 autoCapitalize="off"
-                aria-invalid={!field.state.meta.isValid || create.isError}
+                aria-invalid={!field.state.meta.isValid}
                 onBlur={field.handleBlur}
                 onChange={(event) => {
                   field.handleChange(event.target.value);
-                  create.reset();
                 }}
               />
               <InputGroupAddon align="inline-end">
@@ -111,9 +117,7 @@ function NewWorktree({ machine, repo }: NewProps) {
                 </InputGroupButton>
               </InputGroupAddon>
             </InputGroup>
-            <FieldError
-              errors={[...field.state.meta.errors, create.error ?? undefined]}
-            />
+            <FieldError errors={field.state.meta.errors} />
           </Field>
         )}
       </form.Field>

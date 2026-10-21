@@ -77,10 +77,8 @@ pub async fn list(session: &Session) -> Result<Vec<Terminal>, Failure> {
                 name: state.name,
                 agent: state.agent,
                 status: state.status,
-                folder: pane
-                    .and_then(|pane| pane.cwd.as_ref())
-                    .map(|cwd| cwd.display().to_string())
-                    .unwrap_or_default(),
+                folder: state.folder,
+                branch: state.branch,
                 checkout: None,
             }
         })
@@ -139,6 +137,7 @@ impl Handler for CreateTerminal {
             agent: params.agent,
             status: Status::Idle,
             folder: folder.display().to_string(),
+            branch: git::branch(&folder).await,
             checkout: crate::workspaces::checkout_of(&folder, &checkouts),
         })
     }

@@ -71,7 +71,7 @@ mod tests {
     use super::*;
     use crate::Status;
 
-    const CREATED: &str = r#"{"root_pane":{"agent_status":"unknown","cwd":"C:\\Users\\dev\\fogde\\","focused":true,"pane_id":"w1:p1","revision":0,"scroll":{"max_offset_from_bottom":0,"offset_from_bottom":0,"viewport_rows":40},"tab_id":"w1:t1","terminal_id":"term_65e205e7c790d1","workspace_id":"w1"},"tab":{"agent_status":"unknown","focused":true,"label":"1","number":1,"pane_count":1,"tab_id":"w1:t1","workspace_id":"w1"},"type":"workspace_created","workspace":{"active_tab_id":"w1:t1","agent_status":"unknown","focused":true,"label":"t1","number":1,"pane_count":1,"tab_count":1,"workspace_id":"w1"}}"#;
+    const CREATED: &str = r#"{"root_pane":{"agent_status":"unknown","cwd":"C:\\Users\\dev\\app\\","focused":true,"pane_id":"w1:p1","revision":0,"scroll":{"max_offset_from_bottom":0,"offset_from_bottom":0,"viewport_rows":40},"tab_id":"w1:t1","terminal_id":"term_65e205e7c790d1","workspace_id":"w1"},"tab":{"agent_status":"unknown","focused":true,"label":"1","number":1,"pane_count":1,"tab_id":"w1:t1","workspace_id":"w1"},"type":"workspace_created","workspace":{"active_tab_id":"w1:t1","agent_status":"unknown","focused":true,"label":"t1","number":1,"pane_count":1,"tab_count":1,"workspace_id":"w1"}}"#;
 
     const LIST: &str = r#"{"type":"workspace_list","workspaces":[{"active_tab_id":"w4:t1","agent_status":"working","focused":true,"label":"api","number":1,"pane_count":3,"tab_count":1,"workspace_id":"w4"},{"active_tab_id":"w5:t1","agent_status":"unknown","focused":false,"label":"notes","number":2,"pane_count":1,"tab_count":1,"workspace_id":"w5"}]}"#;
 
@@ -112,14 +112,14 @@ mod tests {
     fn gives_panes_the_env() {
         let env = BTreeMap::from([("XDG_CONFIG_HOME".to_owned(), String::new())]);
         let create = Create {
-            cwd: Path::new("/repos/fogde"),
+            cwd: Path::new("/repos/app"),
             label: "fix-login",
             env: &env,
         };
 
         assert_eq!(
             serde_json::to_value(create).unwrap(),
-            json!({"cwd": "/repos/fogde", "label": "fix-login", "env": {"XDG_CONFIG_HOME": ""}})
+            json!({"cwd": "/repos/app", "label": "fix-login", "env": {"XDG_CONFIG_HOME": ""}})
         );
     }
 }

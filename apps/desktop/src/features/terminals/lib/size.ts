@@ -10,3 +10,7 @@ export function measure(fit: FitAddon): Size | undefined {
 
   return { cols: size.cols, rows: size.rows };
 }
+
+export function same(size: Size, other: Size | undefined) {
+  return size.cols === other?.cols && size.rows === other.rows;
+}

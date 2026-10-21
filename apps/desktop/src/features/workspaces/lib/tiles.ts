@@ -14,6 +14,7 @@ import {
   store,
 } from "@/features/workspaces/lib/layouts";
 import { nextWaiting, Selection } from "@/features/workspaces/lib/selection";
+import { requestStartFocus } from "@/features/workspaces/lib/start-focus";
 
 let current: DockviewApi | undefined;
 let pending: Selection | undefined;
@@ -87,6 +88,18 @@ export function selectWorkspace(next: Selection) {
   }
 
   store.setState({ workspace: next });
+  if (current) {
+    load(current);
+  }
+}
+
+export function leaveWorkspace(gone: Selection) {
+  const { workspace } = store.getState();
+  if (gone.machine !== workspace?.machine || gone.id !== workspace.id) {
+    return;
+  }
+
+  store.setState({ workspace: undefined });
   if (current) {
     load(current);
   }
@@ -198,10 +211,12 @@ export function sync(
   }
 }
 
-export function openStart(folder: string) {
+export function openStart(folder: string, focus = false) {
   if (!current) {
     return;
   }
+
+  requestStartFocus(focus);
 
   const existing = current.getPanel(startId);
   if (existing) {

@@ -13,10 +13,9 @@ import {
 import { appearance } from "@/features/terminals/lib/appearance";
 import { handleClipboard } from "@/features/terminals/lib/clipboard";
 import { openLinks } from "@/features/terminals/lib/links";
-import { measure } from "@/features/terminals/lib/size";
+import { measure, same } from "@/features/terminals/lib/size";
 import { watchTerminal } from "@/features/terminals/lib/watch";
 import { scrollOnWheel } from "@/features/terminals/lib/wheel";
-import type { Size } from "@/generated/protocol";
 import { accessibilityQuery } from "@/lib/accessibility";
 import { ConnectionError } from "@/lib/client";
 import type { Machine } from "@/lib/machines";
@@ -276,14 +275,13 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
         }}
       />
       <div className="terminal-view relative min-h-0 flex-1 p-2 type-code">
-        <div ref={container} className="size-full" />
+        <div
+          ref={container}
+          className="flex size-full flex-col justify-center"
+        />
       </div>
     </div>
   );
-}
-
-function same(size: Size, other: Size | undefined) {
-  return size.cols === other?.cols && size.rows === other.rows;
 }
 
 function decode(data: string) {

@@ -1,5 +1,6 @@
 import { useContext } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
   Empty,
   EmptyContent,
@@ -7,6 +8,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { useNewWorkspace } from "@/features/workspaces/components/new-workspace";
 import { StartActions } from "@/features/workspaces/components/start-actions";
 import { WorktreeActions } from "@/features/workspaces/components/worktree-actions";
 import { useConnection } from "@/hooks/use-connection";
@@ -25,30 +27,58 @@ interface Props {
 export function StartPage({ folder }: Props) {
   const { groups, workspace } = useContext(WorkspaceContext);
   const found = findWorkspace(groups, workspace);
-  const target = folder ?? found?.workspace.folder;
-  const checkout =
-    found && target ? checkoutOf(found.workspace, target) : undefined;
+  if (!found) {
+    if (workspace) {
+      return null;
+    }
+
+    const loaded = groups.find(({ workspaces }) => workspaces.data);
+
+    return loaded ? <NoWorkspace machine={loaded.machine} /> : null;
+  }
+
+  const target = folder ?? found.workspace.folder;
+  const checkout = checkoutOf(found.workspace, target);
   const worktree = checkout !== undefined && !checkout.main;
-  const place = worktree ? checkoutName(checkout) : found?.workspace.name;
-  const machine = found?.group.machine;
+  const place = worktree ? checkoutName(checkout) : found.workspace.name;
+  const machine = found.group.machine;
 
   return (
     <Empty>
       <EmptyHeader>
         <EmptyTitle>
-          {place && machine
-            ? `Continue working in ${place} on ${spoken(machine)}`
-            : "Start something"}
+          Continue working in {place} on {spoken(machine)}
         </EmptyTitle>
-        {target && <EmptyDescription>{target}</EmptyDescription>}
+        <EmptyDescription>{target}</EmptyDescription>
       </EmptyHeader>
-      {found && target && (
-        <Start
-          machine={found.group.machine}
-          workspace={found.workspace}
-          folder={target}
-        />
-      )}
+      <Start machine={machine} workspace={found.workspace} folder={target} />
+    </Empty>
+  );
+}
+
+function NoWorkspace({ machine }: { machine: Machine }) {
+  const newWorkspace = useNewWorkspace(machine);
+
+  return (
+    <Empty>
+      <EmptyHeader>
+        <EmptyTitle>Create a workspace</EmptyTitle>
+        <EmptyDescription>
+          A workspace is a folder you work in, usually a repo, with its
+          terminals and agents beside it.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button
+          size="sm"
+          onClick={() => {
+            void newWorkspace.start();
+          }}
+        >
+          New workspace
+        </Button>
+      </EmptyContent>
+      {newWorkspace.dialog}
     </Empty>
   );
 }

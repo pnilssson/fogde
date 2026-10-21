@@ -26,7 +26,7 @@ export function ConnectGitHub({ machine, onBack, onContinue }: Props) {
     ...accountsQuery(machine),
     refetchOnWindowFocus: true,
   });
-  const { prompt, starting, error, begin } = useSignIn(machine);
+  const { prompt, starting, begin } = useSignIn(machine);
   const [enterprise, setEnterprise] = useState(false);
 
   const hasGitHub = accounts.some((account) => account.host === github);
@@ -92,7 +92,6 @@ export function ConnectGitHub({ machine, onBack, onContinue }: Props) {
               )}
             </AnimatePresence>
           </div>
-          {error && <p className="type-body">{error.message}</p>}
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={onBack}>
               Back

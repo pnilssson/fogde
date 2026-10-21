@@ -21,9 +21,9 @@ pub struct Checkout {
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
-pub struct CreateWorkspaceParams {
+pub struct RenameWorkspaceParams {
+    pub workspace: String,
     pub name: String,
-    pub folder: String,
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
@@ -44,8 +44,16 @@ pub struct CreateWorkspace;
 
 impl Method for CreateWorkspace {
     const NAME: &'static str = "workspaces.create";
-    type Params = CreateWorkspaceParams;
+    type Params = String;
     type Result = Workspace;
+}
+
+pub struct RenameWorkspace;
+
+impl Method for RenameWorkspace {
+    const NAME: &'static str = "workspaces.rename";
+    type Params = RenameWorkspaceParams;
+    type Result = ();
 }
 
 pub struct DeleteWorkspace;

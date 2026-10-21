@@ -25,6 +25,7 @@
 - Test frontend and backend by risk: integrations with external tools, parsing data we don't own, connection and stream handling, security, and anything that can lose user data. Test behaviour through public interfaces with real captured data.
 - Add a test that reproduces each bug before fixing it.
 - Skip tests for presentation, glue and trivial code, and never require a signed-in agent.
+- Use neutral sample data in tests and fixtures (`app`, `/repos/app`, `feature/login`), never the project's own name or real people's names; keep `fogde` only where it is product behaviour, such as the worktree branch prefix or the Herdr client ID.
 
 ## Rust
 - Use `thiserror` in library crates and `anyhow` only in binaries. Return errors instead of panicking, and log with `tracing`.
@@ -46,10 +47,12 @@
 - Use installed shadcn/ui components, installing any that are missing.
 - Show loading with a spinner or skeleton, whichever fits the content.
 - Show each state in one place; never repeat it across the sidebar, main area and status bar.
+- Show validation errors under their input and every other error as a toast.
 - Use tooltips only for icon-only controls or information not visible elsewhere; never repeat visible text.
 - Keep the window chrome transparent; raise surfaces with the `surface-*` background and shadow tokens.
 - App-owned spacing uses Tailwind values divisible by four, or `2`; auto margins, shadcn/ui and third-party styles are exempt.
 - App-owned text uses only the `type-*` roles and the foreground colour.
+- App-owned colours use theme tokens as they are (`bg-hover`, `text-muted-foreground`, `surface-*`); never opacity modifiers like `/70` or arbitrary colour values, which drift from the theme.
 - Meet WCAG 2.2 AA: every action works by keyboard with a visible focus state, and icon-only controls have accessible labels.
 
 ## Motion

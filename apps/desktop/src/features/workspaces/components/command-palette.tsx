@@ -1,15 +1,6 @@
-import {
-  ArrowDownIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowUpIcon,
-  BellIcon,
-  FolderIcon,
-  TerminalWindowIcon,
-} from "@phosphor-icons/react";
+import { BellIcon, FolderIcon, PlusCircleIcon } from "@phosphor-icons/react";
 import { useContext, useRef } from "react";
 
-import { AgentIcon } from "@/components/agent-icon";
 import {
   Command,
   CommandDialog,
@@ -29,7 +20,8 @@ import {
   useChoices,
   useCreateTerminal,
 } from "@/features/workspaces/hooks/use-terminals";
-import { moveTile, type Side } from "@/features/workspaces/lib/drag";
+import { PaletteTiles } from "@/features/workspaces/components/palette-tiles";
+import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
 import {
   findWorkspace,
   waiting,
@@ -37,25 +29,18 @@ import {
 } from "@/features/workspaces/lib/selection";
 import {
   dockview,
-  opened,
+  openStart,
   reveal,
   revealNext,
   selectWorkspace,
 } from "@/features/workspaces/lib/tiles";
 import { useConnection } from "@/hooks/use-connection";
-import type { Agent, Workspace } from "@/generated/protocol";
+import type { Workspace } from "@/generated/protocol";
 import { agentName } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 import { shortcuts } from "@/lib/shortcuts";
 
 type Run = (action: () => void) => void;
-
-const moves: { side: Side; label: string; icon: typeof ArrowLeftIcon }[] = [
-  { side: "left", label: "Move tile left", icon: ArrowLeftIcon },
-  { side: "right", label: "Move tile right", icon: ArrowRightIcon },
-  { side: "top", label: "Move tile up", icon: ArrowUpIcon },
-  { side: "bottom", label: "Move tile down", icon: ArrowDownIcon },
-];
 
 export function CommandPalette() {
   const open = usePaletteOpen();
@@ -206,24 +191,7 @@ function Commands({ run }: { run: Run }) {
           }),
         )}
       </CommandGroup>
-      {tiles > 1 && (
-        <CommandGroup heading="Tile">
-          {moves.map(({ side, label, icon: Icon }) => (
-            <CommandItem
-              key={side}
-              value={label}
-              onSelect={() => {
-                run(() => {
-                  moveTile(side);
-                });
-              }}
-            >
-              <Icon />
-              {label}
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      )}
+      {tiles > 0 && <PaletteTiles tiles={tiles} run={run} />}
     </>
   );
 }
@@ -237,15 +205,28 @@ interface NewProps {
 function NewTerminals({ machine, workspace, run }: NewProps) {
   const connection = useConnection(machine);
   const choices = useChoices(machine);
-  const create = useCreateTerminal(machine, (terminal) => {
-    opened({ machine: machine.id, id: terminal.id });
-  });
+  const create = useCreateTerminal();
   if (connection.state !== "connected") {
     return null;
   }
 
   return (
     <CommandGroup heading={`New in ${workspace.name}`}>
+      <CommandItem
+        value="new tile"
+        keywords={["new", "open", "start"]}
+        onSelect={() => {
+          run(() => {
+            openStart(workspace.folder, true);
+          });
+        }}
+      >
+        <PlusCircleIcon />
+        New tile
+        <CommandShortcut>
+          <Keys letter={shortcuts.tile} />
+        </CommandShortcut>
+      </CommandItem>
       {choices.map((agent) => {
         const name = agent ? agentName[agent] : "terminal";
 
@@ -256,6 +237,7 @@ function NewTerminals({ machine, workspace, run }: NewProps) {
             keywords={["new", "open", "start"]}
             onSelect={() => {
               create.mutate({
+                machine,
                 workspace: workspace.id,
                 folder: workspace.folder,
                 agent,
@@ -270,10 +252,6 @@ function NewTerminals({ machine, workspace, run }: NewProps) {
       })}
     </CommandGroup>
   );
-}
-
-function TerminalIcon({ agent }: { agent: Agent | null }) {
-  return agent ? <AgentIcon agent={agent} /> : <TerminalWindowIcon />;
 }
 
 function Label({ name, place }: { name: string; place?: string | undefined }) {

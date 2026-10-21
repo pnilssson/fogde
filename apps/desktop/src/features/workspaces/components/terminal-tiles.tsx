@@ -1,5 +1,6 @@
 import "dockview-react/dist/styles/dockview.css";
 
+import { PlusCircleIcon } from "@phosphor-icons/react";
 import {
   DockviewReact,
   type DockviewApi,
@@ -7,11 +8,11 @@ import {
   type DockviewReadyEvent,
   type IDockviewPanelProps,
 } from "dockview-react";
-import { type ReactNode, useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 import { StartPage } from "@/features/workspaces/components/start-page";
 import { TerminalPane } from "@/features/workspaces/components/terminal-pane";
-import { TileGrip } from "@/features/workspaces/components/tile-grip";
+import { TileBar } from "@/features/workspaces/components/tile-bar";
 import {
   isPlacing,
   usePlaceTerminal,
@@ -32,16 +33,21 @@ import {
 } from "@/features/workspaces/lib/layouts";
 import type { Selection } from "@/features/workspaces/lib/selection";
 import {
-  findTerminal,
-  findWorkspace,
-  WorkspaceContext,
-} from "@/features/workspaces/lib/selection";
+  startFocused,
+  useStartFocus,
+} from "@/features/workspaces/lib/start-focus";
 import {
   TerminalSlot,
   type RenderTerminal,
 } from "@/features/workspaces/lib/slot";
 import {
+  findTerminal,
+  findWorkspace,
+  WorkspaceContext,
+} from "@/features/workspaces/lib/selection";
+import {
   attach,
+  closeStart,
   isShown,
   restore,
   sync,
@@ -54,10 +60,6 @@ const edges = {
   size: { type: "percentage", value: 15 },
 } as const;
 
-function Tile({ children }: { children: ReactNode }) {
-  return <div className="h-full p-1">{children}</div>;
-}
-
 function TerminalTile({ api, params }: IDockviewPanelProps<Selection>) {
   const { groups } = useContext(WorkspaceContext);
   const found = findTerminal(groups, params);
@@ -66,46 +68,48 @@ function TerminalTile({ api, params }: IDockviewPanelProps<Selection>) {
   }
 
   return (
-    <Tile>
-      <TerminalPane
-        panel={api}
-        machine={found.machine}
-        terminal={found.terminal}
-      />
-    </Tile>
-  );
-}
-
-interface StartProps {
-  folder?: string | undefined;
-  movable?: boolean;
-}
-
-function StartSurface({ folder, movable = false }: StartProps) {
-  return (
-    <Tile>
-      <section
-        aria-label="Start"
-        className="group/tile relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-surface-3 shadow-surface-3"
-      >
-        {movable && <TileGrip item={startId} />}
-        <div className="flex min-h-0 flex-1 overflow-auto">
-          <StartPage folder={folder} />
-        </div>
-      </section>
-    </Tile>
+    <TerminalPane
+      panel={api}
+      machine={found.machine}
+      terminal={found.terminal}
+    />
   );
 }
 
 function StartTile({ params }: IDockviewPanelProps<{ folder?: string }>) {
   const workspace = useTiles((tiles) => tiles.workspace);
+  const active = useTiles((tiles) => tiles.startActive);
   const shared = useStart(workspace) !== undefined;
+  const focus = useStartFocus();
 
-  return <StartSurface folder={params.folder} movable={shared} />;
+  useEffect(() => {
+    if (focus) {
+      startFocused();
+    }
+  }, [focus]);
+
+  return (
+    <section aria-label="New tile" className="flex h-full min-h-0 flex-col">
+      <TileBar
+        item={shared ? startId : undefined}
+        active={active}
+        icon={<PlusCircleIcon className="size-4 shrink-0" />}
+        title="New tile"
+        onClose={closeStart}
+      />
+      <div className="flex min-h-0 flex-1 overflow-auto">
+        <StartPage folder={params.folder} />
+      </div>
+    </section>
+  );
 }
 
 function Watermark() {
-  return <StartSurface />;
+  return (
+    <div className="flex h-full overflow-auto">
+      <StartPage />
+    </div>
+  );
 }
 
 function Hold() {
@@ -181,7 +185,7 @@ export function TerminalTiles({ terminal }: { terminal: RenderTerminal }) {
 
   return (
     <TerminalSlot value={terminal}>
-      <div className="relative min-h-0 flex-1 p-1">
+      <div className="relative min-h-0 flex-1">
         <DockviewReact
           className="isolate"
           theme={theme}

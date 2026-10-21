@@ -3,10 +3,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/toast";
 import { workspacesQuery } from "@/features/workspaces/api/workspaces";
 import { forget } from "@/features/workspaces/lib/layouts";
-import { selectWorkspace } from "@/features/workspaces/lib/tiles";
+import {
+  leaveWorkspace,
+  selectWorkspace,
+} from "@/features/workspaces/lib/tiles";
 import type {
-  CreateWorkspaceParams,
   PlaceTerminalParams,
+  RenameWorkspaceParams,
   Workspace,
 } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
@@ -76,12 +79,9 @@ export function useDeleteWorkspace(machine: Machine, onDeleted: () => void) {
     mutationFn: (workspace: string) =>
       machine.client.call("workspaces.delete", workspace),
     onSuccess: (_, workspace) => {
-      const home = queries.getQueryData(queryKey)?.[0];
-      if (home) {
-        selectWorkspace({ machine: machine.id, id: home.id });
-      }
-
-      forget({ machine: machine.id, id: workspace });
+      const gone = { machine: machine.id, id: workspace };
+      leaveWorkspace(gone);
+      forget(gone);
       queries.setQueryData(queryKey, (current) =>
         current?.filter(({ id }) => id !== workspace),
       );
@@ -102,15 +102,49 @@ export function useCreateWorkspace(machine: Machine, onCreated: () => void) {
   const queries = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: CreateWorkspaceParams) =>
-      machine.client.call("workspaces.create", params),
+    mutationFn: (folder: string) =>
+      machine.client.call("workspaces.create", folder),
     onSuccess: (workspace) => {
-      queries.setQueryData(
-        workspacesQuery(machine).queryKey,
-        (current = []) => [...current, workspace],
+      queries.setQueryData(workspacesQuery(machine).queryKey, (current = []) =>
+        current.some(({ id }) => id === workspace.id)
+          ? current
+          : [...current, workspace],
       );
       selectWorkspace({ machine: machine.id, id: workspace.id });
       onCreated();
     },
+    onError: (error) => {
+      toast.add({
+        type: "error",
+        title: "Could not create the workspace",
+        description: error.message,
+      });
+    },
+  });
+}
+
+export function useRenameWorkspace(machine: Machine, onRenamed: () => void) {
+  const queries = useQueryClient();
+  const { queryKey } = workspacesQuery(machine);
+
+  return useMutation({
+    mutationFn: (params: RenameWorkspaceParams) =>
+      machine.client.call("workspaces.rename", params),
+    onSuccess: (_, { workspace, name }) => {
+      queries.setQueryData(queryKey, (current) =>
+        current?.map((each) =>
+          each.id === workspace ? { ...each, name } : each,
+        ),
+      );
+      onRenamed();
+    },
+    onError: (error) => {
+      toast.add({
+        type: "error",
+        title: "Could not rename the workspace",
+        description: error.message,
+      });
+    },
+    onSettled: () => queries.invalidateQueries(workspacesQuery(machine)),
   });
 }

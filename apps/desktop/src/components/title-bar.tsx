@@ -62,7 +62,7 @@ function Control({ label, onClick, className, children }: ControlProps) {
       title={label}
       onClick={onClick}
       className={cn(
-        "flex w-12 items-center justify-center hover:bg-foreground/10 focus-visible:bg-foreground/10 focus-visible:outline-none",
+        "flex w-12 items-center justify-center hover:bg-hover focus-visible:bg-hover focus-visible:outline-none",
         className,
       )}
     >

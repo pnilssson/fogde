@@ -10,12 +10,7 @@ async fn run(repo: &Path, args: &[&str]) -> Result<String> {
     let output = Command::new("git")
         .arg("-C")
         .arg(repo)
-        .args([
-            "-c",
-            "user.name=Fogde",
-            "-c",
-            "user.email=fogde@example.com",
-        ])
+        .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
         .args(args)
         .output()
         .await?;
@@ -61,7 +56,9 @@ async fn copies_ignored_files_listed_in_worktreeinclude() {
     .unwrap();
     let worktree = dir.path().join("worktrees").join("login");
 
-    add_worktree(&repo, &worktree, "fogde/login").await.unwrap();
+    add_worktree(&repo, &worktree, "feature/login")
+        .await
+        .unwrap();
 
     assert_eq!(
         fs::read_to_string(worktree.join(".env")).await.unwrap(),
@@ -71,7 +68,7 @@ async fn copies_ignored_files_listed_in_worktreeinclude() {
     assert!(!worktree.join("build").exists());
     let listed = worktrees(&repo).await.unwrap();
     assert_eq!(listed.len(), 2);
-    assert_eq!(listed[1].branch.as_deref(), Some("fogde/login"));
+    assert_eq!(listed[1].branch.as_deref(), Some("feature/login"));
 
     remove_worktree(&repo, &worktree).await.unwrap();
 
@@ -85,7 +82,9 @@ async fn copies_the_env_file_without_a_worktreeinclude() {
     let repo = repo(dir.path(), &[(".env", "SECRET=1")]).await.unwrap();
     let worktree = dir.path().join("worktrees").join("login");
 
-    add_worktree(&repo, &worktree, "fogde/login").await.unwrap();
+    add_worktree(&repo, &worktree, "feature/login")
+        .await
+        .unwrap();
 
     assert!(worktree.join(".env").exists());
 }
@@ -104,7 +103,9 @@ async fn skips_nested_repositories() {
     run(&nested, &["init", "--quiet"]).await.unwrap();
     let worktree = dir.path().join("worktrees").join("login");
 
-    add_worktree(&repo, &worktree, "fogde/login").await.unwrap();
+    add_worktree(&repo, &worktree, "feature/login")
+        .await
+        .unwrap();
 
     assert!(worktree.join(".env").exists());
     assert!(!worktree.join("build").exists());
@@ -116,9 +117,13 @@ async fn reuses_a_name_after_its_worktree_is_removed() {
     let repo = repo(dir.path(), &[]).await.unwrap();
     let worktree = dir.path().join("worktrees").join("login");
 
-    add_worktree(&repo, &worktree, "fogde/login").await.unwrap();
+    add_worktree(&repo, &worktree, "feature/login")
+        .await
+        .unwrap();
     remove_worktree(&repo, &worktree).await.unwrap();
-    add_worktree(&repo, &worktree, "fogde/login").await.unwrap();
+    add_worktree(&repo, &worktree, "feature/login")
+        .await
+        .unwrap();
 
     assert!(worktree.exists());
 }
@@ -128,14 +133,16 @@ async fn removes_a_merged_branch() {
     let dir = tempfile::tempdir().unwrap();
     let repo = repo(dir.path(), &[]).await.unwrap();
     let worktree = dir.path().join("worktrees").join("login");
-    add_worktree(&repo, &worktree, "fogde/login").await.unwrap();
+    add_worktree(&repo, &worktree, "feature/login")
+        .await
+        .unwrap();
 
     let branch = remove_worktree(&repo, &worktree).await.unwrap();
 
-    assert_eq!(branch.as_deref(), Some("fogde/login"));
-    assert!(remove_merged_branch(&repo, "fogde/login").await.unwrap());
+    assert_eq!(branch.as_deref(), Some("feature/login"));
+    assert!(remove_merged_branch(&repo, "feature/login").await.unwrap());
     assert_eq!(
-        run(&repo, &["branch", "--list", "fogde/login"])
+        run(&repo, &["branch", "--list", "feature/login"])
             .await
             .unwrap(),
         ""
@@ -147,7 +154,9 @@ async fn keeps_a_branch_with_new_commits_and_reuses_it() {
     let dir = tempfile::tempdir().unwrap();
     let repo = repo(dir.path(), &[]).await.unwrap();
     let worktree = dir.path().join("worktrees").join("login");
-    add_worktree(&repo, &worktree, "fogde/login").await.unwrap();
+    add_worktree(&repo, &worktree, "feature/login")
+        .await
+        .unwrap();
     run(
         &worktree,
         &["commit", "--quiet", "--allow-empty", "-m", "work"],
@@ -157,8 +166,10 @@ async fn keeps_a_branch_with_new_commits_and_reuses_it() {
 
     remove_worktree(&repo, &worktree).await.unwrap();
 
-    assert!(!remove_merged_branch(&repo, "fogde/login").await.unwrap());
-    add_worktree(&repo, &worktree, "fogde/login").await.unwrap();
+    assert!(!remove_merged_branch(&repo, "feature/login").await.unwrap());
+    add_worktree(&repo, &worktree, "feature/login")
+        .await
+        .unwrap();
     assert_eq!(
         run(&worktree, &["log", "-1", "--format=%s"]).await.unwrap(),
         "work\n"

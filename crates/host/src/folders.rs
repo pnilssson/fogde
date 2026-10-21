@@ -1,9 +1,11 @@
 use std::ffi::OsStr;
 use std::fs::Metadata;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
-use protocol::folders::{Folder, Folders, ListFolders};
+use protocol::folders::{
+    CreateFolder, CreateFolderParams, Folder, Folders, ListFolders, RemoveFolder,
+};
 use protocol::rpc::Failure;
 use tokio::fs;
 
@@ -12,11 +14,34 @@ use crate::session::Session;
 
 pub fn register(router: &mut Router) {
     router.add::<ListFolders>();
+    router.add::<CreateFolder>();
+    router.add::<RemoveFolder>();
 }
 
 impl Handler for ListFolders {
     async fn handle(_: &Session, path: String) -> Result<Folders, Failure> {
         list(&absolute(&path).map_err(failure)?)
+            .await
+            .map_err(failure)
+    }
+}
+
+impl Handler for CreateFolder {
+    async fn handle(_: &Session, params: CreateFolderParams) -> Result<Folder, Failure> {
+        let parent = absolute(&params.parent).map_err(failure)?;
+        let name = params.name.trim();
+        let path = create(&parent, name).await.map_err(failure)?;
+
+        Ok(Folder {
+            name: name.to_owned(),
+            path: path.display().to_string(),
+        })
+    }
+}
+
+impl Handler for RemoveFolder {
+    async fn handle(_: &Session, path: String) -> Result<(), Failure> {
+        remove(&absolute(&path).map_err(failure)?)
             .await
             .map_err(failure)
     }
@@ -72,8 +97,23 @@ pub async fn directory(path: &Path) -> io::Result<()> {
     ))
 }
 
-pub fn home() -> io::Result<PathBuf> {
-    std::env::home_dir().ok_or_else(|| io::Error::other("could not find the home folder"))
+pub async fn create(parent: &Path, name: &str) -> io::Result<PathBuf> {
+    let mut parts = Path::new(name).components();
+    let (Some(Component::Normal(_)), None) = (parts.next(), parts.next()) else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("\"{name}\" can't be a folder name"),
+        ));
+    };
+
+    let path = parent.join(name);
+    fs::create_dir_all(&path).await?;
+
+    Ok(path)
+}
+
+pub async fn remove(path: &Path) -> io::Result<()> {
+    fs::remove_dir(path).await
 }
 
 pub fn same(a: &Path, b: &Path) -> bool {
@@ -181,22 +221,56 @@ mod tests {
         assert!(usable(&root.join("notes.txt")).await.is_err());
     }
 
+    #[tokio::test]
+    async fn creates_one_named_folder_inside_its_parent() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+
+        let created = create(root, "app").await.unwrap();
+        let again = create(root, "app").await.unwrap();
+
+        assert_eq!(created, root.join("app"));
+        assert_eq!(again, created);
+        assert!(created.is_dir());
+        for name in ["", ".", "..", "../app", "app/src", "/app"] {
+            assert!(create(root, name).await.is_err(), "{name}");
+        }
+        assert!(!root.parent().unwrap().join("app").exists());
+    }
+
+    #[tokio::test]
+    async fn removes_only_empty_folders() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let empty = create(root, "empty").await.unwrap();
+        let full = create(root, "full").await.unwrap();
+        fs::write(full.join(".keep"), "").await.unwrap();
+
+        remove(&empty).await.unwrap();
+        let refused = remove(&full).await.unwrap_err();
+
+        assert!(!empty.exists());
+        assert_eq!(refused.kind(), io::ErrorKind::DirectoryNotEmpty);
+        assert!(full.join(".keep").exists());
+        assert!(remove(&root.join("notes.txt")).await.is_err());
+    }
+
     #[test]
     fn compares_folders_by_their_parts() {
-        let repo = std::env::temp_dir().join("fogde");
+        let repo = std::env::temp_dir().join("app");
 
         assert!(inside(&repo.join("src"), &repo));
         assert!(inside(&repo, &repo));
         assert!(!inside(&repo, &repo.join("src")));
-        assert!(!inside(&std::env::temp_dir().join("fogde-old"), &repo));
+        assert!(!inside(&std::env::temp_dir().join("app-old"), &repo));
     }
 
     #[cfg(windows)]
     #[test]
     fn ignores_case_and_separators_on_windows() {
         assert!(inside(
-            Path::new(r"c:\users\dev\Fogde\crates\"),
-            Path::new("C:/Users/dev/fogde")
+            Path::new(r"c:\users\dev\App\src\"),
+            Path::new("C:/Users/dev/app")
         ));
     }
 

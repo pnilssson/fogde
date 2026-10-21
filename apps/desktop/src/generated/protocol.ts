@@ -16,9 +16,9 @@ export type Checkout = { path: string, branch: string | null, main: boolean, };
 
 export type Connection = { url: string, token: string, };
 
-export type CreateTerminalParams = { workspace: string, folder: string, agent: Agent | null, };
+export type CreateFolderParams = { parent: string, name: string, };
 
-export type CreateWorkspaceParams = { name: string, folder: string, };
+export type CreateTerminalParams = { workspace: string, folder: string, agent: Agent | null, };
 
 export type CreateWorktreeParams = { repo: string, name: string, };
 
@@ -52,6 +52,8 @@ export type RemoveWorktreeParams = { repo: string, path: string, };
 
 export type RenameMachineParams = { machine: MachineId, name: string, };
 
+export type RenameWorkspaceParams = { workspace: string, name: string, };
+
 export type Repo = { host: string, owner: string, name: string, };
 
 export type Scroll = "up" | "down";
@@ -70,7 +72,7 @@ export type SshKey = { name: string, fingerprint: string, };
 
 export type Status = "idle" | "working" | "blocked" | "done";
 
-export type Terminal = { id: string, name: string, agent: Agent | null, status: Status, folder: string, checkout: string | null, };
+export type Terminal = { id: string, name: string, agent: Agent | null, status: Status, folder: string, branch: string | null, checkout: string | null, };
 
 export type TerminalEnded = { id: string, error: string | null, };
 
@@ -80,7 +82,7 @@ export type TerminalFrame = { id: string, cols: number, rows: number, full: bool
 
 export type TerminalInputParams = { id: string, data: string, };
 
-export type TerminalState = { id: string, name: string, agent: Agent | null, status: Status, };
+export type TerminalState = { id: string, name: string, agent: Agent | null, status: Status, folder: string, branch: string | null, };
 
 export type Theme = "system" | "light" | "dark";
 
@@ -96,7 +98,9 @@ export type Methods = {
   "agents.install": { params: Agent; result: null };
   "agents.list": { params: null; result: Array<AgentStatus> };
   "agents.startSignIn": { params: Agent; result: AgentPrompt };
+  "folders.create": { params: CreateFolderParams; result: Folder };
   "folders.list": { params: string; result: Folders };
+  "folders.remove": { params: string; result: null };
   "github.accounts": { params: null; result: Array<Account> };
   "github.cancelSignIn": { params: null; result: null };
   "github.finishSignIn": { params: null; result: null };
@@ -134,10 +138,11 @@ export type Methods = {
   "theme.getMaterial": { params: null; result: Material };
   "theme.set": { params: Theme; result: null };
   "theme.setMaterial": { params: Material; result: null };
-  "workspaces.create": { params: CreateWorkspaceParams; result: Workspace };
+  "workspaces.create": { params: string; result: Workspace };
   "workspaces.delete": { params: string; result: null };
   "workspaces.list": { params: null; result: Array<Workspace> };
   "workspaces.place": { params: PlaceTerminalParams; result: null };
+  "workspaces.rename": { params: RenameWorkspaceParams; result: null };
   "worktrees.create": { params: CreateWorktreeParams; result: string };
   "worktrees.remove": { params: RemoveWorktreeParams; result: null };
 };

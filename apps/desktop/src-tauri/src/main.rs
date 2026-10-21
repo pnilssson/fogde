@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(target_os = "macos")]
+mod menu;
 mod window;
 
 use std::path::Path;
@@ -47,6 +49,8 @@ fn main() -> anyhow::Result<()> {
         .setup(|app| {
             let host = tauri::async_runtime::block_on(host::start(binaries(app)?))?;
             app.manage(host);
+            #[cfg(target_os = "macos")]
+            menu::install(app)?;
             Ok(window::open(app)?)
         })
         .invoke_handler(tauri::generate_handler![

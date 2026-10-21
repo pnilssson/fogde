@@ -1,7 +1,9 @@
-import { ArrowUpIcon, FolderIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { FolderRow } from "@/components/folder-row";
+import { NewFolder } from "@/components/new-folder";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,28 +24,20 @@ import { Spinner } from "@/components/ui/spinner";
 import { foldersQuery } from "@/lib/folders";
 import type { Machine } from "@/lib/machines";
 
-interface Props {
-  machine: Machine;
+interface Props extends BrowserProps {
   open: boolean;
-  start: string;
+  title: string;
   onOpenChange: (open: boolean) => void;
-  onChoose: (path: string) => void;
 }
 
-export function FolderDialog({
-  machine,
-  open,
-  start,
-  onOpenChange,
-  onChoose,
-}: Props) {
+export function FolderDialog({ open, title, onOpenChange, ...browser }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Choose a folder</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <FolderBrowser machine={machine} start={start} onChoose={onChoose} />
+        <FolderBrowser {...browser} />
       </DialogContent>
     </Dialog>
   );
@@ -52,15 +46,24 @@ export function FolderDialog({
 interface BrowserProps {
   machine: Machine;
   start: string;
+  action: string;
+  busy?: boolean | undefined;
   onChoose: (path: string) => void;
 }
 
-function FolderBrowser({ machine, start, onChoose }: BrowserProps) {
+function FolderBrowser({
+  machine,
+  start,
+  action,
+  busy = false,
+  onChoose,
+}: BrowserProps) {
   const [path, setPath] = useState(start);
   const { data, error, isFetching } = useQuery({
     ...foldersQuery(machine, path),
     placeholderData: keepPreviousData,
   });
+  const [naming, setNaming] = useState(false);
 
   return (
     <>
@@ -104,44 +107,63 @@ function FolderBrowser({ machine, start, onChoose }: BrowserProps) {
             )}
           </InputGroup>
         </form>
+        {error && <p className="type-body">{error.message}</p>}
+        {naming && data && (
+          <NewFolder
+            machine={machine}
+            parent={data.path}
+            onCreated={(created) => {
+              setNaming(false);
+              setPath(created);
+            }}
+          />
+        )}
         <ScrollArea className="h-64">
           <div className="flex flex-col">
             {data?.folders.map((folder) => (
-              <Button
+              <FolderRow
                 key={folder.path}
-                variant="ghost"
-                size="sm"
-                className="justify-start"
-                onClick={() => {
+                machine={machine}
+                folder={folder}
+                onOpen={() => {
                   setPath(folder.path);
                 }}
-              >
-                <FolderIcon data-icon="inline-start" />
-                <span className="truncate">{folder.name}</span>
-              </Button>
+              />
             ))}
             {data?.folders.length === 0 && (
               <p className="p-2 type-body">No folders here</p>
             )}
           </div>
         </ScrollArea>
-        {error && <p className="type-body">{error.message}</p>}
       </div>
       <DialogFooter>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="sm:mr-auto"
+          disabled={!data || naming}
+          onClick={() => {
+            setNaming(true);
+          }}
+        >
+          New folder
+        </Button>
         <DialogClose render={<Button variant="ghost" size="sm" />}>
           Cancel
         </DialogClose>
         <Button
           variant="secondary"
           size="sm"
-          disabled={!data}
+          disabled={!data || busy}
+          aria-busy={busy}
           onClick={() => {
             if (data) {
               onChoose(data.path);
             }
           }}
         >
-          Use this folder
+          {busy && <Spinner aria-hidden data-icon="inline-start" />}
+          {action}
         </Button>
       </DialogFooter>
     </>

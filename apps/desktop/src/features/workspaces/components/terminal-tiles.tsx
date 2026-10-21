@@ -43,6 +43,7 @@ import {
 import {
   findTerminal,
   findWorkspace,
+  inView,
   WorkspaceContext,
 } from "@/features/workspaces/lib/selection";
 import {
@@ -152,10 +153,9 @@ export function TerminalTiles({ terminal }: { terminal: RenderTerminal }) {
     }
 
     sync(
-      found.workspace.terminals.map(({ id }) => ({
-        machine: workspace.machine,
-        id,
-      })),
+      found.workspace.terminals
+        .filter((terminal) => inView(workspace, terminal))
+        .map(({ id }) => ({ machine: workspace.machine, id })),
       ({ machine, id }) => isPlacing(machine, id),
     );
   }, [api, groups, workspace]);
@@ -178,6 +178,7 @@ export function TerminalTiles({ terminal }: { terminal: RenderTerminal }) {
         machine: group.machine,
         terminal: item.id,
         workspace: workspace.id,
+        checkout: workspace.checkout ?? null,
       });
     }
     drop(item, event.position, event.group);

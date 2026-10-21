@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT workspace, terminal FROM members ORDER BY id",
+  "query": "SELECT workspace, terminal, checkout FROM members ORDER BY id",
   "describe": {
     "columns": [
       {
@@ -24,6 +24,17 @@
             "name": "terminal"
           }
         }
+      },
+      {
+        "name": "checkout",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "checkout"
+          }
+        }
       }
     ],
     "parameters": {
@@ -31,8 +42,9 @@
     },
     "nullable": [
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "c825154dbf4cabd4d3bef5f1457e66ff8c811533702ee8bc425d6a4b0396596f"
+  "hash": "90e0596d40e89b4748f36f55c91a441caeda7154e5cc3d42ba6a7b6f7d27eaf6"
 }

@@ -2,6 +2,7 @@ import { focusManager, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { applyState } from "@/features/workspaces/api/workspaces";
+import { viewOf } from "@/features/workspaces/lib/selection";
 import { needsYou } from "@/features/workspaces/lib/status";
 import { isShown, reveal } from "@/features/workspaces/lib/tiles";
 import type { Status } from "@/generated/protocol";
@@ -45,7 +46,7 @@ export function useAttention(machines: Machine[]) {
                 onClick: () => {
                   void bringForward();
                   reveal(
-                    { machine: machine.id, id: applied.workspace.id },
+                    viewOf(machine.id, applied.workspace, applied.before),
                     terminal,
                   );
                 },

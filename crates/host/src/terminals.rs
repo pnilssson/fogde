@@ -1,6 +1,7 @@
 mod images;
 mod launch;
 mod stream;
+mod title;
 mod tracker;
 
 use std::collections::HashMap;
@@ -117,19 +118,26 @@ impl Handler for CreateTerminal {
             env.insert("PATH".to_owned(), path_with(session.gh().await?.program()));
         }
 
+        let checkouts = crate::workspaces::checkouts(&folder).await;
+        let checkout = crate::workspaces::worktree_of(&folder, &checkouts);
+
         let placing = session.shared.placing.lock().await;
         let pane = herdr
             .client()
             .create_workspace(&folder, name, &env)
             .await
             .map_err(failure)?;
-        crate::workspaces::place(session, &pane.workspace, &params.workspace).await?;
+        crate::workspaces::place(
+            session,
+            &pane.workspace,
+            &params.workspace,
+            checkout.as_deref(),
+        )
+        .await?;
         drop(placing);
         if let Some(agent) = params.agent {
             start(herdr.client(), &pane, agent, session.outgoing.clone());
         }
-
-        let checkouts = crate::workspaces::checkouts(&folder).await;
 
         Ok(Terminal {
             id: pane.workspace,
@@ -138,7 +146,7 @@ impl Handler for CreateTerminal {
             status: Status::Idle,
             folder: folder.display().to_string(),
             branch: git::branch(&folder).await,
-            checkout: crate::workspaces::checkout_of(&folder, &checkouts),
+            checkout,
         })
     }
 }

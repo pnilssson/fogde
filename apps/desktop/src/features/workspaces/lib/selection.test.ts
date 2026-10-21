@@ -1,7 +1,10 @@
 import { expect, test } from "vitest";
 
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
-import { nextWaiting } from "@/features/workspaces/lib/selection";
+import {
+  nextWaiting,
+  resolveWorkspace,
+} from "@/features/workspaces/lib/selection";
 import type { Status } from "@/generated/protocol";
 
 type Groups = ReturnType<typeof useGroups>;
@@ -11,7 +14,7 @@ function terminal(id: string, status: Status) {
 }
 
 function workspace(id: string, terminals: ReturnType<typeof terminal>[]) {
-  return { id, name: id, folder: "", checkouts: [], terminals };
+  return { id, name: id, folder: "", missing: false, checkouts: [], terminals };
 }
 
 const groups = [
@@ -44,6 +47,15 @@ test("goes to each agent that needs you in sidebar order and wraps around", () =
   expect(next("b")).toBe("c");
   expect(next("c")).toBe("d");
   expect(next("d", "vps")).toBe("b");
+});
+
+test("a removed worktree's view falls back to its workspace", () => {
+  const stored = { machine: "local", id: "api", checkout: "/worktrees/login" };
+
+  expect(resolveWorkspace(groups, stored)).toEqual({
+    machine: "local",
+    id: "api",
+  });
 });
 
 test("finds nothing when no agent needs you", () => {

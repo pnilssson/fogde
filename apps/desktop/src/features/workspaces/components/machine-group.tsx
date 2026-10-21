@@ -28,7 +28,7 @@ import {
 import { useNewWorkspace } from "@/features/workspaces/components/new-workspace";
 import { WorkspaceItem } from "@/features/workspaces/components/workspace-item";
 import { useStatus } from "@/features/workspaces/hooks/use-terminals";
-import type { Selection } from "@/features/workspaces/lib/selection";
+import type { Selection, View } from "@/features/workspaces/lib/selection";
 import type { Workspace } from "@/generated/protocol";
 import { isComputer, type Machine } from "@/lib/machines";
 
@@ -37,9 +37,9 @@ const action = "static w-7 text-muted-foreground [&>svg]:size-5";
 interface Props {
   machine: Machine;
   workspaces: UseQueryResult<Workspace[]>;
-  selected: Selection | undefined;
-  onSelect: (workspace: Selection, terminal?: Selection) => void;
-  onStart: (workspace: Selection, folder: string) => void;
+  selected: View | undefined;
+  onSelect: (view: View, terminal?: Selection) => void;
+  onStart: (view: View, folder: string) => void;
 }
 
 export function MachineGroup({
@@ -59,7 +59,7 @@ export function MachineGroup({
   };
 
   return (
-    <SidebarGroup className="py-0">
+    <SidebarGroup className="group/machine py-0">
       <div className="flex items-center">
         <ContextMenu disabled={down || loading}>
           <ContextMenuTrigger
@@ -118,7 +118,10 @@ export function MachineGroup({
             <TooltipTrigger
               render={
                 <SidebarGroupAction
-                  className={action}
+                  className={cn(
+                    action,
+                    "opacity-0 group-hover/machine:opacity-100 focus-visible:opacity-100",
+                  )}
                   aria-label={`New workspace on ${machine.name}`}
                   onClick={create}
                 />
@@ -131,14 +134,16 @@ export function MachineGroup({
         )}
       </div>
       {newWorkspace.dialog}
-      <SidebarMenu className={cn("pl-4", down && "opacity-50")}>
+      <SidebarMenu className={cn(down && "opacity-50")}>
         {workspaces.data?.map((workspace) => (
           <WorkspaceItem
             key={workspace.id}
             machine={machine}
             workspace={workspace}
-            current={
+            view={
               selected?.machine === machine.id && selected.id === workspace.id
+                ? selected
+                : undefined
             }
             down={down}
             onSelect={onSelect}

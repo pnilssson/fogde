@@ -13,6 +13,7 @@ path = "src/main.rs"
 agents.workspace = true
 axum = { workspace = true, features = ["ws"] }
 base64.workspace = true
+file-id.workspace = true
 futures-util.workspace = true
 getrandom.workspace = true
 git.workspace = true

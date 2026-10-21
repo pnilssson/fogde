@@ -7,7 +7,8 @@ import { togglePalette } from "@/features/workspaces/lib/palette";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import {
   findWorkspace,
-  type Selection,
+  type View,
+  viewFolder,
 } from "@/features/workspaces/lib/selection";
 import {
   focusTile,
@@ -20,10 +21,10 @@ type Groups = ReturnType<typeof useGroups>;
 
 interface Context {
   groups: Groups;
-  workspace: Selection | undefined;
+  workspace: View | undefined;
 }
 
-export function useShortcuts(groups: Groups, workspace: Selection | undefined) {
+export function useShortcuts(groups: Groups, workspace: View | undefined) {
   const current = useRef<Context>({ groups, workspace });
 
   useEffect(() => {
@@ -79,9 +80,9 @@ function actionFor(event: KeyboardEvent, { groups, workspace }: Context) {
   if (pressed(event, shortcuts.tile)) {
     const found = findWorkspace(groups, workspace);
 
-    return found
+    return found && !found.workspace.missing
       ? () => {
-          openStart(found.workspace.folder, true);
+          openStart(viewFolder(found.workspace, workspace), true);
         }
       : undefined;
   }

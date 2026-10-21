@@ -9,6 +9,7 @@ pub struct Workspace {
     pub id: String,
     pub name: String,
     pub folder: String,
+    pub missing: bool,
     pub checkouts: Vec<Checkout>,
     pub terminals: Vec<Terminal>,
 }
@@ -21,15 +22,10 @@ pub struct Checkout {
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
-pub struct RenameWorkspaceParams {
-    pub workspace: String,
-    pub name: String,
-}
-
-#[derive(Clone, Debug, Deserialize, TS)]
 pub struct PlaceTerminalParams {
     pub terminal: String,
     pub workspace: String,
+    pub checkout: Option<String>,
 }
 
 pub struct ListWorkspaces;
@@ -46,14 +42,6 @@ impl Method for CreateWorkspace {
     const NAME: &'static str = "workspaces.create";
     type Params = String;
     type Result = Workspace;
-}
-
-pub struct RenameWorkspace;
-
-impl Method for RenameWorkspace {
-    const NAME: &'static str = "workspaces.rename";
-    type Params = RenameWorkspaceParams;
-    type Result = ();
 }
 
 pub struct DeleteWorkspace;

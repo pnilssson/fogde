@@ -1,5 +1,4 @@
 use herdr_client::Status as Herdr;
-use protocol::agents::Agent;
 
 use super::*;
 
@@ -88,6 +87,10 @@ fn workspace(label: &str) -> Workspace {
 }
 
 fn pane(agent: Option<&str>) -> Pane {
+    titled(agent, None)
+}
+
+fn titled(agent: Option<&str>, title: Option<&str>) -> Pane {
     Pane {
         id: "w1:p1".into(),
         workspace: "w1".into(),
@@ -95,6 +98,8 @@ fn pane(agent: Option<&str>) -> Pane {
         status: Herdr::Idle,
         session: None,
         cwd: None,
+        title: title.map(Into::into),
+        stripped: title.map(|title| title.strip_prefix("✳ ").unwrap_or(title).into()),
     }
 }
 
@@ -122,11 +127,56 @@ fn a_launched_agent_shows_until_herdr_reports_it_gone() {
 }
 
 #[test]
-fn a_custom_name_stays_when_the_agent_changes() {
+fn an_agent_is_named_after_its_task_until_it_exits() {
     let tracker = Tracker::default();
+    let codex = workspace("Codex");
+    let names = [
+        titled(Some("codex"), Some("app")),
+        titled(Some("codex"), Some("Fix the login | app")),
+        titled(Some("codex"), Some("app")),
+        titled(None, Some(r"C:\Program Files\PowerShell\7\pwsh.exe")),
+    ]
+    .map(|pane| {
+        tracker.update(std::slice::from_ref(&codex), &[pane]);
+        current(&tracker).name
+    });
 
-    tracker.update(&[workspace("Fix the login")], &[pane(Some("codex"))]);
+    assert_eq!(
+        names,
+        ["Codex", "Fix the login", "Fix the login", "Terminal"]
+    );
+}
 
-    assert_eq!(current(&tracker).name, "Fix the login");
-    assert_eq!(current(&tracker).agent, Some(Agent::Codex));
+#[test]
+fn a_new_agent_drops_the_last_task() {
+    let tracker = Tracker::default();
+    let shell = workspace("Terminal");
+
+    tracker.update(
+        std::slice::from_ref(&shell),
+        &[titled(Some("claude"), Some("✳ Rust crates in folder"))],
+    );
+    tracker.update(
+        std::slice::from_ref(&shell),
+        &[titled(Some("copilot"), Some("GitHub Copilot"))],
+    );
+
+    assert_eq!(current(&tracker).name, "GitHub Copilot");
+}
+
+#[test]
+fn a_shell_title_before_claude_starts_is_not_its_task() {
+    let tracker = Tracker::default();
+    let claude = workspace("Claude");
+    let names = [
+        titled(None, Some(r"C:\Program Files\PowerShell\7\pwsh.exe")),
+        titled(Some("claude"), Some("✳ Claude Code")),
+        titled(Some("claude"), Some("✳ Rust crates in folder")),
+    ]
+    .map(|pane| {
+        tracker.update(std::slice::from_ref(&claude), &[pane]);
+        current(&tracker).name
+    });
+
+    assert_eq!(names, ["Claude", "Claude", "Rust crates in folder"]);
 }

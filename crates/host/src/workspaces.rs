@@ -1,4 +1,7 @@
+mod identity;
 mod store;
+
+pub use identity::Searches;
 
 use std::path::{Path, PathBuf};
 
@@ -7,7 +10,7 @@ use protocol::rpc::Failure;
 use protocol::terminals::Terminal;
 use protocol::workspaces::{
     Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, PlaceTerminal, PlaceTerminalParams,
-    RenameWorkspace, RenameWorkspaceParams, Workspace,
+    Workspace,
 };
 use sqlx::SqlitePool;
 
@@ -18,13 +21,17 @@ use crate::session::Session;
 pub fn register(router: &mut Router) {
     router.add::<ListWorkspaces>();
     router.add::<CreateWorkspace>();
-    router.add::<RenameWorkspace>();
     router.add::<DeleteWorkspace>();
     router.add::<PlaceTerminal>();
 }
 
-pub async fn place(session: &Session, terminal: &str, workspace: &str) -> Result<(), Failure> {
-    store::place(pool(session).await?, terminal, workspace)
+pub async fn place(
+    session: &Session,
+    terminal: &str,
+    workspace: &str,
+    checkout: Option<&str>,
+) -> Result<(), Failure> {
+    store::place(pool(session).await?, terminal, workspace, checkout)
         .await
         .map_err(failure)
 }
@@ -43,11 +50,12 @@ pub async fn checkouts(folder: &Path) -> Vec<Checkout> {
         .collect()
 }
 
-pub fn checkout_of(folder: &Path, checkouts: &[Checkout]) -> Option<String> {
+pub fn worktree_of(folder: &Path, checkouts: &[Checkout]) -> Option<String> {
     checkouts
         .iter()
         .filter(|checkout| folders::inside(folder, Path::new(&checkout.path)))
         .max_by_key(|checkout| checkout.path.len())
+        .filter(|checkout| !checkout.main)
         .map(|checkout| checkout.path.clone())
 }
 
@@ -55,16 +63,21 @@ impl Handler for ListWorkspaces {
     async fn handle(session: &Session, (): ()) -> Result<Vec<Workspace>, Failure> {
         let placing = session.shared.placing.lock().await;
         let terminals = crate::terminals::list(session).await?;
-        let listing = store::list(pool(session).await?, &terminals)
-            .await
-            .map_err(failure)?;
+        let pool = pool(session).await?;
+        let listing = store::list(pool, &terminals).await.map_err(failure)?;
         drop(placing);
 
         if let Err(error) = crate::terminals::close(session, &listing.loose).await {
             tracing::warn!(?error, "could not close terminals without a workspace");
         }
 
-        Ok(join_all(listing.workspaces.into_iter().map(compose)).await)
+        Ok(
+            join_all(listing.workspaces.into_iter().map(|workspace| async {
+                let (workspace, missing) = locate(session, pool, workspace).await;
+                compose(workspace, missing).await
+            }))
+            .await,
+        )
     }
 }
 
@@ -74,14 +87,6 @@ impl Handler for CreateWorkspace {
         folders::directory(&folder).await.map_err(failure)?;
 
         create(session, &folder).await
-    }
-}
-
-impl Handler for RenameWorkspace {
-    async fn handle(session: &Session, params: RenameWorkspaceParams) -> Result<(), Failure> {
-        store::rename(pool(session).await?, &params.workspace, &params.name)
-            .await
-            .map_err(failure)
     }
 }
 
@@ -98,33 +103,97 @@ impl Handler for DeleteWorkspace {
 
 impl Handler for PlaceTerminal {
     async fn handle(session: &Session, params: PlaceTerminalParams) -> Result<(), Failure> {
-        place(session, &params.terminal, &params.workspace).await
+        place(
+            session,
+            &params.terminal,
+            &params.workspace,
+            params.checkout.as_deref(),
+        )
+        .await
     }
 }
 
 pub async fn create(session: &Session, folder: &Path) -> Result<Workspace, Failure> {
-    let stored = store::create(pool(session).await?, &folder.display().to_string())
-        .await
-        .map_err(failure)?;
+    let identity = identity::of(folder).await;
+    let stored = store::create(
+        pool(session).await?,
+        &folder.display().to_string(),
+        identity.as_deref(),
+    )
+    .await
+    .map_err(failure)?;
 
-    Ok(compose(stored).await)
+    Ok(compose(stored, false).await)
 }
 
-async fn compose(workspace: store::Workspace) -> Workspace {
+async fn locate(
+    session: &Session,
+    pool: &SqlitePool,
+    mut workspace: store::Workspace,
+) -> (store::Workspace, bool) {
     let folder = PathBuf::from(&workspace.folder);
-    let checkouts = checkouts(&folder).await;
+    if folders::directory(&folder).await.is_ok() {
+        let identity = identity::of(&folder).await;
+        if identity.is_some() && identity != workspace.identity {
+            workspace.identity = identity;
+            save(pool, &workspace).await;
+        }
+
+        return (workspace, false);
+    }
+
+    let moved = match &workspace.identity {
+        Some(identity) => {
+            session
+                .shared
+                .searches
+                .find(&workspace.id, &folder, identity)
+                .await
+        }
+        None => None,
+    };
+    let Some(moved) = moved else {
+        return (workspace, true);
+    };
+
+    workspace.folder = moved.display().to_string();
+    save(pool, &workspace).await;
+
+    (workspace, false)
+}
+
+async fn save(pool: &SqlitePool, workspace: &store::Workspace) {
+    let saved = store::relocate(
+        pool,
+        &workspace.id,
+        &workspace.folder,
+        workspace.identity.as_deref(),
+    )
+    .await;
+    if let Err(error) = saved {
+        tracing::warn!(?error, workspace = %workspace.id, "could not save the workspace folder");
+    }
+}
+
+async fn compose(workspace: store::Workspace, missing: bool) -> Workspace {
+    let folder = PathBuf::from(&workspace.folder);
+    let checkouts = if missing {
+        Vec::new()
+    } else {
+        checkouts(&folder).await
+    };
     let terminals = workspace
         .terminals
         .into_iter()
         .map(|terminal| Terminal {
-            checkout: checkout_of(Path::new(&terminal.folder), &checkouts),
+            checkout: terminal.checkout.and_then(|path| listed(&path, &checkouts)),
             ..terminal
         })
         .collect();
 
     Workspace {
         id: workspace.id,
-        name: workspace.name,
+        name: folder_name(&folder),
         folder: checkouts
             .iter()
             .find(|checkout| folders::same(&folder, Path::new(&checkout.path)))
@@ -132,9 +201,26 @@ async fn compose(workspace: store::Workspace) -> Workspace {
                 || folder.display().to_string(),
                 |checkout| checkout.path.clone(),
             ),
+        missing,
         checkouts,
         terminals,
     }
+}
+
+fn listed(path: &str, checkouts: &[Checkout]) -> Option<String> {
+    checkouts
+        .iter()
+        .find(|checkout| {
+            !checkout.main && folders::same(Path::new(path), Path::new(&checkout.path))
+        })
+        .map(|checkout| checkout.path.clone())
+}
+
+fn folder_name(folder: &Path) -> String {
+    folder.file_name().map_or_else(
+        || folder.display().to_string(),
+        |name| name.to_string_lossy().into_owned(),
+    )
 }
 
 async fn pool(session: &Session) -> Result<&SqlitePool, Failure> {
@@ -154,20 +240,31 @@ mod tests {
     }
 
     #[test]
-    fn finds_the_innermost_checkout_of_a_folder() {
+    fn finds_the_linked_worktree_of_a_folder() {
         let root = std::env::temp_dir();
         let repo = root.join("app");
         let nested = repo.join("worktrees").join("login");
         let checkouts = [checkout(&repo, true), checkout(&nested, false)];
 
+        assert_eq!(worktree_of(&repo.join("crates"), &checkouts), None);
         assert_eq!(
-            checkout_of(&repo.join("crates"), &checkouts),
-            Some(repo.display().to_string())
-        );
-        assert_eq!(
-            checkout_of(&nested.join("src"), &checkouts),
+            worktree_of(&nested.join("src"), &checkouts),
             Some(nested.display().to_string())
         );
-        assert_eq!(checkout_of(&root.join("app-old"), &checkouts), None);
+        assert_eq!(worktree_of(&root.join("app-old"), &checkouts), None);
+    }
+
+    #[test]
+    fn a_stored_worktree_takes_the_spelling_git_lists() {
+        let repo = std::env::temp_dir().join("app");
+        let login = repo.join("worktrees").join("login");
+        let checkouts = [checkout(&repo, true), checkout(&login, false)];
+        let stored = format!("{}{}", login.display(), std::path::MAIN_SEPARATOR);
+
+        assert_eq!(
+            listed(&stored, &checkouts),
+            Some(login.display().to_string())
+        );
+        assert_eq!(listed(&repo.display().to_string(), &checkouts), None);
     }
 }

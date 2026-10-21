@@ -18,6 +18,10 @@ pub struct Pane {
     #[serde(rename = "agent_session")]
     pub session: Option<Session>,
     pub cwd: Option<PathBuf>,
+    #[serde(rename = "terminal_title")]
+    pub title: Option<String>,
+    #[serde(rename = "terminal_title_stripped")]
+    pub stripped: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
@@ -83,6 +87,8 @@ mod tests {
                     status: Status::Idle,
                     session: Some(Session::Id("0f6e1c52-3a7b-4d2e-9c1a-5b8e2f4d7a10".into())),
                     cwd: Some(PathBuf::from(r"C:\Users\dev\app")),
+                    title: Some("✳ Claude Code".into()),
+                    stripped: Some("Claude Code".into()),
                 },
                 Pane {
                     id: "w3:p2".into(),
@@ -91,6 +97,8 @@ mod tests {
                     status: Status::Unknown,
                     session: None,
                     cwd: Some(PathBuf::from(r"C:\Users\dev\notes")),
+                    title: None,
+                    stripped: None,
                 },
             ]
         );

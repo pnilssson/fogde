@@ -7,11 +7,7 @@ import {
   leaveWorkspace,
   selectWorkspace,
 } from "@/features/workspaces/lib/tiles";
-import type {
-  PlaceTerminalParams,
-  RenameWorkspaceParams,
-  Workspace,
-} from "@/generated/protocol";
+import type { PlaceTerminalParams, Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 const placing = new Set<string>();
@@ -26,7 +22,7 @@ export function isPlacing(machine: string, terminal: string) {
 
 function move(
   workspaces: Workspace[] | undefined,
-  { terminal, workspace }: PlaceTerminalParams,
+  { terminal, workspace, checkout }: PlaceTerminalParams,
 ) {
   const moved = workspaces
     ?.flatMap(({ terminals }) => terminals)
@@ -36,7 +32,7 @@ function move(
     const terminals = current.terminals.filter(({ id }) => id !== terminal);
 
     return current.id === workspace && moved
-      ? { ...current, terminals: [...terminals, moved] }
+      ? { ...current, terminals: [...terminals, { ...moved, checkout }] }
       : { ...current, terminals };
   });
 }
@@ -120,31 +116,5 @@ export function useCreateWorkspace(machine: Machine, onCreated: () => void) {
         description: error.message,
       });
     },
-  });
-}
-
-export function useRenameWorkspace(machine: Machine, onRenamed: () => void) {
-  const queries = useQueryClient();
-  const { queryKey } = workspacesQuery(machine);
-
-  return useMutation({
-    mutationFn: (params: RenameWorkspaceParams) =>
-      machine.client.call("workspaces.rename", params),
-    onSuccess: (_, { workspace, name }) => {
-      queries.setQueryData(queryKey, (current) =>
-        current?.map((each) =>
-          each.id === workspace ? { ...each, name } : each,
-        ),
-      );
-      onRenamed();
-    },
-    onError: (error) => {
-      toast.add({
-        type: "error",
-        title: "Could not rename the workspace",
-        description: error.message,
-      });
-    },
-    onSettled: () => queries.invalidateQueries(workspacesQuery(machine)),
   });
 }

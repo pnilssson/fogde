@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id, name, folder FROM workspaces ORDER BY id",
+  "query": "SELECT id, folder, identity FROM workspaces ORDER BY id",
   "describe": {
     "columns": [
       {
@@ -15,24 +15,24 @@
         }
       },
       {
-        "name": "name",
+        "name": "folder",
         "ordinal": 1,
         "type_info": "Text",
         "origin": {
           "Table": {
             "table": "workspaces",
-            "name": "name"
+            "name": "folder"
           }
         }
       },
       {
-        "name": "folder",
+        "name": "identity",
         "ordinal": 2,
         "type_info": "Text",
         "origin": {
           "Table": {
             "table": "workspaces",
-            "name": "folder"
+            "name": "identity"
           }
         }
       }
@@ -43,8 +43,8 @@
     "nullable": [
       false,
       false,
-      false
+      true
     ]
   },
-  "hash": "b9529886b69a5ee643780c54945b2b14ea22e290ebf60f75e3212c6f5e7910db"
+  "hash": "dd75268152fc5d22d574b2854d794d84f42628a5fa42cb79de86b954a4c83feb"
 }

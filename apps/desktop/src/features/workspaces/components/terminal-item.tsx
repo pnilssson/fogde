@@ -1,5 +1,3 @@
-import { DotsThreeIcon } from "@phosphor-icons/react";
-
 import {
   ContextMenu,
   ContextMenuContent,
@@ -7,13 +5,6 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  SidebarMenuAction,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
@@ -53,36 +44,12 @@ export function TerminalItem({ machine, terminal, onSelect }: Props) {
         >
           <TerminalIcon agent={terminal.agent} />
           <span className="min-w-0 flex-1 truncate">{terminal.name}</span>
-          <StateIcon
-            status={terminal.status}
-            className={
-              close.closable
-                ? "group-focus-within/menu-sub-item:invisible group-hover/menu-sub-item:invisible"
-                : undefined
-            }
-          />
+          <StateIcon status={terminal.status} />
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onClick={close.request}>Close</ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-      {close.closable && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuAction
-                aria-label={`Actions for ${terminal.name}`}
-                className="inset-y-0 my-auto h-5 opacity-0 group-focus-within/menu-sub-item:opacity-100 group-hover/menu-sub-item:opacity-100 aria-expanded:opacity-100"
-              />
-            }
-          >
-            <DotsThreeIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={close.request}>Close</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
       <CloseTerminal
         machine={machine}
         terminal={terminal}

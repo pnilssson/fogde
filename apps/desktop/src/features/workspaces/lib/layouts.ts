@@ -4,13 +4,13 @@ import { useStore } from "zustand";
 import { persist } from "zustand/middleware";
 import { createStore } from "zustand/vanilla";
 
-import { Selection } from "@/features/workspaces/lib/selection";
+import { type Selection, View } from "@/features/workspaces/lib/selection";
 
 export const startId = "start";
 export const holdId = "hold";
 
 interface Tiles {
-  workspace: Selection | undefined;
+  workspace: View | undefined;
   layouts: Record<string, SerializedDockview>;
   closed: string[];
   active: Selection | undefined;
@@ -18,7 +18,7 @@ interface Tiles {
 }
 
 const saved = z.object({
-  workspace: Selection.optional(),
+  workspace: View.optional(),
   layouts: z.record(
     z.string(),
     z.custom<SerializedDockview>(
@@ -57,8 +57,8 @@ export function useTiles<T>(select: (tiles: Tiles) => T) {
   return useStore(store, select);
 }
 
-export function layoutKey({ machine, id }: Selection) {
-  return `${machine}/${id}`;
+export function layoutKey({ machine, id, checkout }: View) {
+  return checkout ? `${machine}/${id}/${checkout}` : `${machine}/${id}`;
 }
 
 export function keepMachines(machines: string[]) {
@@ -78,26 +78,27 @@ export function keepMachines(machines: string[]) {
   });
 }
 
-export function forget(workspace: Selection) {
-  const gone = layoutKey(workspace);
+export function forget(view: View) {
+  const gone = layoutKey(view);
+  const kept = (key: string) => key !== gone && !key.startsWith(`${gone}/`);
   const { layouts, closed } = store.getState();
 
   store.setState({
-    closed: closed.filter((key) => key !== gone),
+    closed: closed.filter(kept),
     layouts: Object.fromEntries(
-      Object.entries(layouts).filter(([key]) => key !== gone),
+      Object.entries(layouts).filter(([key]) => kept(key)),
     ),
   });
 }
 
-export function useOpen(workspace: Selection) {
-  const key = layoutKey(workspace);
+export function useOpen(view: View) {
+  const key = layoutKey(view);
 
   return useTiles(({ closed }) => !closed.includes(key));
 }
 
-export function setOpen(workspace: Selection, open: boolean) {
-  const key = layoutKey(workspace);
+export function setOpen(view: View, open: boolean) {
+  const key = layoutKey(view);
   const others = store.getState().closed.filter((closed) => closed !== key);
 
   store.setState({ closed: open ? others : [...others, key] });
@@ -111,10 +112,8 @@ function sharedStart(layout: SerializedDockview | undefined) {
   return StartParams.safeParse(layout.panels[startId]?.params).data?.folder;
 }
 
-export function useStart(workspace: Selection | undefined) {
-  const layout = useTiles(
-    ({ layouts }) => workspace && layouts[layoutKey(workspace)],
-  );
+export function useStart(view: View | undefined) {
+  const layout = useTiles(({ layouts }) => view && layouts[layoutKey(view)]);
 
   return sharedStart(layout);
 }

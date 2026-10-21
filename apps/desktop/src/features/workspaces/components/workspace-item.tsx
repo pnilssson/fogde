@@ -27,11 +27,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { DeleteWorkspace } from "@/features/workspaces/components/delete-workspace";
-import { RenameWorkspace } from "@/features/workspaces/components/rename-workspace";
 import { StateIcon } from "@/features/workspaces/components/state-icon";
 import { WorkspaceTree } from "@/features/workspaces/components/workspace-tree";
 import { setOpen, useOpen } from "@/features/workspaces/lib/layouts";
-import type { Selection } from "@/features/workspaces/lib/selection";
+import type { Selection, View } from "@/features/workspaces/lib/selection";
 import { attention } from "@/features/workspaces/lib/status";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
@@ -39,33 +38,27 @@ import type { Machine } from "@/lib/machines";
 interface Props {
   machine: Machine;
   workspace: Workspace;
-  current: boolean;
+  view: View | undefined;
   down: boolean;
-  onSelect: (workspace: Selection, terminal?: Selection) => void;
-  onStart: (workspace: Selection, folder: string) => void;
+  onSelect: (view: View, terminal?: Selection) => void;
+  onStart: (view: View, folder: string) => void;
 }
 
 export function WorkspaceItem({
   machine,
   workspace,
-  current,
+  view,
   down,
   onSelect,
   onStart,
 }: Props) {
   const place = { machine: machine.id, id: workspace.id };
-  const empty =
-    workspace.terminals.length === 0 && workspace.checkouts.length < 2;
-  const open = useOpen(place) && !empty;
-  const [renaming, setRenaming] = useState(false);
+  const current = view !== undefined && view.checkout === undefined;
+  const open = useOpen(place);
   const [deleting, setDeleting] = useState(false);
 
   const start = () => {
     onStart(place, workspace.folder);
-  };
-
-  const rename = () => {
-    setRenaming(true);
   };
 
   const remove = () => {
@@ -80,9 +73,9 @@ export function WorkspaceItem({
             render={
               <SidebarMenuButton
                 isActive={current}
-                aria-expanded={empty ? undefined : open}
+                aria-expanded={open}
                 onClick={() => {
-                  if (current && !empty) {
+                  if (current) {
                     setOpen(place, !open);
 
                     return;
@@ -96,12 +89,18 @@ export function WorkspaceItem({
             <CaretRightIcon
               className={cn(
                 "transition-transform ease-out motion-reduce:transition-none",
-                empty && "invisible",
                 open && "rotate-90",
               )}
             />
             <FolderSimpleIcon />
-            <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+            <span
+              className={cn(
+                "min-w-0 flex-1 truncate",
+                workspace.missing && "text-muted-foreground",
+              )}
+            >
+              {workspace.name}
+            </span>
             {!open && !down && (
               <StateIcon
                 status={attention(workspace.terminals)}
@@ -110,9 +109,12 @@ export function WorkspaceItem({
             )}
           </ContextMenuTrigger>
           <ContextMenuContent>
-            <ContextMenuItem onClick={start}>New tile</ContextMenuItem>
-            <ContextMenuItem onClick={rename}>Rename</ContextMenuItem>
-            <ContextMenuSeparator />
+            {!workspace.missing && (
+              <>
+                <ContextMenuItem onClick={start}>New tile</ContextMenuItem>
+                <ContextMenuSeparator />
+              </>
+            )}
             <ContextMenuItem variant="destructive" onClick={remove}>
               Delete
             </ContextMenuItem>
@@ -131,9 +133,12 @@ export function WorkspaceItem({
               <DotsThreeIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={start}>New tile</DropdownMenuItem>
-              <DropdownMenuItem onClick={rename}>Rename</DropdownMenuItem>
-              <DropdownMenuSeparator />
+              {!workspace.missing && (
+                <>
+                  <DropdownMenuItem onClick={start}>New tile</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem variant="destructive" onClick={remove}>
                 Delete
               </DropdownMenuItem>
@@ -144,21 +149,13 @@ export function WorkspaceItem({
           <WorkspaceTree
             machine={machine}
             workspace={workspace}
-            onSelect={(selection) => {
-              onSelect(place, selection);
-            }}
-            onStart={(folder) => {
-              onStart(place, folder);
-            }}
+            view={view}
+            down={down}
+            onSelect={onSelect}
+            onStart={onStart}
           />
         </CollapsibleContent>
       </Collapsible>
-      <RenameWorkspace
-        machine={machine}
-        workspace={workspace}
-        open={renaming}
-        onOpenChange={setRenaming}
-      />
       <DeleteWorkspace
         machine={machine}
         workspace={workspace}

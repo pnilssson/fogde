@@ -14,8 +14,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { workspacesQuery } from "@/features/workspaces/api/workspaces";
 import { checkoutOf } from "@/features/workspaces/lib/checkouts";
-import { openStart } from "@/features/workspaces/lib/tiles";
+import { forget } from "@/features/workspaces/lib/layouts";
+import { closeStart, selectWorkspace } from "@/features/workspaces/lib/tiles";
 import type { Checkout, Workspace } from "@/generated/protocol";
+import { inside } from "@/lib/folders";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -32,16 +34,25 @@ export function WorktreeActions({ machine, workspace, folder }: Props) {
   }
 
   if (checkout.main) {
-    return <NewWorktree machine={machine} repo={main.path} />;
+    return (
+      <NewWorktree
+        machine={machine}
+        workspace={workspace.id}
+        repo={main.path}
+      />
+    );
   }
 
   return (
     <RemoveWorktree
       machine={machine}
+      workspace={workspace.id}
       repo={main.path}
       checkout={checkout}
       open={workspace.terminals.some(
-        (terminal) => terminal.checkout === checkout.path,
+        (terminal) =>
+          terminal.checkout === checkout.path ||
+          inside(terminal.folder, checkout.path),
       )}
     />
   );
@@ -49,17 +60,19 @@ export function WorktreeActions({ machine, workspace, folder }: Props) {
 
 interface NewProps {
   machine: Machine;
+  workspace: string;
   repo: string;
 }
 
-function NewWorktree({ machine, repo }: NewProps) {
+function NewWorktree({ machine, workspace, repo }: NewProps) {
   const queries = useQueryClient();
   const create = useMutation({
     mutationFn: (name: string) =>
       machine.client.call("worktrees.create", { repo, name }),
     onSuccess: async (path) => {
       await queries.invalidateQueries(workspacesQuery(machine));
-      openStart(path);
+      closeStart();
+      selectWorkspace({ machine: machine.id, id: workspace, checkout: path });
     },
     onError: (error) => {
       toast.add({
@@ -127,19 +140,28 @@ function NewWorktree({ machine, repo }: NewProps) {
 
 interface RemoveProps {
   machine: Machine;
+  workspace: string;
   repo: string;
   checkout: Checkout;
   open: boolean;
 }
 
-function RemoveWorktree({ machine, repo, checkout, open }: RemoveProps) {
+function RemoveWorktree({
+  machine,
+  workspace,
+  repo,
+  checkout,
+  open,
+}: RemoveProps) {
   const queries = useQueryClient();
   const remove = useMutation({
     mutationFn: () =>
       machine.client.call("worktrees.remove", { repo, path: checkout.path }),
     onSuccess: async () => {
+      const gone = { machine: machine.id, id: workspace };
+      selectWorkspace(gone);
+      forget({ ...gone, checkout: checkout.path });
       await queries.invalidateQueries(workspacesQuery(machine));
-      openStart(repo);
     },
     onError: (error) => {
       toast.add({

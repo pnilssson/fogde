@@ -7,13 +7,13 @@ import {
 import { MachineGroup } from "@/features/workspaces/components/machine-group";
 import { SearchButton } from "@/features/workspaces/components/search-button";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
-import type { Selection } from "@/features/workspaces/lib/selection";
+import type { Selection, View } from "@/features/workspaces/lib/selection";
 
 interface Props {
   groups: ReturnType<typeof useGroups>;
-  selected: Selection | undefined;
-  onSelect: (workspace: Selection, terminal?: Selection) => void;
-  onStart: (workspace: Selection, folder: string) => void;
+  selected: View | undefined;
+  onSelect: (view: View, terminal?: Selection) => void;
+  onStart: (view: View, folder: string) => void;
 }
 
 export function WorkspaceSidebar({

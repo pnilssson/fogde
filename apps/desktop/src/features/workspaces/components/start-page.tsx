@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +8,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { DeleteWorkspace } from "@/features/workspaces/components/delete-workspace";
 import { useNewWorkspace } from "@/features/workspaces/components/new-workspace";
 import { StartActions } from "@/features/workspaces/components/start-actions";
 import { WorktreeActions } from "@/features/workspaces/components/worktree-actions";
@@ -15,6 +16,7 @@ import { useConnection } from "@/hooks/use-connection";
 import { checkoutName, checkoutOf } from "@/features/workspaces/lib/checkouts";
 import {
   findWorkspace,
+  viewFolder,
   WorkspaceContext,
 } from "@/features/workspaces/lib/selection";
 import type { Workspace } from "@/generated/protocol";
@@ -37,11 +39,15 @@ export function StartPage({ folder }: Props) {
     return loaded ? <NoWorkspace machine={loaded.machine} /> : null;
   }
 
-  const target = folder ?? found.workspace.folder;
+  const machine = found.group.machine;
+  if (found.workspace.missing) {
+    return <Missing machine={machine} workspace={found.workspace} />;
+  }
+
+  const target = folder ?? viewFolder(found.workspace, workspace);
   const checkout = checkoutOf(found.workspace, target);
   const worktree = checkout !== undefined && !checkout.main;
   const place = worktree ? checkoutName(checkout) : found.workspace.name;
-  const machine = found.group.machine;
 
   return (
     <Empty>
@@ -79,6 +85,44 @@ function NoWorkspace({ machine }: { machine: Machine }) {
         </Button>
       </EmptyContent>
       {newWorkspace.dialog}
+    </Empty>
+  );
+}
+
+interface MissingProps {
+  machine: Machine;
+  workspace: Workspace;
+}
+
+function Missing({ machine, workspace }: MissingProps) {
+  const [deleting, setDeleting] = useState(false);
+
+  return (
+    <Empty>
+      <EmptyHeader>
+        <EmptyTitle>Folder not found</EmptyTitle>
+        <EmptyDescription>
+          <span className="wrap-anywhere">{workspace.folder}</span> was moved or
+          deleted.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => {
+            setDeleting(true);
+          }}
+        >
+          Delete workspace
+        </Button>
+      </EmptyContent>
+      <DeleteWorkspace
+        machine={machine}
+        workspace={workspace}
+        open={deleting}
+        onOpenChange={setDeleting}
+      />
     </Empty>
   );
 }

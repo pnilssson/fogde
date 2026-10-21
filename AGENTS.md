@@ -48,6 +48,7 @@
 - Show loading with a spinner or skeleton, whichever fits the content.
 - Show each state in one place; never repeat it across the sidebar, main area and status bar.
 - Show validation errors under their input and every other error as a toast.
+- Never use a middle dot (·) as a separator; write the relation in words ("app on Hetzner VPS") or separate with layout.
 - Use tooltips only for icon-only controls or information not visible elsewhere; never repeat visible text.
 - Keep the window chrome transparent; raise surfaces with the `surface-*` background and shadow tokens.
 - App-owned spacing uses Tailwind values divisible by four, or `2`; auto margins, shadcn/ui and third-party styles are exempt.

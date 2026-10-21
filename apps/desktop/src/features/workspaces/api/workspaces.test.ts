@@ -17,7 +17,7 @@ const claude: Terminal = {
   status: "idle",
   folder: "/repos/app",
   branch: "main",
-  checkout: "/repos/app",
+  checkout: null,
 };
 
 function workspace(terminals: Terminal[]): Workspace {
@@ -25,6 +25,7 @@ function workspace(terminals: Terminal[]): Workspace {
     id: "2",
     name: "app",
     folder: "/repos/app",
+    missing: false,
     checkouts: [],
     terminals,
   };

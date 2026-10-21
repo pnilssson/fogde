@@ -40,10 +40,6 @@ pub fn launched(label: &str) -> Option<Agent> {
         .find(|&agent| self::label(Some(agent)) == label)
 }
 
-pub fn default_label(label: &str) -> bool {
-    label == self::label(None) || launched(label).is_some()
-}
-
 pub fn label(agent: Option<Agent>) -> &'static str {
     match agent {
         None => "Terminal",

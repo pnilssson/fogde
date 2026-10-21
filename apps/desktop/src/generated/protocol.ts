@@ -42,7 +42,7 @@ export type Notifications = { enabled: boolean, sound: boolean, };
 
 export type PasteImageParams = { id: string, image: Image, data: string, };
 
-export type PlaceTerminalParams = { terminal: string, workspace: string, };
+export type PlaceTerminalParams = { terminal: string, workspace: string, checkout: string | null, };
 
 export type Platform = "windows" | "macos" | "linux";
 
@@ -51,8 +51,6 @@ export type RemoteRepo = { host: string, owner: string, name: string, cloned: bo
 export type RemoveWorktreeParams = { repo: string, path: string, };
 
 export type RenameMachineParams = { machine: MachineId, name: string, };
-
-export type RenameWorkspaceParams = { workspace: string, name: string, };
 
 export type Repo = { host: string, owner: string, name: string, };
 
@@ -88,7 +86,7 @@ export type Theme = "system" | "light" | "dark";
 
 export type WatchTerminalParams = { id: string, size: Size, };
 
-export type Workspace = { id: string, name: string, folder: string, checkouts: Array<Checkout>, terminals: Array<Terminal>, };
+export type Workspace = { id: string, name: string, folder: string, missing: boolean, checkouts: Array<Checkout>, terminals: Array<Terminal>, };
 
 export type Methods = {
   "accessibility.get": { params: null; result: Accessibility };
@@ -142,7 +140,6 @@ export type Methods = {
   "workspaces.delete": { params: string; result: null };
   "workspaces.list": { params: null; result: Array<Workspace> };
   "workspaces.place": { params: PlaceTerminalParams; result: null };
-  "workspaces.rename": { params: RenameWorkspaceParams; result: null };
   "worktrees.create": { params: CreateWorktreeParams; result: string };
   "worktrees.remove": { params: RemoveWorktreeParams; result: null };
 };

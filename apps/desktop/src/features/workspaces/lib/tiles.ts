@@ -13,7 +13,12 @@ import {
   startId,
   store,
 } from "@/features/workspaces/lib/layouts";
-import { nextWaiting, Selection } from "@/features/workspaces/lib/selection";
+import {
+  nextWaiting,
+  sameView,
+  Selection,
+  type View,
+} from "@/features/workspaces/lib/selection";
 import { requestStartFocus } from "@/features/workspaces/lib/start-focus";
 
 let current: DockviewApi | undefined;
@@ -79,11 +84,13 @@ function load(api: DockviewApi) {
   separate(api);
 }
 
-export function selectWorkspace(next: Selection) {
-  setOpen(next, true);
+export function selectWorkspace(next: View) {
+  setOpen({ machine: next.machine, id: next.id }, true);
+  if (next.checkout) {
+    setOpen(next, true);
+  }
 
-  const { workspace } = store.getState();
-  if (next.machine === workspace?.machine && next.id === workspace.id) {
+  if (sameView(next, store.getState().workspace)) {
     return;
   }
 
@@ -147,7 +154,7 @@ export function show(selection: Selection) {
   pending = selection;
 }
 
-export function reveal(workspace: Selection, terminal: Selection) {
+export function reveal(workspace: View, terminal: Selection) {
   selectWorkspace(workspace);
   show(terminal);
 }

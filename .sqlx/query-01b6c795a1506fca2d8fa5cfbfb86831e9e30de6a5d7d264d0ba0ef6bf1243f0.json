@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE workspaces SET folder = ?, identity = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "01b6c795a1506fca2d8fa5cfbfb86831e9e30de6a5d7d264d0ba0ef6bf1243f0"
+}

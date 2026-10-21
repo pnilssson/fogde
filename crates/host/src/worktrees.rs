@@ -1,7 +1,10 @@
+use std::path::Path;
+
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::worktrees::{
     CreateWorktree, CreateWorktreeParams, RemoveWorktree, RemoveWorktreeParams,
 };
+use tokio::fs;
 
 use crate::folders;
 use crate::rpc::{Handler, Router, failure};
@@ -27,8 +30,25 @@ impl Handler for CreateWorktree {
             .await
             .map_err(failure)?;
 
-        Ok(path.display().to_string())
+        Ok(listed(&repo, &path)
+            .await
+            .unwrap_or_else(|| path.display().to_string()))
     }
+}
+
+async fn listed(repo: &Path, path: &Path) -> Option<String> {
+    let wanted = fs::canonicalize(path).await.ok()?;
+
+    for checkout in crate::workspaces::checkouts(repo).await {
+        if fs::canonicalize(&checkout.path)
+            .await
+            .is_ok_and(|real| real == wanted)
+        {
+            return Some(checkout.path);
+        }
+    }
+
+    None
 }
 
 impl Handler for RemoveWorktree {
@@ -73,6 +93,47 @@ fn name(name: &str) -> Result<&str, Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    async fn run(repo: &Path, args: &[&str]) {
+        let status = tokio::process::Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
+            .args(args)
+            .status()
+            .await
+            .unwrap();
+        assert!(status.success(), "git {args:?}");
+    }
+
+    #[tokio::test]
+    async fn a_new_worktree_takes_the_path_git_lists() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("app");
+        fs::create_dir(&repo).await.unwrap();
+        run(&repo, &["init", "--quiet", "--initial-branch", "main"]).await;
+        run(
+            &repo,
+            &["commit", "--quiet", "--allow-empty", "-m", "first"],
+        )
+        .await;
+        let path = dir.path().join("login");
+        git::add_worktree(&repo, &path, "feature/login")
+            .await
+            .unwrap();
+
+        let listed = listed(&repo, &path).await;
+
+        assert!(listed.is_some());
+        assert_eq!(
+            listed,
+            crate::workspaces::checkouts(&repo)
+                .await
+                .into_iter()
+                .map(|checkout| checkout.path)
+                .find(|checkout| !checkout.ends_with("app"))
+        );
+    }
 
     #[test]
     fn accepts_plain_branch_names_only() {

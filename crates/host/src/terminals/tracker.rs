@@ -4,11 +4,12 @@ use std::time::Duration;
 
 use futures_util::future::join_all;
 use herdr_client::{Client, Error, Pane, Subscription, Workspace};
+use protocol::agents::Agent;
 use protocol::terminals::{Status, TerminalState};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{Notify, broadcast};
 
-use super::launch;
+use super::{launch, title};
 
 const RETRY: Duration = Duration::from_secs(2);
 const RESYNC: Duration = Duration::from_millis(1500);
@@ -81,16 +82,14 @@ impl Tracker {
     }
 
     pub fn state(&self, workspace: &Workspace, pane: Option<&Pane>) -> TerminalState {
-        let previous = lock(&self.states)
-            .get(&workspace.id)
-            .map(|state| state.status);
+        let previous = lock(&self.states).get(&workspace.id).cloned();
         let viewed = self.viewed().contains(&workspace.id);
         let detected = lock(&self.detected).contains(&workspace.id);
 
         describe(
             workspace,
             pane,
-            previous,
+            previous.as_ref(),
             viewed,
             detected,
             &lock(&self.branches),
@@ -177,7 +176,7 @@ impl Tracker {
             let state = describe(
                 workspace,
                 Some(pane),
-                before.as_ref().map(|state| state.status),
+                before.as_ref(),
                 looking,
                 detected.contains(&workspace.id),
                 &branches,
@@ -211,7 +210,7 @@ impl Tracker {
 fn describe(
     workspace: &Workspace,
     pane: Option<&Pane>,
-    previous: Option<Status>,
+    previous: Option<&TerminalState>,
     viewed: bool,
     detected: bool,
     branches: &HashMap<String, Option<String>>,
@@ -224,11 +223,7 @@ fn describe(
     } else {
         reported.or_else(|| launch::launched(&workspace.label))
     };
-    let name = if launch::default_label(&workspace.label) {
-        launch::label(agent).to_owned()
-    } else {
-        workspace.label.clone()
-    };
+    let name = name(agent, pane, previous);
     let herdr = pane.map_or(herdr_client::Status::Unknown, |pane| pane.status);
     let folder = pane
         .and_then(|pane| pane.cwd.as_ref())
@@ -239,10 +234,25 @@ fn describe(
         id: workspace.id.clone(),
         name,
         agent,
-        status: status(herdr, previous, viewed),
+        status: status(herdr, previous.map(|state| state.status), viewed),
         branch: branches.get(&folder).cloned().flatten(),
         folder,
     }
+}
+
+fn name(agent: Option<Agent>, pane: Option<&Pane>, previous: Option<&TerminalState>) -> String {
+    let Some(agent) = agent else {
+        return launch::label(None).to_owned();
+    };
+
+    pane.and_then(|pane| pane.title.as_deref().zip(pane.stripped.as_deref()))
+        .and_then(|(title, stripped)| title::task(agent, title, stripped))
+        .or_else(|| {
+            previous
+                .filter(|state| state.agent == Some(agent))
+                .map(|state| state.name.clone())
+        })
+        .unwrap_or_else(|| launch::label(Some(agent)).to_owned())
 }
 
 fn status(herdr: herdr_client::Status, previous: Option<Status>, viewed: bool) -> Status {

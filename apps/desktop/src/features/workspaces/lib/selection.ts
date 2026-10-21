@@ -3,22 +3,55 @@ import { z } from "zod";
 
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import { byAttention, needsYou } from "@/features/workspaces/lib/status";
+import type { Terminal, Workspace } from "@/generated/protocol";
 
 export const Selection = z.object({ machine: z.string(), id: z.string() });
 
 export type Selection = z.infer<typeof Selection>;
 
+export const View = Selection.extend({ checkout: z.string().optional() });
+
+export type View = z.infer<typeof View>;
+
 type Groups = ReturnType<typeof useGroups>;
 
 interface Value {
   groups: Groups;
-  workspace: Selection | undefined;
+  workspace: View | undefined;
 }
 
 export const WorkspaceContext = createContext<Value>({
   groups: [],
   workspace: undefined,
 });
+
+export function viewOf(
+  machine: string,
+  workspace: Workspace,
+  terminal?: Terminal,
+): View {
+  const view = { machine, id: workspace.id };
+
+  return terminal?.checkout ? { ...view, checkout: terminal.checkout } : view;
+}
+
+export function sameView(a: View | undefined, b: View | undefined) {
+  return (
+    a?.machine === b?.machine && a?.id === b?.id && a?.checkout === b?.checkout
+  );
+}
+
+export function inView(view: View, terminal: Terminal) {
+  return (terminal.checkout ?? undefined) === view.checkout;
+}
+
+export function viewFolder(workspace: Workspace, view: View | undefined) {
+  return view?.checkout ?? workspace.folder;
+}
+
+export function worktrees(workspace: Workspace) {
+  return workspace.checkouts.filter(({ main }) => !main);
+}
 
 function findGroup(groups: Groups, machine: string | undefined) {
   return groups.find((group) => group.machine.id === machine);
@@ -47,14 +80,22 @@ export function findTerminal(groups: Groups, { machine, id }: Selection) {
 
 export function resolveWorkspace(
   groups: Groups,
-  stored: Selection | undefined,
-): Selection | undefined {
+  stored: View | undefined,
+): View | undefined {
   const group = findGroup(groups, stored?.machine);
-  const known =
-    !group?.workspaces.data ||
-    group.workspaces.data.some(({ id }) => id === stored?.id);
-  if (stored && group && known) {
+  if (stored && group && !group.workspaces.data) {
     return stored;
+  }
+
+  const workspace = group?.workspaces.data?.find(({ id }) => id === stored?.id);
+  if (stored && workspace) {
+    const known = worktrees(workspace).some(
+      ({ path }) => path === stored.checkout,
+    );
+
+    return stored.checkout && !known
+      ? { machine: stored.machine, id: stored.id }
+      : stored;
   }
 
   for (const { machine, workspaces } of groups) {
@@ -73,7 +114,7 @@ export function waiting(groups: Groups) {
       byAttention(workspace.terminals)
         .filter(({ status }) => needsYou(status))
         .map((terminal) => ({
-          workspace: { machine: machine.id, id: workspace.id },
+          workspace: viewOf(machine.id, workspace, terminal),
           terminal: { machine: machine.id, id: terminal.id },
           name: terminal.name,
           agent: terminal.agent,

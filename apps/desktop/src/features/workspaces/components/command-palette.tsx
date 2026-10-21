@@ -24,6 +24,8 @@ import { PaletteTiles } from "@/features/workspaces/components/palette-tiles";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
 import {
   findWorkspace,
+  viewFolder,
+  viewOf,
   waiting,
   WorkspaceContext,
 } from "@/features/workspaces/lib/selection";
@@ -88,7 +90,7 @@ function Commands({ run }: { run: Run }) {
   const tiles = dockview()?.groups.length ?? 0;
 
   const place = (machine: Machine, workspace: Workspace) =>
-    several ? `${workspace.name} · ${machine.name}` : workspace.name;
+    several ? `${workspace.name} on ${machine.name}` : workspace.name;
 
   return (
     <>
@@ -125,10 +127,11 @@ function Commands({ run }: { run: Run }) {
           ))}
         </CommandGroup>
       )}
-      {found && (
+      {found && !found.workspace.missing && (
         <NewTerminals
           machine={found.group.machine}
           workspace={found.workspace}
+          folder={viewFolder(found.workspace, workspace)}
           run={run}
         />
       )}
@@ -148,7 +151,7 @@ function Commands({ run }: { run: Run }) {
                     onSelect={() => {
                       run(() => {
                         reveal(
-                          { machine: machine.id, id: current.id },
+                          viewOf(machine.id, current, terminal),
                           selection,
                         );
                       });
@@ -199,10 +202,11 @@ function Commands({ run }: { run: Run }) {
 interface NewProps {
   machine: Machine;
   workspace: Workspace;
+  folder: string;
   run: Run;
 }
 
-function NewTerminals({ machine, workspace, run }: NewProps) {
+function NewTerminals({ machine, workspace, folder, run }: NewProps) {
   const connection = useConnection(machine);
   const choices = useChoices(machine);
   const create = useCreateTerminal();
@@ -217,7 +221,7 @@ function NewTerminals({ machine, workspace, run }: NewProps) {
         keywords={["new", "open", "start"]}
         onSelect={() => {
           run(() => {
-            openStart(workspace.folder, true);
+            openStart(folder, true);
           });
         }}
       >
@@ -239,7 +243,7 @@ function NewTerminals({ machine, workspace, run }: NewProps) {
               create.mutate({
                 machine,
                 workspace: workspace.id,
-                folder: workspace.folder,
+                folder,
                 agent,
               });
               run(() => undefined);

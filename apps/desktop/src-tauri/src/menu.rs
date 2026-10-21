@@ -85,12 +85,11 @@ pub fn install(app: &tauri::App) -> tauri::Result<()> {
             if let Err(error) = app.emit(CLOSE_TILE, ()) {
                 tracing::warn!(%error, "could not ask the window to close a tile");
             }
-        } else if id == CLOSE_WINDOW {
-            if let Some(window) = app.get_webview_window("main") {
-                if let Err(error) = window.close() {
-                    tracing::warn!(%error, "could not close the window");
-                }
-            }
+        } else if id == CLOSE_WINDOW
+            && let Some(window) = app.get_webview_window("main")
+            && let Err(error) = window.close()
+        {
+            tracing::warn!(%error, "could not close the window");
         }
     });
 

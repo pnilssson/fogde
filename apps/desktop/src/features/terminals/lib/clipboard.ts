@@ -1,0 +1,141 @@
+import type { Terminal } from "@xterm/xterm";
+
+import { type Image, imageLimit } from "@/generated/protocol";
+import { frame } from "@/lib/frame";
+
+const images: Partial<Record<string, Image>> = {
+  "image/png": "png",
+  "image/jpeg": "jpeg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+};
+
+interface Paste {
+  text: (data: string) => void;
+  image: (image: Image, data: string) => Promise<void>;
+  failed: (error: unknown) => void;
+}
+
+export function handleClipboard(
+  terminal: Terminal,
+  element: HTMLElement,
+  paste: Paste,
+) {
+  let queue = Promise.resolve();
+
+  const attach = (files: File[]) => {
+    for (const file of files) {
+      const image = images[file.type];
+      if (!image) {
+        paste.failed(
+          new Error(`${file.name} is not a PNG, JPEG, GIF or WebP image.`),
+        );
+        continue;
+      }
+      if (file.size > imageLimit) {
+        paste.failed(
+          new Error(
+            `The image is larger than ${String(imageLimit / 1024 / 1024)} MB.`,
+          ),
+        );
+        continue;
+      }
+
+      queue = queue
+        .then(() => encode(file))
+        .then((data) => paste.image(image, data))
+        .catch(paste.failed);
+    }
+  };
+
+  terminal.attachCustomKeyEventHandler((event) => {
+    if (
+      frame.platform === "macos" ||
+      !event.ctrlKey ||
+      event.altKey ||
+      event.metaKey
+    ) {
+      return true;
+    }
+
+    const key = event.key.toLowerCase();
+    if (key === "v") {
+      return false;
+    }
+    if (key === "c" && !event.shiftKey && terminal.hasSelection()) {
+      if (event.type === "keydown") {
+        setTimeout(() => {
+          terminal.clearSelection();
+        });
+      }
+      return false;
+    }
+
+    return true;
+  });
+
+  const pasted = (event: ClipboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const data = event.clipboardData;
+    if (!data) {
+      return;
+    }
+
+    const text = data.getData("text/plain");
+    if (text) {
+      paste.text(bracket(text));
+      return;
+    }
+
+    attach([...data.files]);
+  };
+  const over = (event: DragEvent) => {
+    if (event.dataTransfer?.types.includes("Files")) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    }
+  };
+  const dropped = (event: DragEvent) => {
+    if (!event.dataTransfer?.types.includes("Files")) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    attach([...event.dataTransfer.files]);
+  };
+
+  element.addEventListener("paste", pasted, { capture: true });
+  element.addEventListener("dragover", over);
+  element.addEventListener("drop", dropped);
+
+  return () => {
+    element.removeEventListener("paste", pasted, { capture: true });
+    element.removeEventListener("dragover", over);
+    element.removeEventListener("drop", dropped);
+  };
+}
+
+export function bracket(text: string) {
+  const clean = text
+    .replace(/\r\n?/g, "\n")
+    .replaceAll("\x1b[200~", "")
+    .replaceAll("\x1b[201~", "");
+
+  return `\x1b[200~${clean}\x1b[201~`;
+}
+
+function encode(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = typeof reader.result === "string" ? reader.result : "";
+      resolve(url.slice(url.indexOf(",") + 1));
+    };
+    reader.onerror = () => {
+      reject(reader.error ?? new Error("Could not read the image."));
+    };
+    reader.readAsDataURL(file);
+  });
+}

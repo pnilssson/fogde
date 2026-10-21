@@ -1,3 +1,4 @@
+mod images;
 mod launch;
 mod stream;
 mod tracker;
@@ -10,9 +11,9 @@ use futures_util::future::join_all;
 use protocol::agents::Agent;
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::terminals::{
-    CloseTerminal, CreateTerminal, CreateTerminalParams, ResizeTerminal, ScrollTerminal,
-    ScrollTerminalParams, Status, Terminal, TerminalInput, TerminalInputParams, UnwatchTerminal,
-    ViewTerminal, WatchTerminal, WatchTerminalParams,
+    CloseTerminal, CreateTerminal, CreateTerminalParams, PasteImage, PasteImageParams,
+    ResizeTerminal, ScrollTerminal, ScrollTerminalParams, Status, Terminal, TerminalInput,
+    TerminalInputParams, UnwatchTerminal, ViewTerminal, WatchTerminal, WatchTerminalParams,
 };
 use tokio::sync::mpsc;
 
@@ -56,6 +57,7 @@ pub fn register(router: &mut Router) {
     router.add::<TerminalInput>();
     router.add::<ResizeTerminal>();
     router.add::<ScrollTerminal>();
+    router.add::<PasteImage>();
     router.add::<ViewTerminal>();
 }
 
@@ -183,7 +185,7 @@ impl Handler for WatchTerminal {
         }
         watches.insert(params.id.clone(), controls);
         drop(watches);
-        tokio::spawn(watch(stream, params.id, receiver, session.outgoing.clone()));
+        tokio::spawn(watch(stream, params.id, receiver, session.frames.clone()));
 
         Ok(())
     }
@@ -239,6 +241,21 @@ impl Handler for ScrollTerminal {
         let id = params.id.clone();
 
         future::ready(session.terminals.send(&id, Control::Scroll(params)))
+    }
+}
+
+impl Handler for PasteImage {
+    const ORDERED: bool = true;
+
+    async fn handle(session: &Session, params: PasteImageParams) -> Result<(), Failure> {
+        let path = images::save(&session.shared.images(), params.image, params.data)
+            .await
+            .map_err(failure)?;
+        let paste = images::paste(&path);
+
+        session
+            .terminals
+            .send(&params.id, Control::Input(paste.into_bytes()))
     }
 }
 

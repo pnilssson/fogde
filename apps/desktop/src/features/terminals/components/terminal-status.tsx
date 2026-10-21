@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { useConnection } from "@/features/terminals/hooks/use-terminals";
+import { useConnection } from "@/hooks/use-connection";
 import type { Machine } from "@/lib/machines";
 
 export type Status = "opening" | "ready" | "ended" | "failed";

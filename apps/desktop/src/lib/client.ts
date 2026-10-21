@@ -95,15 +95,15 @@ export class Client {
   }
 
   reset() {
-    this.generation += 1;
-    this.opening = undefined;
-    const socket = this.socket;
-    this.socket = undefined;
-    const interrupt = this.interrupt;
-    this.interrupt = undefined;
-    interrupt?.();
-    socket?.close();
-    this.update("idle");
+    this.close("idle");
+  }
+
+  buffered() {
+    return this.socket?.bufferedAmount ?? 0;
+  }
+
+  lose(error: string) {
+    this.close("disconnected", error, true);
   }
 
   async reconnect() {
@@ -139,6 +139,22 @@ export class Client {
     });
   }
 
+  private close(
+    state: ConnectionState["state"],
+    error: string | null = null,
+    retry = false,
+  ) {
+    this.generation += 1;
+    this.opening = undefined;
+    const socket = this.socket;
+    this.socket = undefined;
+    const interrupt = this.interrupt;
+    this.interrupt = undefined;
+    interrupt?.();
+    socket?.close();
+    this.update(state, error, retry);
+  }
+
   private update(
     state: ConnectionState["state"],
     error: string | null = null,
@@ -159,12 +175,7 @@ export class Client {
     this.update("connecting");
     this.opening = this.open(generation).catch((error: unknown) => {
       if (generation === this.generation) {
-        this.opening = undefined;
-        const socket = this.socket;
-        this.socket = undefined;
-        this.interrupt = undefined;
-        socket?.close();
-        this.update(
+        this.close(
           "disconnected",
           error instanceof Error ? error.message : String(error),
           retryable(error),

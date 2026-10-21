@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "@/app/app";
 import { followWindowFocus } from "@/lib/focus";
-import { showFrame } from "@/lib/frame";
 import { followTheme } from "@/lib/theme";
 import "./index.css";
 
@@ -12,7 +11,6 @@ if (!root) {
   throw new Error("missing #root element");
 }
 
-showFrame();
 followWindowFocus();
 await followTheme().catch(() => undefined);
 

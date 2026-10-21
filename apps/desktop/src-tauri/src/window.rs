@@ -1,3 +1,4 @@
+use protocol::theme::Material;
 use protocol::{Frame, Platform};
 use tauri::{App, Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -11,14 +12,10 @@ pub fn open(app: &App) -> tauri::Result<()> {
 
     #[cfg(windows)]
     let (builder, frame) = {
-        use tauri::window::{Effect, EffectsBuilder};
-
         let translucent = windows_version::OsVersion::current().build >= 22_523;
         let builder = builder.decorations(false);
         let builder = if translucent {
-            builder
-                .transparent(true)
-                .effects(EffectsBuilder::new().effect(Effect::Acrylic).build())
+            builder.transparent(true).effects(glass::effects())
         } else {
             builder
         };
@@ -32,16 +29,12 @@ pub fn open(app: &App) -> tauri::Result<()> {
     #[cfg(target_os = "macos")]
     let (builder, frame) = {
         use tauri::TitleBarStyle;
-        use tauri::window::{Effect, EffectsBuilder};
 
-        let effects = EffectsBuilder::new()
-            .effects([Effect::LiquidGlassRegular, Effect::Sidebar])
-            .build();
         let builder = builder
             .title_bar_style(TitleBarStyle::Overlay)
             .hidden_title(true)
             .transparent(true)
-            .effects(effects);
+            .effects(glass::effects());
         let frame = Frame {
             platform: Platform::Macos,
             translucent: true,
@@ -57,5 +50,46 @@ pub fn open(app: &App) -> tauri::Result<()> {
 
     app.manage(frame);
     builder.build()?;
+    Ok(())
+}
+
+#[cfg(any(windows, target_os = "macos"))]
+mod glass {
+    use tauri::utils::config::WindowEffectsConfig;
+    use tauri::window::{Effect, EffectsBuilder};
+
+    #[cfg(windows)]
+    pub fn effects() -> WindowEffectsConfig {
+        EffectsBuilder::new().effect(Effect::Acrylic).build()
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn effects() -> WindowEffectsConfig {
+        EffectsBuilder::new()
+            .effects([Effect::LiquidGlassRegular, Effect::Sidebar])
+            .build()
+    }
+}
+
+#[cfg(any(windows, target_os = "macos"))]
+#[tauri::command]
+pub async fn material(
+    window: tauri::WebviewWindow,
+    frame: tauri::State<'_, Frame>,
+    material: Material,
+) -> tauri::Result<()> {
+    if !frame.translucent {
+        return Ok(());
+    }
+
+    window.set_effects(match material {
+        Material::Translucent => Some(glass::effects()),
+        Material::Solid => None,
+    })
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+#[tauri::command]
+pub async fn material(_material: Material) -> tauri::Result<()> {
     Ok(())
 }

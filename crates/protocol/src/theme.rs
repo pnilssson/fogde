@@ -27,3 +27,27 @@ impl Method for SetTheme {
     type Params = Theme;
     type Result = ();
 }
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+pub enum Material {
+    #[default]
+    Translucent,
+    Solid,
+}
+
+pub struct GetMaterial;
+
+impl Method for GetMaterial {
+    const NAME: &'static str = "theme.getMaterial";
+    type Params = ();
+    type Result = Material;
+}
+
+pub struct SetMaterial;
+
+impl Method for SetMaterial {
+    const NAME: &'static str = "theme.setMaterial";
+    type Params = Material;
+    type Result = ();
+}

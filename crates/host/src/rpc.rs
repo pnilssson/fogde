@@ -17,9 +17,11 @@ use crate::session::Session;
 
 pub static ROUTER: LazyLock<Router> = LazyLock::new(|| {
     let mut router = Router::default();
+    crate::accessibility::register(&mut router);
     crate::agents::register(&mut router);
     crate::folders::register(&mut router);
     crate::github::register(&mut router);
+    crate::health::register(&mut router);
     crate::machines::register(&mut router);
     crate::notifications::register(&mut router);
     crate::onboarding::register(&mut router);
@@ -99,11 +101,18 @@ fn call<M: Handler>(session: &Session, params: Value) -> Reply<'_> {
 }
 
 pub fn notify<E: Event>(outgoing: &mpsc::UnboundedSender<Message>, params: E::Params) {
+    if let Some(message) = notification::<E>(params) {
+        let _ = outgoing.send(message);
+    }
+}
+
+pub fn notification<E: Event>(params: E::Params) -> Option<Message> {
     match Notification::new::<E>(params) {
-        Ok(notification) => {
-            let _ = outgoing.send(Message::Notification(notification));
+        Ok(notification) => Some(Message::Notification(notification)),
+        Err(error) => {
+            tracing::warn!(%error, "could not write a notification");
+            None
         }
-        Err(error) => tracing::warn!(%error, "could not write a notification"),
     }
 }
 

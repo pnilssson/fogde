@@ -1,5 +1,5 @@
 use github::SignIn;
-use protocol::github::{Account, FinishSignIn, GetAccounts, SignInCode, StartSignIn};
+use protocol::github::{Account, CancelSignIn, FinishSignIn, GetAccounts, SignInCode, StartSignIn};
 use protocol::rpc::{Failure, SERVER_ERROR};
 use tokio::sync::Mutex;
 
@@ -15,6 +15,7 @@ pub fn register(router: &mut Router) {
     router.add::<GetAccounts>();
     router.add::<StartSignIn>();
     router.add::<FinishSignIn>();
+    router.add::<CancelSignIn>();
 }
 
 impl Handler for GetAccounts {
@@ -57,5 +58,13 @@ impl Handler for FinishSignIn {
             result = signin.finish() => result.map_err(failure),
             () = session.closed() => Err(cancelled()),
         }
+    }
+}
+
+impl Handler for CancelSignIn {
+    async fn handle(session: &Session, (): ()) -> Result<(), Failure> {
+        session.github.signin.lock().await.take();
+
+        Ok(())
     }
 }

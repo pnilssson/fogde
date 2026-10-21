@@ -31,7 +31,9 @@ fn binaries(app: &tauri::App) -> tauri::Result<host::Binaries> {
 }
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
+    if let Err(error) = host::log("desktop", cfg!(debug_assertions)) {
+        tracing::warn!(%error, "could not open the log file");
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -47,7 +49,11 @@ fn main() -> anyhow::Result<()> {
             app.manage(host);
             Ok(window::open(app)?)
         })
-        .invoke_handler(tauri::generate_handler![connection, frame])
+        .invoke_handler(tauri::generate_handler![
+            connection,
+            frame,
+            window::material
+        ])
         .run(tauri::generate_context!())?;
 
     Ok(())

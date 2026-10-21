@@ -2,10 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { Connection } from "@/generated/protocol";
 import { Client, type Args, type Method, type Result } from "@/lib/client";
+import { keepAlive } from "@/lib/keepalive";
 
 const connection = () => invoke<Connection>("connection");
 
-export const own = new Client(connection);
+export const own = keepAlive(new Client(connection));
 
 export function callOwn<M extends Method>(
   method: M,
@@ -15,13 +16,15 @@ export function callOwn<M extends Method>(
 }
 
 export function serverClient(id: string) {
-  return new Client(async () => {
-    await callOwn("server.connect", id);
-    const address = await connection();
+  return keepAlive(
+    new Client(async () => {
+      await callOwn("server.connect", id);
+      const address = await connection();
 
-    return {
-      ...address,
-      url: `${address.url}servers/${encodeURIComponent(id)}`,
-    };
-  });
+      return {
+        ...address,
+        url: `${address.url}servers/${encodeURIComponent(id)}`,
+      };
+    }),
+  );
 }

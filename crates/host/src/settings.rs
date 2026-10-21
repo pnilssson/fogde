@@ -1,8 +1,9 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use protocol::accessibility::Accessibility;
 use protocol::notifications::Notifications;
-use protocol::theme::Theme;
+use protocol::theme::{Material, Theme};
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tokio::sync::Mutex;
@@ -16,7 +17,11 @@ struct Values {
     #[serde(default)]
     theme: Theme,
     #[serde(default)]
+    material: Material,
+    #[serde(default)]
     notifications: Notifications,
+    #[serde(default)]
+    accessibility: Accessibility,
 }
 
 pub struct Settings {
@@ -56,12 +61,29 @@ impl Settings {
         self.update(|values| values.theme = theme).await
     }
 
+    pub async fn material(&self) -> io::Result<Material> {
+        Ok(self.load().await?.material)
+    }
+
+    pub async fn set_material(&self, material: Material) -> io::Result<()> {
+        self.update(|values| values.material = material).await
+    }
+
     pub async fn notifications(&self) -> io::Result<Notifications> {
         Ok(self.load().await?.notifications)
     }
 
     pub async fn set_notifications(&self, notifications: Notifications) -> io::Result<()> {
         self.update(|values| values.notifications = notifications)
+            .await
+    }
+
+    pub async fn accessibility(&self) -> io::Result<Accessibility> {
+        Ok(self.load().await?.accessibility)
+    }
+
+    pub async fn set_accessibility(&self, accessibility: Accessibility) -> io::Result<()> {
+        self.update(|values| values.accessibility = accessibility)
             .await
     }
 
@@ -101,6 +123,11 @@ mod tests {
         assert!(!settings.onboarded().await.unwrap());
         assert_eq!(settings.repos().await.unwrap(), None);
         assert_eq!(settings.theme().await.unwrap(), Theme::System);
+        assert_eq!(settings.material().await.unwrap(), Material::Translucent);
+        assert_eq!(
+            settings.accessibility().await.unwrap(),
+            Accessibility::default()
+        );
         assert_eq!(
             settings.notifications().await.unwrap(),
             Notifications::default()
@@ -109,16 +136,23 @@ mod tests {
         settings.set_repos(app.join("repos")).await.unwrap();
         settings.finish_onboarding().await.unwrap();
         settings.set_theme(Theme::Dark).await.unwrap();
+        settings.set_material(Material::Solid).await.unwrap();
         let quiet = Notifications {
             enabled: true,
             sound: false,
         };
         settings.set_notifications(quiet).await.unwrap();
+        let reader = Accessibility {
+            screen_reader: true,
+        };
+        settings.set_accessibility(reader).await.unwrap();
 
         let reopened = Settings::new(&app);
         assert!(reopened.onboarded().await.unwrap());
         assert_eq!(reopened.repos().await.unwrap(), Some(app.join("repos")));
         assert_eq!(reopened.theme().await.unwrap(), Theme::Dark);
+        assert_eq!(reopened.material().await.unwrap(), Material::Solid);
         assert_eq!(reopened.notifications().await.unwrap(), quiet);
+        assert_eq!(reopened.accessibility().await.unwrap(), reader);
     }
 }

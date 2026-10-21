@@ -15,12 +15,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AccessibilitySettings } from "@/features/settings/components/accessibility-settings";
 import { MachineSettings } from "@/features/settings/components/machine-settings";
 import { NotificationSettings } from "@/features/settings/components/notification-settings";
 import {
   SettingsRow,
   SettingsSection,
 } from "@/features/settings/components/settings-section";
+import { TranslucentSwitch } from "@/features/settings/components/translucent-switch";
+import { frame } from "@/lib/frame";
 
 export function SettingsDialog() {
   const [open, setOpen] = useState(false);
@@ -49,8 +52,14 @@ export function SettingsDialog() {
           <SettingsRow label="Theme">
             <ThemeSwitcher />
           </SettingsRow>
+          {frame.translucent && (
+            <SettingsRow label="Translucent" labelled>
+              <TranslucentSwitch />
+            </SettingsRow>
+          )}
         </SettingsSection>
         <NotificationSettings />
+        <AccessibilitySettings />
         <MachineSettings
           onAdd={() => {
             setOpen(false);

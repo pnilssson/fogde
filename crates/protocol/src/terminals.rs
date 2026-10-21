@@ -72,6 +72,24 @@ pub struct ScrollTerminalParams {
     pub row: u16,
 }
 
+pub const IMAGE_LIMIT: usize = 10 * 1024 * 1024;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+pub enum Image {
+    Png,
+    Jpeg,
+    Gif,
+    Webp,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct PasteImageParams {
+    pub id: String,
+    pub image: Image,
+    pub data: String,
+}
+
 #[derive(Clone, Debug, Serialize, TS)]
 pub struct TerminalFrame {
     pub id: String,
@@ -147,6 +165,14 @@ pub struct ScrollTerminal;
 impl Method for ScrollTerminal {
     const NAME: &'static str = "terminals.scroll";
     type Params = ScrollTerminalParams;
+    type Result = ();
+}
+
+pub struct PasteImage;
+
+impl Method for PasteImage {
+    const NAME: &'static str = "terminals.pasteImage";
+    type Params = PasteImageParams;
     type Result = ();
 }
 

@@ -38,3 +38,11 @@ impl Method for FinishSignIn {
     type Params = ();
     type Result = ();
 }
+
+pub struct CancelSignIn;
+
+impl Method for CancelSignIn {
+    const NAME: &'static str = "github.cancelSignIn";
+    type Params = ();
+    type Result = ();
+}

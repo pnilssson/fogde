@@ -1,20 +1,23 @@
 import { FitAddon } from "@xterm/addon-fit";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { Terminal } from "@xterm/xterm";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { DockviewPanelApi } from "dockview-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { toast } from "@/components/ui/toast";
-import { workspacesQuery } from "@/features/terminals/api/workspaces";
 import {
   type Status,
   TerminalStatus,
 } from "@/features/terminals/components/terminal-status";
 import { appearance } from "@/features/terminals/lib/appearance";
+import { handleClipboard } from "@/features/terminals/lib/clipboard";
+import { openLinks } from "@/features/terminals/lib/links";
 import { measure } from "@/features/terminals/lib/size";
 import { watchTerminal } from "@/features/terminals/lib/watch";
 import { scrollOnWheel } from "@/features/terminals/lib/wheel";
 import type { Size } from "@/generated/protocol";
+import { accessibilityQuery } from "@/lib/accessibility";
 import { ConnectionError } from "@/lib/client";
 import type { Machine } from "@/lib/machines";
 
@@ -22,13 +25,17 @@ interface Props {
   id: string;
   machine: Machine;
   panel: DockviewPanelApi;
+  onChange: () => void;
 }
 
-export function TerminalView({ id, machine, panel }: Props) {
+export function TerminalView({ id, machine, panel, onChange }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const retry = useRef<() => void>(() => undefined);
-  const queries = useQueryClient();
   const [status, setStatus] = useState<Status>("opening");
+  const view = useRef<Terminal>(undefined);
+  const reader = useQuery(accessibilityQuery).data?.screenReader ?? false;
+  const reading = useEffectEvent(() => reader);
+  const refresh = useEffectEvent(onChange);
 
   useEffect(() => {
     const element = container.current;
@@ -40,13 +47,18 @@ export function TerminalView({ id, machine, panel }: Props) {
     const options = appearance(element);
     const terminal = new Terminal({
       ...options,
+      allowProposedApi: true,
       allowTransparency: true,
       disableStdin: true,
-      screenReaderMode: true,
+      screenReaderMode: reading(),
       scrollback: 0,
     });
+    view.current = terminal;
     const fit = new FitAddon();
     terminal.loadAddon(fit);
+    terminal.loadAddon(new Unicode11Addon());
+    terminal.unicode.activeVersion = "11";
+    openLinks(terminal);
 
     let open = true;
     let watching = false;
@@ -54,10 +66,6 @@ export function TerminalView({ id, machine, panel }: Props) {
     let stopWatch: (release?: boolean) => void = () => undefined;
     let sent = measure(fit);
     let rendering = Promise.resolve();
-
-    function refresh() {
-      void queries.invalidateQueries(workspacesQuery(machine));
-    }
 
     function resize() {
       const size = measure(fit);
@@ -169,14 +177,31 @@ export function TerminalView({ id, machine, panel }: Props) {
         stopWatch(false);
       }
     });
-    const typing = terminal.onData((data) => {
-      if (watching) {
-        client.call("terminals.input", { id, data }).catch((error: unknown) => {
-          if (open && watching) {
-            report("Could not send your input", error);
-          }
-        });
+    function send(data: string) {
+      if (!watching) {
+        return;
       }
+
+      client.call("terminals.input", { id, data }).catch((error: unknown) => {
+        if (open && watching) {
+          report("Could not send your input", error);
+        }
+      });
+    }
+
+    const typing = terminal.onData(send);
+    const stopClipboard = handleClipboard(terminal, element, {
+      text: send,
+      image: async (image, data) => {
+        if (!watching) {
+          throw new Error("The terminal is not connected yet.");
+        }
+
+        await client.call("terminals.pasteImage", { id, image, data });
+      },
+      failed: (error) => {
+        report("Could not paste", error);
+      },
     });
     scrollOnWheel(terminal, element, (scroll) => {
       if (!watching) {
@@ -225,13 +250,21 @@ export function TerminalView({ id, machine, panel }: Props) {
       stopFrames();
       stopEnded();
       typing.dispose();
+      stopClipboard();
       focusing.dispose();
       resizing.disconnect();
       theming.disconnect();
       element.removeEventListener("keydown", shortcuts);
       terminal.dispose();
+      view.current = undefined;
     };
-  }, [id, machine, panel, queries]);
+  }, [id, machine, panel]);
+
+  useEffect(() => {
+    if (view.current) {
+      view.current.options.screenReaderMode = reader;
+    }
+  }, [reader]);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">

@@ -70,6 +70,10 @@ impl Shared {
             .unwrap_or_else(|| self.fogde.join("repos")))
     }
 
+    pub fn images(&self) -> PathBuf {
+        self.fogde.join(".app").join("images")
+    }
+
     pub fn worktrees(&self) -> PathBuf {
         self.fogde.join("worktrees")
     }

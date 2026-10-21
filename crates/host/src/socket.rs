@@ -23,6 +23,8 @@ use crate::session::Session;
 use crate::shared::Shared;
 use crate::token;
 
+const BACKLOG: usize = 4;
+
 struct Desktop {
     shared: Arc<Shared>,
     token: String,
@@ -93,11 +95,14 @@ async fn server(
 
 pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: bool) {
     let (replies, mut outgoing) = mpsc::unbounded_channel::<rpc::Message>();
+    let (frames, mut queued) = mpsc::channel::<rpc::Message>(BACKLOG);
     let mut changes = shared.tracker.changes();
-    let session = Arc::new(Session::new(shared, local, replies.clone()));
+    let session = Arc::new(Session::new(shared, local, replies.clone(), frames));
 
     loop {
         tokio::select! {
+            biased;
+
             message = socket.recv() => {
                 let Some(Ok(message)) = message else {
                     break;
@@ -131,10 +136,12 @@ pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: boo
                 }
             }
             Some(reply) = outgoing.recv() => {
-                let Ok(text) = serde_json::to_string(&reply) else {
-                    continue;
-                };
-                if socket.send(Message::text(text)).await.is_err() {
+                if !send(&mut socket, &reply).await {
+                    break;
+                }
+            }
+            Some(frame) = queued.recv() => {
+                if !send(&mut socket, &frame).await {
                     break;
                 }
             }
@@ -142,4 +149,12 @@ pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: boo
     }
 
     session.close();
+}
+
+async fn send(socket: &mut WebSocket, message: &rpc::Message) -> bool {
+    let Ok(text) = serde_json::to_string(message) else {
+        return true;
+    };
+
+    socket.send(Message::text(text)).await.is_ok()
 }

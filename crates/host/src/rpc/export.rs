@@ -80,8 +80,9 @@ fn export_protocol() {
     }
     write!(
         file,
-        "export type Methods = {{\n{methods}}};\n\nexport type Events = {{\n{events}}};\n\nexport const offline = {};\n",
-        protocol::rpc::OFFLINE
+        "export type Methods = {{\n{methods}}};\n\nexport type Events = {{\n{events}}};\n\nexport const offline = {};\n\nexport const imageLimit = {};\n",
+        protocol::rpc::OFFLINE,
+        protocol::terminals::IMAGE_LIMIT
     )
     .unwrap();
 

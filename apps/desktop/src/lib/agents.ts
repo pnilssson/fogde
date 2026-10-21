@@ -14,3 +14,9 @@ export const agentName: Record<Agent, string> = {
   codex: "Codex",
   copilot: "GitHub Copilot",
 };
+
+export const signInDomains: Record<Agent, readonly string[]> = {
+  claude: ["claude.com", "claude.ai", "anthropic.com"],
+  codex: ["openai.com", "chatgpt.com"],
+  copilot: ["github.com", "ghe.com"],
+};

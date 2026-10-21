@@ -1,26 +1,28 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { StatusBar } from "@/components/status-bar";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { onboardedQuery } from "@/features/onboarding/api/onboarding";
 import { SettingsDialog } from "@/features/settings/components/settings-dialog";
-import { StatusBar } from "@/features/terminals/components/status-bar";
-import { WorkspaceSidebar } from "@/features/terminals/components/workspace-sidebar";
-import { useAttention } from "@/features/terminals/hooks/use-attention";
-import { useFailures } from "@/features/terminals/hooks/use-failures";
-import { useGroups } from "@/features/terminals/hooks/use-terminals";
-import { useViewing } from "@/features/terminals/hooks/use-viewing";
-import { keepMachines, useTiles } from "@/features/terminals/lib/layouts";
+import { CommandPalette } from "@/features/workspaces/components/command-palette";
+import { WorkspaceSidebar } from "@/features/workspaces/components/workspace-sidebar";
+import { useAttention } from "@/features/workspaces/hooks/use-attention";
+import { useFailures } from "@/features/workspaces/hooks/use-failures";
+import { useShortcuts } from "@/features/workspaces/hooks/use-shortcuts";
+import { useGroups } from "@/features/workspaces/hooks/use-terminals";
+import { useViewing } from "@/features/workspaces/hooks/use-viewing";
+import { keepMachines, useTiles } from "@/features/workspaces/lib/layouts";
 import {
   findTerminal,
   resolveWorkspace,
   WorkspaceContext,
-} from "@/features/terminals/lib/selection";
+} from "@/features/workspaces/lib/selection";
 import {
   openStart,
   selectWorkspace,
   show,
-} from "@/features/terminals/lib/tiles";
+} from "@/features/workspaces/lib/tiles";
 import { useMachines } from "@/hooks/use-machines";
 import { useRetryOnReturn } from "@/hooks/use-retry-on-return";
 import { entryId, machinesQuery } from "@/lib/machines";
@@ -57,6 +59,7 @@ export const Route = createFileRoute("/_onboarded")({
     useAttention(machines);
     useFailures(machines);
     useViewing(machines);
+    useShortcuts(groups);
 
     useEffect(() => {
       if (all.length > 0) {
@@ -94,6 +97,7 @@ export const Route = createFileRoute("/_onboarded")({
             </SidebarInset>
           </div>
           <StatusBar start={<SettingsDialog />} folder={terminal?.folder} />
+          <CommandPalette />
         </div>
       </WorkspaceContext>
     );

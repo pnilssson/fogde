@@ -1,3 +1,4 @@
+use std::io;
 use std::path::PathBuf;
 use std::process::Stdio;
 
@@ -87,11 +88,10 @@ impl Server {
     }
 
     async fn host_key(&self) -> Result<HostKey, Error> {
-        let file = std::env::temp_dir().join(format!(
-            "fogde-known-hosts-{}-{}",
-            std::process::id(),
-            self.target().replace(['@', ':', '/', '\\'], "-")
-        ));
+        let dir = tokio::task::spawn_blocking(tempfile::tempdir)
+            .await
+            .map_err(io::Error::other)??;
+        let file = dir.path().join("known_hosts");
         let known = format!(
             "UserKnownHostsFile=\"{}\"",
             file.display().to_string().replace('\\', "/")
@@ -113,7 +113,7 @@ impl Server {
             .stdin(Stdio::null())
             .output()
             .await;
-        let _ = fs::remove_file(&file).await;
+        let _ = tokio::task::spawn_blocking(move || dir.close()).await;
 
         if lines.trim().is_empty() {
             return Err(self.error(&output?.stderr));
@@ -217,11 +217,11 @@ mod tests {
     #[test]
     fn reads_fingerprints() {
         let listed =
-            "256 SHA256:Kk2CP67tlSOJX5efGAD2WESdUNd9BWHzt6QAc28oi8M 203.0.113.10 (ED25519)\n";
+            "256 SHA256:1xhQxh3KyDnfLvxchalhj4cVWnO3ddWky0QCMYyW14o 203.0.113.10 (ED25519)\n";
 
         assert_eq!(
             fingerprint(listed).as_deref(),
-            Some("SHA256:Kk2CP67tlSOJX5efGAD2WESdUNd9BWHzt6QAc28oi8M")
+            Some("SHA256:1xhQxh3KyDnfLvxchalhj4cVWnO3ddWky0QCMYyW14o")
         );
         assert_eq!(fingerprint(""), None);
     }

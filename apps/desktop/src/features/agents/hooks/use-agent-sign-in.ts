@@ -5,8 +5,9 @@ import { useRef, useState } from "react";
 import { toast } from "@/components/ui/toast";
 import { accountName } from "@/features/agents/lib/account-name";
 import type { Agent, AgentPrompt } from "@/generated/protocol";
-import { agentsQuery } from "@/lib/agents";
+import { agentsQuery, signInDomains } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
+import { trusted, UntrustedLink } from "@/lib/sign-in";
 
 interface Active {
   agent: Agent;
@@ -72,6 +73,16 @@ export function useAgentSignIn(machine: Machine) {
     }
     if (prompt.kind === "done") {
       await done(id);
+      return;
+    }
+    if (
+      prompt.kind !== "browser" &&
+      !trusted(prompt.url, signInDomains[agent])
+    ) {
+      void machine.client
+        .call("agents.cancelSignIn", agent)
+        .catch(() => undefined);
+      fail(id, agent, new UntrustedLink(prompt.url));
       return;
     }
 

@@ -1,8 +1,10 @@
+pub mod accessibility;
 pub mod agents;
 mod connection;
 pub mod folders;
 mod frame;
 pub mod github;
+pub mod health;
 pub mod machines;
 mod method;
 pub mod notifications;

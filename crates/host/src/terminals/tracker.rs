@@ -4,12 +4,11 @@ use std::time::Duration;
 
 use futures_util::future::join_all;
 use herdr_client::{Client, Error, Pane, Subscription, Workspace};
-use protocol::agents::Agent;
-use protocol::terminals::{Status, TerminalState};
+use protocol::terminals::{Changes, TerminalState};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{Notify, broadcast};
 
-use super::{launch, title};
+use describe::describe;
 
 const RETRY: Duration = Duration::from_secs(2);
 const RESYNC: Duration = Duration::from_millis(1500);
@@ -25,13 +24,20 @@ const LIFECYCLE: [Subscription; 8] = [
     Subscription::AgentDetected,
 ];
 
+#[derive(Clone, Default)]
+struct Git {
+    branches: HashMap<String, Option<String>>,
+    changes: HashMap<String, Changes>,
+}
+
 pub struct Tracker {
     changes: broadcast::Sender<TerminalState>,
     states: Mutex<HashMap<String, TerminalState>>,
-    branches: Mutex<HashMap<String, Option<String>>>,
+    git: Mutex<Git>,
     detected: Mutex<HashSet<String>>,
     views: Mutex<HashMap<u64, String>>,
     viewed: Notify,
+    counted: Notify,
 }
 
 impl Default for Tracker {
@@ -39,10 +45,11 @@ impl Default for Tracker {
         Self {
             changes: broadcast::channel(256).0,
             states: Mutex::default(),
-            branches: Mutex::default(),
+            git: Mutex::default(),
             detected: Mutex::default(),
             views: Mutex::default(),
             viewed: Notify::new(),
+            counted: Notify::new(),
         }
     }
 }
@@ -92,8 +99,23 @@ impl Tracker {
             previous.as_ref(),
             viewed,
             detected,
-            &lock(&self.branches),
+            &lock(&self.git),
         )
+    }
+
+    pub(super) fn folders(&self) -> Vec<String> {
+        lock(&self.git).branches.keys().cloned().collect()
+    }
+
+    pub(super) fn set_changes(&self, changes: HashMap<String, Changes>) {
+        let mut git = lock(&self.git);
+        if git.changes == changes {
+            return;
+        }
+
+        git.changes = changes;
+        drop(git);
+        self.counted.notify_one();
     }
 
     pub async fn run(self: Arc<Self>, client: Client) {
@@ -125,6 +147,7 @@ impl Tracker {
                 changed = lifecycle.next() => changed?,
                 changed = statuses.next() => changed?,
                 () = self.viewed.notified() => {}
+                () = self.counted.notified() => {}
                 _ = resync.tick(), if self.watched() => {}
             }
         }
@@ -152,12 +175,12 @@ impl Tracker {
         });
         let branches = join_all(read).await.into_iter().collect();
 
-        *lock(&self.branches) = branches;
+        lock(&self.git).branches = branches;
     }
 
     fn update(&self, workspaces: &[Workspace], panes: &[Pane]) -> (Vec<String>, Vec<String>) {
         let viewed = self.viewed();
-        let branches = lock(&self.branches).clone();
+        let git = lock(&self.git).clone();
         let mut detected = lock(&self.detected);
         let mut states = lock(&self.states);
         let mut next = HashMap::new();
@@ -179,7 +202,7 @@ impl Tracker {
                 before.as_ref(),
                 looking,
                 detected.contains(&workspace.id),
-                &branches,
+                &git,
             );
             if looking && pane.status == herdr_client::Status::Done {
                 clearing.push(pane.id.clone());
@@ -198,73 +221,12 @@ impl Tracker {
         (seen, clearing)
     }
 
-    fn watched(&self) -> bool {
+    pub(super) fn watched(&self) -> bool {
         !lock(&self.views).is_empty()
     }
 
     fn viewed(&self) -> HashSet<String> {
         lock(&self.views).values().cloned().collect()
-    }
-}
-
-fn describe(
-    workspace: &Workspace,
-    pane: Option<&Pane>,
-    previous: Option<&TerminalState>,
-    viewed: bool,
-    detected: bool,
-    branches: &HashMap<String, Option<String>>,
-) -> TerminalState {
-    let reported = pane
-        .and_then(|pane| pane.agent.as_deref())
-        .and_then(launch::agent);
-    let agent = if detected {
-        reported
-    } else {
-        reported.or_else(|| launch::launched(&workspace.label))
-    };
-    let name = name(agent, pane, previous);
-    let herdr = pane.map_or(herdr_client::Status::Unknown, |pane| pane.status);
-    let folder = pane
-        .and_then(|pane| pane.cwd.as_ref())
-        .map(|cwd| cwd.display().to_string())
-        .unwrap_or_default();
-
-    TerminalState {
-        id: workspace.id.clone(),
-        name,
-        agent,
-        status: status(herdr, previous.map(|state| state.status), viewed),
-        branch: branches.get(&folder).cloned().flatten(),
-        folder,
-    }
-}
-
-fn name(agent: Option<Agent>, pane: Option<&Pane>, previous: Option<&TerminalState>) -> String {
-    let Some(agent) = agent else {
-        return launch::label(None).to_owned();
-    };
-
-    pane.and_then(|pane| pane.title.as_deref().zip(pane.stripped.as_deref()))
-        .and_then(|(title, stripped)| title::task(agent, title, stripped))
-        .or_else(|| {
-            previous
-                .filter(|state| state.agent == Some(agent))
-                .map(|state| state.name.clone())
-        })
-        .unwrap_or_else(|| launch::label(Some(agent)).to_owned())
-}
-
-fn status(herdr: herdr_client::Status, previous: Option<Status>, viewed: bool) -> Status {
-    use herdr_client::Status as Herdr;
-
-    match herdr {
-        Herdr::Working => Status::Working,
-        Herdr::Blocked => Status::Blocked,
-        _ if viewed => Status::Idle,
-        Herdr::Done => Status::Done,
-        Herdr::Idle if matches!(previous, Some(Status::Working | Status::Done)) => Status::Done,
-        Herdr::Idle | Herdr::Unknown => Status::Idle,
     }
 }
 
@@ -281,5 +243,6 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
+mod describe;
 #[cfg(test)]
 mod tests;

@@ -1,5 +1,8 @@
 use herdr_client::Status as Herdr;
+use protocol::agents::Agent;
+use protocol::terminals::Status;
 
+use super::describe::status;
 use super::*;
 
 #[test]
@@ -64,6 +67,7 @@ async fn a_session_that_falls_behind_gets_every_current_state() {
             status: Status::Working,
             folder: "/repos/app".into(),
             branch: Some("main".into()),
+            changes: None,
         })
         .collect();
     for state in &states {

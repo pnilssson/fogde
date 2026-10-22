@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use crate::Error;
+use crate::changes::{fetch, remote_head};
 use crate::include;
 use crate::run::git;
 
@@ -99,24 +100,11 @@ pub async fn remove_merged_branch(repo: &Path, branch: &str) -> Result<bool, Err
 }
 
 async fn base(repo: &Path) -> String {
-    if let Err(error) = git(repo, ["fetch", "--quiet", "origin"]).await {
+    if let Err(error) = fetch(repo).await {
         tracing::warn!(%error, "could not fetch before adding a worktree");
     }
 
-    git(
-        repo,
-        [
-            "symbolic-ref",
-            "--quiet",
-            "--short",
-            "refs/remotes/origin/HEAD",
-        ],
-    )
-    .await
-    .map_or_else(
-        |_| "HEAD".to_owned(),
-        |base| String::from_utf8_lossy(&base).trim().to_owned(),
-    )
+    remote_head(repo).await.unwrap_or_else(|| "HEAD".to_owned())
 }
 
 async fn undo(repo: &Path, path: &Path, branch: Option<&str>) {

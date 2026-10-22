@@ -78,7 +78,10 @@ where
         .arg("-C")
         .arg(repo)
         .args(args)
-        .env("GIT_TERMINAL_PROMPT", "0");
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GCM_INTERACTIVE", "never")
+        .env("GIT_ASKPASS", "")
+        .env("SSH_ASKPASS_REQUIRE", "never");
 
     command
 }

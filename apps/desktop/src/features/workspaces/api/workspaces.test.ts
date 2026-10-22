@@ -17,6 +17,7 @@ const claude: Terminal = {
   status: "idle",
   folder: "/repos/app",
   branch: "main",
+  changes: null,
   checkout: null,
 };
 
@@ -120,6 +121,7 @@ test("applies a state change, with its folder and branch, to the terminal it nam
     status: "blocked",
     folder: "/repos/app/src",
     branch: "fix-login",
+    changes: null,
   });
 
   expect(applied?.before.status).toBe("idle");
@@ -130,6 +132,7 @@ test("applies a state change, with its folder and branch, to the terminal it nam
     status: "blocked",
     folder: "/repos/app/src",
     branch: "fix-login",
+    changes: null,
   });
   queries.clear();
 });
@@ -149,6 +152,7 @@ test("reloads the workspaces for a terminal it doesn't know", async () => {
     status: "working",
     folder: "/repos/app",
     branch: "main",
+    changes: null,
   });
 
   expect(applied).toBeUndefined();

@@ -12,6 +12,7 @@ pub mod onboarding;
 pub mod repos;
 pub mod rpc;
 pub mod server;
+pub mod stats;
 pub mod terminals;
 pub mod theme;
 pub mod workspaces;

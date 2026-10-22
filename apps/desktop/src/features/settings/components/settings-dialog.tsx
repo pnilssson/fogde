@@ -22,6 +22,7 @@ import {
   SettingsRow,
   SettingsSection,
 } from "@/features/settings/components/settings-section";
+import { StatsSettings } from "@/features/settings/components/stats-settings";
 import { TranslucentSwitch } from "@/features/settings/components/translucent-switch";
 import { frame } from "@/lib/frame";
 
@@ -58,6 +59,7 @@ export function SettingsDialog() {
             </SettingsRow>
           )}
         </SettingsSection>
+        <StatsSettings />
         <NotificationSettings />
         <AccessibilitySettings />
         <MachineSettings

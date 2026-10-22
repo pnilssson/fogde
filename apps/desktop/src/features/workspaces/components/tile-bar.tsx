@@ -8,8 +8,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { BranchStats } from "@/features/workspaces/components/branch-stats";
 import { useActiveClose } from "@/features/workspaces/lib/closing";
 import { type Dragged, dragProps } from "@/features/workspaces/lib/drag";
+import type { Changes } from "@/generated/protocol";
 
 interface Props {
   item: Dragged | undefined;
@@ -18,6 +20,7 @@ interface Props {
   title: string;
   place?: Place | undefined;
   branch?: string | null | undefined;
+  changes?: Changes | null | undefined;
   onClose?: (() => void) | undefined;
 }
 
@@ -33,6 +36,7 @@ export function TileBar({
   title,
   place,
   branch,
+  changes,
   onClose,
 }: Props) {
   useActiveClose(active, onClose);
@@ -66,6 +70,7 @@ export function TileBar({
           <span className="truncate">{branch}</span>
         </span>
       )}
+      <BranchStats changes={changes} />
       {onClose && (
         <Tooltip>
           <TooltipTrigger

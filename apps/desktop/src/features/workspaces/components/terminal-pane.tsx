@@ -52,6 +52,7 @@ export function TerminalPane({ panel, machine, workspace, terminal }: Props) {
         title={terminal.name}
         place={placeOf(terminal, workspace)}
         branch={terminal.branch}
+        changes={terminal.changes}
         onClose={close.closable ? close.request : undefined}
       />
       {render({ panel, machine, id: terminal.id })}

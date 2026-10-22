@@ -12,6 +12,10 @@ export type AgentState = "missing" | "signedOut" | "signedIn";
 
 export type AgentStatus = { agent: Agent, state: AgentState, };
 
+export type Base = { name: string, behind: number, };
+
+export type Changes = { added: number, removed: number, base: Base | null, upstream: Divergence | null, };
+
 export type Checkout = { path: string, branch: string | null, main: boolean, };
 
 export type Connection = { url: string, token: string, };
@@ -21,6 +25,8 @@ export type CreateFolderParams = { parent: string, name: string, };
 export type CreateTerminalParams = { workspace: string, folder: string, agent: Agent | null, };
 
 export type CreateWorktreeParams = { repo: string, name: string, };
+
+export type Divergence = { ahead: number, behind: number, };
 
 export type FinishAgentSignInParams = { agent: Agent, code: string | null, };
 
@@ -68,9 +74,11 @@ export type Size = { cols: number, rows: number, };
 
 export type SshKey = { name: string, fingerprint: string, };
 
+export type Stats = { behind: boolean, lines: boolean, upstream: boolean, };
+
 export type Status = "idle" | "working" | "blocked" | "done";
 
-export type Terminal = { id: string, name: string, agent: Agent | null, status: Status, folder: string, branch: string | null, checkout: string | null, };
+export type Terminal = { id: string, name: string, agent: Agent | null, status: Status, folder: string, branch: string | null, changes: Changes | null, checkout: string | null, };
 
 export type TerminalEnded = { id: string, error: string | null, };
 
@@ -80,7 +88,7 @@ export type TerminalFrame = { id: string, cols: number, rows: number, full: bool
 
 export type TerminalInputParams = { id: string, data: string, };
 
-export type TerminalState = { id: string, name: string, agent: Agent | null, status: Status, folder: string, branch: string | null, };
+export type TerminalState = { id: string, name: string, agent: Agent | null, status: Status, folder: string, branch: string | null, changes: Changes | null, };
 
 export type Theme = "system" | "light" | "dark";
 
@@ -123,6 +131,8 @@ export type Methods = {
   "server.connect": { params: string; result: null };
   "server.hosts": { params: null; result: Array<string> };
   "server.setUp": { params: string; result: string };
+  "stats.get": { params: null; result: Stats };
+  "stats.set": { params: Stats; result: null };
   "terminals.close": { params: string; result: null };
   "terminals.create": { params: CreateTerminalParams; result: Terminal };
   "terminals.input": { params: TerminalInputParams; result: null };

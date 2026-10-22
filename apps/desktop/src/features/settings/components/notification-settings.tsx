@@ -1,35 +1,22 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { Switch } from "@/components/ui/switch";
-import { toast } from "@/components/ui/toast";
 import {
   SettingsRow,
   SettingsSection,
 } from "@/features/settings/components/settings-section";
+import { useSaveSetting } from "@/features/settings/hooks/use-save-setting";
 import type { Notifications } from "@/generated/protocol";
 import { callOwn } from "@/lib/host";
 import { notificationsQuery } from "@/lib/notifications";
 
 export function NotificationSettings() {
-  const queries = useQueryClient();
   const { data } = useQuery(notificationsQuery);
-  const save = useMutation({
-    mutationFn: (next: Notifications) => callOwn("notifications.set", next),
-    onMutate: (next) => {
-      const before = queries.getQueryData(notificationsQuery.queryKey);
-      queries.setQueryData(notificationsQuery.queryKey, next);
-
-      return before;
-    },
-    onError: (error, _, before) => {
-      queries.setQueryData(notificationsQuery.queryKey, before);
-      toast.add({
-        type: "error",
-        title: "Could not save the notification settings",
-        description: error.message,
-      });
-    },
-  });
+  const save = useSaveSetting(
+    notificationsQuery,
+    (next: Notifications) => callOwn("notifications.set", next),
+    "Could not save the notification settings",
+  );
 
   return (
     <SettingsSection id="alerts-heading" title="Alerts">

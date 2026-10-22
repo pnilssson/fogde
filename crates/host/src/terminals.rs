@@ -1,3 +1,4 @@
+mod changes;
 mod images;
 mod launch;
 mod stream;
@@ -21,6 +22,7 @@ use tokio::sync::mpsc;
 use crate::folders;
 use crate::rpc::{Handler, Router, cancelled, failure};
 use crate::session::Session;
+pub use changes::count;
 use launch::{label, path_with, start};
 use stream::{Control, watch};
 pub use tracker::Tracker;
@@ -80,6 +82,7 @@ pub async fn list(session: &Session) -> Result<Vec<Terminal>, Failure> {
                 status: state.status,
                 folder: state.folder,
                 branch: state.branch,
+                changes: state.changes,
                 checkout: None,
             }
         })
@@ -146,6 +149,7 @@ impl Handler for CreateTerminal {
             status: Status::Idle,
             folder: folder.display().to_string(),
             branch: git::branch(&folder).await,
+            changes: None,
             checkout,
         })
     }

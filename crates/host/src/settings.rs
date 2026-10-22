@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use protocol::accessibility::Accessibility;
 use protocol::notifications::Notifications;
+use protocol::stats::Stats;
 use protocol::theme::{Material, Theme};
 use serde::{Deserialize, Serialize};
 use tokio::fs;
@@ -22,6 +23,8 @@ struct Values {
     notifications: Notifications,
     #[serde(default)]
     accessibility: Accessibility,
+    #[serde(default)]
+    stats: Stats,
 }
 
 pub struct Settings {
@@ -85,6 +88,14 @@ impl Settings {
     pub async fn set_accessibility(&self, accessibility: Accessibility) -> io::Result<()> {
         self.update(|values| values.accessibility = accessibility)
             .await
+    }
+
+    pub async fn stats(&self) -> io::Result<Stats> {
+        Ok(self.load().await?.stats)
+    }
+
+    pub async fn set_stats(&self, stats: Stats) -> io::Result<()> {
+        self.update(|values| values.stats = stats).await
     }
 
     async fn load(&self) -> io::Result<Values> {

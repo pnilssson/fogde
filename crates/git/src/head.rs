@@ -24,14 +24,21 @@ pub async fn branch(folder: &Path) -> Option<String> {
     }
 }
 
+pub async fn root(folder: &Path) -> Option<PathBuf> {
+    repo(folder).await.map(|(root, _)| root)
+}
+
+pub async fn common(folder: &Path) -> Option<PathBuf> {
+    let (_, dir) = repo(folder).await?;
+
+    fs::canonicalize(common_dir(dir).await).await.ok()
+}
+
 pub async fn heads(folder: &Path) -> Vec<(String, String)> {
     let Some((_, dir)) = repo(folder).await else {
         return Vec::new();
     };
-    let common = match fs::read_to_string(dir.join("commondir")).await {
-        Ok(link) => dir.join(link.trim()),
-        Err(_) => dir,
-    };
+    let common = common_dir(dir).await;
 
     let mut heads = vec![(String::new(), head(&common).await)];
     if let Ok(mut entries) = fs::read_dir(common.join("worktrees")).await {
@@ -43,6 +50,13 @@ pub async fn heads(folder: &Path) -> Vec<(String, String)> {
     heads.sort();
 
     heads
+}
+
+async fn common_dir(dir: PathBuf) -> PathBuf {
+    match fs::read_to_string(dir.join("commondir")).await {
+        Ok(link) => dir.join(link.trim()),
+        Err(_) => dir,
+    }
 }
 
 async fn head(dir: &Path) -> String {
@@ -172,6 +186,46 @@ mod tests {
         .await;
 
         assert_eq!(branch(&worktree).await.as_deref(), Some("feature/login"));
+    }
+
+    #[tokio::test]
+    async fn shares_one_common_folder_between_a_repo_and_its_worktrees() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("app");
+        let worktree = dir.path().join("login");
+        git(dir.path(), ["init", "--quiet", "app"]).await.unwrap();
+        git(
+            &repo,
+            [
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.com",
+                "commit",
+                "--quiet",
+                "--allow-empty",
+                "-m",
+                "start",
+            ],
+        )
+        .await
+        .unwrap();
+        git(
+            &repo,
+            [
+                "worktree",
+                "add",
+                "--quiet",
+                "-b",
+                "feature/login",
+                worktree.to_str().unwrap(),
+            ],
+        )
+        .await
+        .unwrap();
+
+        assert!(common(&repo).await.is_some());
+        assert_eq!(common(&repo).await, common(&worktree).await);
     }
 
     #[tokio::test]

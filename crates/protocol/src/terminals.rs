@@ -12,6 +12,7 @@ pub struct Terminal {
     pub status: Status,
     pub folder: String,
     pub branch: Option<String>,
+    pub changes: Option<Changes>,
     pub checkout: Option<String>,
 }
 
@@ -32,6 +33,27 @@ pub struct TerminalState {
     pub status: Status,
     pub folder: String,
     pub branch: Option<String>,
+    pub changes: Option<Changes>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct Changes {
+    pub added: u32,
+    pub removed: u32,
+    pub base: Option<Base>,
+    pub upstream: Option<Divergence>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct Base {
+    pub name: String,
+    pub behind: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct Divergence {
+    pub ahead: u32,
+    pub behind: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]

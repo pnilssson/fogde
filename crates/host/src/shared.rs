@@ -11,7 +11,7 @@ use tokio::sync::{Mutex, OnceCell};
 
 use crate::db::Db;
 use crate::settings::Settings;
-use crate::terminals::Tracker;
+use crate::terminals::{self, Tracker};
 use crate::workspaces::{Searches, Watch};
 
 pub struct Shared {
@@ -61,6 +61,7 @@ impl Shared {
             .get_or_try_init(|| async move {
                 let herdr = Herdr::start(&self.tools, &home).await?;
                 tokio::spawn(Arc::clone(&self.tracker).run(herdr.client()));
+                tokio::spawn(terminals::count(Arc::clone(&self.tracker)));
 
                 Ok(herdr)
             })

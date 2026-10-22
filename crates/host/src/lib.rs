@@ -18,6 +18,7 @@ mod session;
 mod settings;
 mod shared;
 mod socket;
+mod stats;
 mod terminals;
 mod theme;
 mod token;

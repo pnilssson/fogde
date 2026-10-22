@@ -9,6 +9,7 @@ fn terminal(id: &str, folder: &str) -> Terminal {
         status: protocol::terminals::Status::Idle,
         folder: folder.to_owned(),
         branch: None,
+        changes: None,
         checkout: None,
     }
 }

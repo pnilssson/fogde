@@ -7,6 +7,7 @@ import { TileBar } from "@/features/workspaces/components/tile-bar";
 import { useClose } from "@/features/workspaces/hooks/use-close";
 import { useTiles } from "@/features/workspaces/lib/layouts";
 import { TerminalSlot } from "@/features/workspaces/lib/slot";
+import { activate } from "@/features/workspaces/lib/tiles";
 import type { Terminal, Workspace } from "@/generated/protocol";
 import { folderName, relative } from "@/lib/folders";
 import type { Machine } from "@/lib/machines";
@@ -41,7 +42,7 @@ export function TerminalPane({ panel, machine, workspace, terminal }: Props) {
       aria-label={terminal.name}
       className="flex h-full min-h-0 flex-col"
       onPointerDown={() => {
-        panel.setActive();
+        activate(panel);
       }}
     >
       <TileBar

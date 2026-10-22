@@ -47,6 +47,7 @@ import {
   WorkspaceContext,
 } from "@/features/workspaces/lib/selection";
 import {
+  activate,
   attach,
   closeStart,
   isShown,
@@ -95,7 +96,7 @@ function StartTile({ api, params }: IDockviewPanelProps<{ folder?: string }>) {
       aria-label="New tile"
       className="flex h-full min-h-0 flex-col"
       onPointerDown={() => {
-        api.setActive();
+        activate(api);
       }}
     >
       <TileBar

@@ -9,7 +9,12 @@ import {
   startDrag,
 } from "@/features/workspaces/lib/drag";
 import { layoutKey, store } from "@/features/workspaces/lib/layouts";
-import { attach, selectWorkspace, sync } from "@/features/workspaces/lib/tiles";
+import {
+  activate,
+  attach,
+  selectWorkspace,
+  sync,
+} from "@/features/workspaces/lib/tiles";
 
 const a = { machine: "m1", id: "a" };
 const b = { machine: "m1", id: "b" };
@@ -118,4 +123,24 @@ test("a dragged tile drops only where it would move", () => {
   startDrag({ machine: "m2", id: "d" });
   expect(canDrop(groupOf(api, "m1:b"), "left")).toBe(false);
   endDrag();
+});
+
+test("activating a tile by pointer keeps its content attached", () => {
+  const api = dockview();
+  sync([a, b], () => false);
+  const tile = api.getPanel("m1:a");
+  if (!tile) {
+    throw new Error("no tile m1:a");
+  }
+
+  const changes = new MutationObserver(() => undefined);
+  changes.observe(document.body, { childList: true, subtree: true });
+  activate(tile.api);
+  const removed = changes
+    .takeRecords()
+    .flatMap(({ removedNodes }) => [...removedNodes]);
+  changes.disconnect();
+
+  expect(removed).toEqual([]);
+  expect(store.getState().active).toEqual(a);
 });

@@ -1,6 +1,7 @@
 import type {
   DockviewApi,
   DockviewGroupPanel,
+  DockviewPanelApi,
   IDockviewPanel,
   Position,
 } from "dockview-react";
@@ -183,6 +184,10 @@ function byPlace(groups: DockviewGroupPanel[]) {
 export function focusTile(number: number) {
   const group = current && byPlace(current.groups)[number - 1];
   group?.activePanel?.focus();
+}
+
+export function activate(panel: DockviewPanelApi) {
+  panel.group.api.setActive();
 }
 
 export function isShown(selection: Selection) {

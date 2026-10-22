@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -33,28 +34,49 @@ pub async fn of(folder: &Path) -> Option<String> {
     .flatten()
 }
 
+#[derive(PartialEq)]
+struct Listing {
+    changed: SystemTime,
+    names: Vec<OsString>,
+}
+
+impl Listing {
+    async fn of(folder: &Path) -> Option<Self> {
+        let changed = fs::metadata(folder).await.ok()?.modified().ok()?;
+        let mut entries = fs::read_dir(folder).await.ok()?;
+        let mut names = Vec::new();
+
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            names.push(entry.file_name());
+        }
+        names.sort();
+
+        Some(Self { changed, names })
+    }
+}
+
 #[derive(Default)]
 pub struct Searches {
-    missed: Mutex<HashMap<String, SystemTime>>,
+    missed: Mutex<HashMap<String, Listing>>,
 }
 
 impl Searches {
     pub async fn find(&self, workspace: &str, folder: &Path, identity: &str) -> Option<PathBuf> {
         let parent = folder.parent()?;
-        let changed = fs::metadata(parent).await.ok()?.modified().ok()?;
-        if self.missed().get(workspace) == Some(&changed) {
+        let listing = Listing::of(parent).await?;
+        if self.missed().get(workspace) == Some(&listing) {
             return None;
         }
 
         let found = find(parent, identity).await;
         if found.is_none() {
-            self.missed().insert(workspace.to_owned(), changed);
+            self.missed().insert(workspace.to_owned(), listing);
         }
 
         found
     }
 
-    fn missed(&self) -> std::sync::MutexGuard<'_, HashMap<String, SystemTime>> {
+    fn missed(&self) -> std::sync::MutexGuard<'_, HashMap<String, Listing>> {
         self.missed.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
@@ -114,6 +136,32 @@ mod tests {
         fs::rename(&moved, dir.path().join("app-back"))
             .await
             .unwrap();
+        assert_eq!(
+            searches.find("1", &before, &identity).await,
+            Some(dir.path().join("app-back"))
+        );
+    }
+
+    #[tokio::test]
+    async fn searches_again_when_the_parent_changes_within_one_clock_tick() {
+        let dir = tempfile::tempdir().unwrap();
+        let away = tempfile::tempdir().unwrap();
+        let before = dir.path().join("app");
+        let moved = away.path().join("app");
+        fs::create_dir(&before).await.unwrap();
+        let identity = of(&before).await.unwrap();
+        let searches = Searches::default();
+
+        fs::rename(&before, &moved).await.unwrap();
+        let changed = filetime::FileTime::from_last_modification_time(
+            &std::fs::metadata(dir.path()).unwrap(),
+        );
+        assert_eq!(searches.find("1", &before, &identity).await, None);
+
+        fs::rename(&moved, dir.path().join("app-back"))
+            .await
+            .unwrap();
+        filetime::set_file_mtime(dir.path(), changed).unwrap();
         assert_eq!(
             searches.find("1", &before, &identity).await,
             Some(dir.path().join("app-back"))

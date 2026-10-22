@@ -82,6 +82,18 @@ pub struct TerminalInputParams {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum Key {
+    ShiftEnter,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct TerminalKeyParams {
+    pub id: String,
+    pub key: Key,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum Scroll {
     Up,
@@ -174,6 +186,14 @@ pub struct TerminalInput;
 impl Method for TerminalInput {
     const NAME: &'static str = "terminals.input";
     type Params = TerminalInputParams;
+    type Result = ();
+}
+
+pub struct TerminalKey;
+
+impl Method for TerminalKey {
+    const NAME: &'static str = "terminals.key";
+    type Params = TerminalKeyParams;
     type Result = ();
 }
 

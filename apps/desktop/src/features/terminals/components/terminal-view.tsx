@@ -12,6 +12,8 @@ import {
 } from "@/features/terminals/components/terminal-status";
 import { appearance } from "@/features/terminals/lib/appearance";
 import { handleClipboard } from "@/features/terminals/lib/clipboard";
+import { showFrames } from "@/features/terminals/lib/frames";
+import { handleKeys } from "@/features/terminals/lib/keys";
 import { openLinks } from "@/features/terminals/lib/links";
 import { measure, same } from "@/features/terminals/lib/size";
 import { watchTerminal } from "@/features/terminals/lib/watch";
@@ -64,7 +66,6 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
     let starting = false;
     let stopWatch: (release?: boolean) => void = () => undefined;
     let sent = measure(fit);
-    let rendering = Promise.resolve();
 
     function resize() {
       const size = measure(fit);
@@ -73,9 +74,16 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       }
 
       sent = size;
-      client.call("terminals.resize", { id, size }).catch((error: unknown) => {
+      attempt(
+        client.call("terminals.resize", { id, size }),
+        "Could not resize the terminal",
+      );
+    }
+
+    function attempt(request: Promise<unknown>, title: string) {
+      request.catch((error: unknown) => {
         if (open && watching) {
-          report("Could not resize the terminal", error);
+          report(title, error);
         }
       });
     }
@@ -126,29 +134,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       show();
     };
 
-    const stopFrames = client.listen("terminals.frame", (frame) => {
-      if (frame.id !== id) {
-        return;
-      }
-
-      rendering = rendering.then(
-        () =>
-          new Promise<void>((resolve) => {
-            if (!open) {
-              resolve();
-              return;
-            }
-
-            if (frame.cols !== terminal.cols || frame.rows !== terminal.rows) {
-              terminal.resize(frame.cols, frame.rows);
-            }
-            if (frame.full) {
-              terminal.write("\x1bc");
-            }
-            terminal.write(decode(frame.data), resolve);
-          }),
-      );
-    });
+    const stopFrames = showFrames(client, id, terminal);
     const stopEnded = client.listen("terminals.ended", (ended) => {
       if (ended.id !== id) {
         return;
@@ -181,15 +167,22 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
         return;
       }
 
-      client.call("terminals.input", { id, data }).catch((error: unknown) => {
-        if (open && watching) {
-          report("Could not send your input", error);
-        }
-      });
+      attempt(
+        client.call("terminals.input", { id, data }),
+        "Could not send your input",
+      );
     }
 
     const typing = terminal.onData(send);
-    const stopClipboard = handleClipboard(terminal, element, {
+    handleKeys(terminal, (key) => {
+      if (watching) {
+        attempt(
+          client.call("terminals.key", { id, key }),
+          "Could not send your input",
+        );
+      }
+    });
+    const stopClipboard = handleClipboard(element, {
       text: send,
       image: async (image, data) => {
         if (!watching) {
@@ -203,17 +196,12 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       },
     });
     scrollOnWheel(terminal, element, (scroll) => {
-      if (!watching) {
-        return;
+      if (watching) {
+        attempt(
+          client.call("terminals.scroll", { id, ...scroll }),
+          "Could not scroll the terminal",
+        );
       }
-
-      client
-        .call("terminals.scroll", { id, ...scroll })
-        .catch((error: unknown) => {
-          if (open && watching) {
-            report("Could not scroll the terminal", error);
-          }
-        });
     });
     const focusing = panel.onWillFocus(() => {
       terminal.focus();
@@ -282,10 +270,6 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       </div>
     </div>
   );
-}
-
-function decode(data: string) {
-  return Uint8Array.from(atob(data), (char) => char.charCodeAt(0));
 }
 
 function report(title: string, error: unknown) {

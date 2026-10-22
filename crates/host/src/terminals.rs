@@ -13,18 +13,19 @@ use futures_util::future::join_all;
 use protocol::agents::Agent;
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::terminals::{
-    CloseTerminal, CreateTerminal, CreateTerminalParams, PasteImage, PasteImageParams,
+    CloseTerminal, CreateTerminal, CreateTerminalParams, Key, PasteImage, PasteImageParams,
     ResizeTerminal, ScrollTerminal, ScrollTerminalParams, Status, Terminal, TerminalInput,
-    TerminalInputParams, UnwatchTerminal, ViewTerminal, WatchTerminal, WatchTerminalParams,
+    TerminalInputParams, TerminalKey, TerminalKeyParams, UnwatchTerminal, ViewTerminal,
+    WatchTerminal, WatchTerminalParams,
 };
 use tokio::sync::mpsc;
 
 use crate::folders;
-use crate::rpc::{Handler, Router, cancelled, failure};
+use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
 pub use changes::count;
 use launch::{label, path_with, start};
-use stream::{Control, watch};
+use stream::Control;
 pub use tracker::Tracker;
 
 #[derive(Default)]
@@ -58,6 +59,7 @@ pub fn register(router: &mut Router) {
     router.add::<WatchTerminal>();
     router.add::<UnwatchTerminal>();
     router.add::<TerminalInput>();
+    router.add::<TerminalKey>();
     router.add::<ResizeTerminal>();
     router.add::<ScrollTerminal>();
     router.add::<PasteImage>();
@@ -171,34 +173,7 @@ impl Handler for CloseTerminal {
 
 impl Handler for WatchTerminal {
     async fn handle(session: &Session, params: WatchTerminalParams) -> Result<(), Failure> {
-        let herdr = session.herdr().await?;
-        let pane = herdr
-            .client()
-            .panes()
-            .await
-            .map_err(failure)?
-            .into_iter()
-            .find(|pane| pane.workspace == params.id)
-            .ok_or_else(|| Failure::new(SERVER_ERROR, "the terminal is gone"))?;
-        let stream = herdr_client::Terminal::open(
-            herdr.program(),
-            &herdr.socket(),
-            &pane.id,
-            params.size.cols,
-            params.size.rows,
-        )
-        .map_err(failure)?;
-
-        let (controls, receiver) = mpsc::unbounded_channel();
-        let mut watches = session.terminals.lock();
-        if session.is_closed() {
-            return Err(cancelled());
-        }
-        watches.insert(params.id.clone(), controls);
-        drop(watches);
-        tokio::spawn(watch(stream, params.id, receiver, session.frames.clone()));
-
-        Ok(())
+        stream::open(session, params).await
     }
 }
 
@@ -224,6 +199,21 @@ impl Handler for TerminalInput {
                 .terminals
                 .send(&params.id, Control::Input(params.data.into_bytes())),
         )
+    }
+}
+
+impl Handler for TerminalKey {
+    const ORDERED: bool = true;
+
+    fn handle(
+        session: &Session,
+        params: TerminalKeyParams,
+    ) -> impl Future<Output = Result<(), Failure>> + Send {
+        let key = match params.key {
+            Key::ShiftEnter => herdr_client::Key::ShiftEnter,
+        };
+
+        future::ready(session.terminals.send(&params.id, Control::Key(key)))
     }
 }
 

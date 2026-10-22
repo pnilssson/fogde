@@ -1,7 +1,4 @@
-import type { Terminal } from "@xterm/xterm";
-
 import { type Image, imageLimit } from "@/generated/protocol";
-import { frame } from "@/lib/frame";
 
 const images: Partial<Record<string, Image>> = {
   "image/png": "png",
@@ -16,11 +13,7 @@ interface Paste {
   failed: (error: unknown) => void;
 }
 
-export function handleClipboard(
-  terminal: Terminal,
-  element: HTMLElement,
-  paste: Paste,
-) {
+export function handleClipboard(element: HTMLElement, paste: Paste) {
   let queue = Promise.resolve();
 
   const attach = (files: File[]) => {
@@ -47,32 +40,6 @@ export function handleClipboard(
         .catch(paste.failed);
     }
   };
-
-  terminal.attachCustomKeyEventHandler((event) => {
-    if (
-      frame.platform === "macos" ||
-      !event.ctrlKey ||
-      event.altKey ||
-      event.metaKey
-    ) {
-      return true;
-    }
-
-    const key = event.key.toLowerCase();
-    if (key === "v") {
-      return false;
-    }
-    if (key === "c" && !event.shiftKey && terminal.hasSelection()) {
-      if (event.type === "keydown") {
-        setTimeout(() => {
-          terminal.clearSelection();
-        });
-      }
-      return false;
-    }
-
-    return true;
-  });
 
   const pasted = (event: ClipboardEvent) => {
     event.preventDefault();

@@ -24,6 +24,12 @@ pub struct Pane {
     pub stripped: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+pub enum Key {
+    #[serde(rename = "shift+enter")]
+    ShiftEnter,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Status {
@@ -55,6 +61,19 @@ impl Client {
 
         Ok(())
     }
+
+    pub async fn send_keys(&self, pane: &str, keys: &[Key]) -> Result<(), Error> {
+        self.request::<IgnoredAny>(
+            "pane.send_keys",
+            Keys {
+                pane_id: pane,
+                keys,
+            },
+        )
+        .await?;
+
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]
@@ -65,6 +84,12 @@ struct PaneList {
 #[derive(Serialize)]
 struct Focus<'a> {
     pane_id: &'a str,
+}
+
+#[derive(Serialize)]
+struct Keys<'a> {
+    pane_id: &'a str,
+    keys: &'a [Key],
 }
 
 #[cfg(test)]
@@ -101,6 +126,20 @@ mod tests {
                     stripped: None,
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn writes_send_keys() {
+        let keys = serde_json::to_value(Keys {
+            pane_id: "w3:p1",
+            keys: &[Key::ShiftEnter],
+        })
+        .unwrap();
+
+        assert_eq!(
+            keys,
+            serde_json::json!({"pane_id": "w3:p1", "keys": ["shift+enter"]})
         );
     }
 

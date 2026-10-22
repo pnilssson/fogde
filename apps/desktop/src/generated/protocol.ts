@@ -38,6 +38,8 @@ export type Frame = { platform: Platform, translucent: boolean, };
 
 export type Image = "png" | "jpeg" | "gif" | "webp";
 
+export type Key = "shiftEnter";
+
 export type Machine = { "kind": "computer", name: string, connected: boolean, } | { "kind": "server", id: string, name: string, target: string, connected: boolean, };
 
 export type MachineId = { "kind": "computer" } | { "kind": "server", id: string, };
@@ -88,6 +90,8 @@ export type TerminalFrame = { id: string, cols: number, rows: number, full: bool
 
 export type TerminalInputParams = { id: string, data: string, };
 
+export type TerminalKeyParams = { id: string, key: Key, };
+
 export type TerminalState = { id: string, name: string, agent: Agent | null, status: Status, folder: string, branch: string | null, changes: Changes | null, };
 
 export type Theme = "system" | "light" | "dark";
@@ -136,6 +140,7 @@ export type Methods = {
   "terminals.close": { params: string; result: null };
   "terminals.create": { params: CreateTerminalParams; result: Terminal };
   "terminals.input": { params: TerminalInputParams; result: null };
+  "terminals.key": { params: TerminalKeyParams; result: null };
   "terminals.pasteImage": { params: PasteImageParams; result: null };
   "terminals.resize": { params: WatchTerminalParams; result: null };
   "terminals.scroll": { params: ScrollTerminalParams; result: null };

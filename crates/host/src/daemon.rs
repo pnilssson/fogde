@@ -219,7 +219,7 @@ async fn service(exe: &Path, build: &str) -> bool {
         "--collect".into(),
         "--quiet".into(),
     ];
-    for name in ["HOME", "PATH"] {
+    for name in ["HOME", "PATH", "FOGDE_HOME"] {
         if let Some(value) = std::env::var_os(name) {
             let mut setting = std::ffi::OsString::from(format!("--setenv={name}="));
             setting.push(value);

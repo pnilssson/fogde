@@ -46,7 +46,10 @@ async fn open(shared: &Shared, id: &str) -> Result<Tunnel, Failure> {
         triple: server.triple,
     };
 
-    target.open(&system, binaries).await.map_err(unreachable)
+    target
+        .open(&system, binaries, shared.home())
+        .await
+        .map_err(unreachable)
 }
 
 pub fn unreachable(error: remote::Error) -> Failure {

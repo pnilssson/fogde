@@ -1,0 +1,5 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Fogde Dev",
+  "identifier": "dev.fogde.app.dev"
+}

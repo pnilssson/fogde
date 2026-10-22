@@ -75,7 +75,7 @@ impl Handler for SetUpServer {
         };
 
         let tunnel = server
-            .open(&system, binaries)
+            .open(&system, binaries, session.shared.home())
             .await
             .map_err(relay::unreachable)?;
         let id = tunnel.host.clone();

@@ -17,7 +17,7 @@ cargo binstall cargo-deny cargo-shear cargo-nextest typos-cli zizmor cargo-zigbu
 npm ci --prefix apps/desktop
 ```
 
-Run the desktop app with `just dev`.
+Run the desktop app with `just dev`. It keeps its data in `~/Fogde-dev`, apart from an installed Fogde in `~/Fogde`.
 
 Run `just check` before committing. It runs formatting, Clippy, ESLint, TypeScript, tests, the file length limit, cargo-deny, cargo-shear, typos, zizmor and Knip.
 

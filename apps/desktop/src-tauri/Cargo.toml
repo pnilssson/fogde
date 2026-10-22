@@ -12,10 +12,13 @@ tauri-build.workspace = true
 anyhow.workspace = true
 host.workspace = true
 protocol.workspace = true
+serde_json.workspace = true
 tauri = { workspace = true, features = ["macos-private-api"] }
 tauri-plugin-dialog.workspace = true
 tauri-plugin-notification.workspace = true
 tauri-plugin-opener.workspace = true
+tauri-plugin-process.workspace = true
+tauri-plugin-updater.workspace = true
 tauri-plugin-window-state.workspace = true
 tracing.workspace = true
 
@@ -24,3 +27,6 @@ windows-version.workspace = true
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-shear]
+ignored = ["serde_json"]

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use github::Gh;
@@ -76,6 +76,10 @@ impl Shared {
             .unwrap_or_else(|| self.fogde.join("repos")))
     }
 
+    pub fn home(&self) -> &Path {
+        &self.fogde
+    }
+
     pub fn images(&self) -> PathBuf {
         self.fogde.join(".app").join("images")
     }
@@ -91,6 +95,10 @@ impl Shared {
 }
 
 pub fn fogde() -> io::Result<PathBuf> {
+    if let Some(home) = std::env::var_os("FOGDE_HOME") {
+        return Ok(PathBuf::from(home));
+    }
+
     std::env::home_dir()
         .map(|home| home.join("Fogde"))
         .ok_or_else(|| io::Error::other("could not find the home folder"))

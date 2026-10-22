@@ -4,6 +4,7 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { UpdateButton } from "@/components/update-button";
 import { MachineGroup } from "@/features/workspaces/components/machine-group";
 import { SearchButton } from "@/features/workspaces/components/search-button";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
@@ -51,6 +52,7 @@ export function WorkspaceSidebar({
           />
         ))}
       </SidebarContent>
+      <UpdateButton />
     </Sidebar>
   );
 }

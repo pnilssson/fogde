@@ -59,6 +59,7 @@ impl Herdr {
             .env("XDG_STATE_HOME", herdr.home.join("state"))
             .env_remove("HERDR_SOCKET_PATH")
             .env_remove("HERDR_SESSION")
+            .env_remove("FOGDE_HOME")
             .spawn()
             .map_err(Error::Start)?;
         herdr.wait(true).await?;

@@ -26,14 +26,21 @@ fn home(name: &str) -> io::Result<PathBuf> {
     Ok(home)
 }
 
-fn proxy(home: &Path, build: &str) -> io::Result<Child> {
-    Command::new(env!("CARGO_BIN_EXE_fogde-host"))
+fn command(home: &Path, build: &str) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_fogde-host"));
+    command
         .args(["proxy", "--build", build])
         .env("HOME", home)
+        .env_remove("FOGDE_HOME")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .kill_on_drop(true)
-        .spawn()
+        .kill_on_drop(true);
+
+    command
+}
+
+fn proxy(home: &Path, build: &str) -> io::Result<Child> {
+    command(home, build).spawn()
 }
 
 async fn open(child: &mut Child, build: &str, version: &str) -> Result<(Socket, String), Error> {
@@ -116,6 +123,31 @@ async fn refuses_an_older_app_and_keeps_running() {
 
     assert_eq!(ask(&mut kept, PING).await.unwrap()["result"], json!(false));
 
+    stop(&home).await;
+}
+
+#[tokio::test]
+async fn runs_a_separate_host_for_each_folder() {
+    let home = home("folders").unwrap();
+    let dev = home.join("app-dev");
+    let mut first = proxy(&home, "one").unwrap();
+    let (mut main, _) = open(&mut first, "one", VERSION).await.unwrap();
+
+    let mut second = command(&home, "two")
+        .env("FOGDE_HOME", &dev)
+        .spawn()
+        .unwrap();
+    let (mut other, _) = open(&mut second, "two", "0.0.0").await.unwrap();
+
+    assert_eq!(ask(&mut main, PING).await.unwrap()["result"], json!(false));
+    assert_eq!(ask(&mut other, PING).await.unwrap()["result"], json!(false));
+    assert!(dev.join(".app/host.sock").exists());
+
+    let mut stopping = command(&home, "stop")
+        .env("FOGDE_HOME", &dev)
+        .spawn()
+        .unwrap();
+    let _ = open(&mut stopping, "stop", VERSION).await;
     stop(&home).await;
 }
 

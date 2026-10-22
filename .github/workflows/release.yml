@@ -1,0 +1,164 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: $/.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  draft:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      id: ${{ steps.draft.outputs.id }}
+      version: ${{ steps.draft.outputs.version }}
+    steps:
+      - id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN: ${{ github.run_number }}
+        run: |
+          version="0.1.$RUN"
+          id=$(gh api "repos/$REPO/releases" -f tag_name="v$version" -f target_commitish="$SHA" -f name="Fogde $version" -F draft=true --jq .id)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+  hosts:
+    needs: draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - env:
+          VERSION: ${{ needs.draft.outputs.version }}
+        run: perl -pi -e 's/^version = ".*"$/version = "$ENV{VERSION}"/' Cargo.toml
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: 0.17.0
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: just,cargo-zigbuild
+      - run: just server
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hosts
+          path: |
+            target/x86_64-unknown-linux-musl/release/fogde-host
+            target/aarch64-unknown-linux-musl/release/fogde-host
+          if-no-files-found: error
+
+  build:
+    needs: [draft, hosts]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: ""
+          - os: macos-latest
+            args: --target universal-apple-darwin
+          - os: ubuntu-22.04
+            args: ""
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - shell: bash
+        env:
+          VERSION: ${{ needs.draft.outputs.version }}
+        run: perl -pi -e 's/^version = ".*"$/version = "$ENV{VERSION}"/' Cargo.toml
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf xdg-utils
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/*
+      - run: npm ci --prefix apps/desktop
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: hosts
+          path: target
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          releaseId: ${{ needs.draft.outputs.id }}
+          uploadUpdaterJson: false
+          args: >-
+            --config src-tauri/tauri.release.conf.json
+            --config '{"bundle":{"createUpdaterArtifacts":true}}'
+            ${{ matrix.args }}
+
+  publish:
+    needs: [draft, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ID: ${{ needs.draft.outputs.id }}
+          VERSION: ${{ needs.draft.outputs.version }}
+        run: |
+          shopt -s inherit_errexit
+          assets=$(gh api "repos/$REPO/releases/$ID/assets?per_page=100")
+          entry() {
+            local name id signature
+            name=$(jq -er --arg suffix "$1" 'map(select(.name | endswith($suffix))) | .[0].name' <<<"$assets")
+            id=$(jq -er --arg sig "$name.sig" 'map(select(.name == $sig)) | .[0].id' <<<"$assets")
+            signature=$(gh api -H "Accept: application/octet-stream" "repos/$REPO/releases/assets/$id")
+            jq -n --arg url "https://github.com/$REPO/releases/download/v$VERSION/$name" --arg signature "$signature" '{url: $url, signature: $signature}'
+          }
+          windows=$(entry -setup.exe)
+          mac=$(entry .app.tar.gz)
+          linux=$(entry .AppImage)
+          jq -n --arg version "$VERSION" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --argjson windows "$windows" --argjson mac "$mac" --argjson linux "$linux" \
+            '{version: $version, pub_date: $date, platforms: {"windows-x86_64": $windows, "darwin-aarch64": $mac, "darwin-x86_64": $mac, "linux-x86_64": $linux}}' > latest.json
+          gh api -X POST "https://uploads.github.com/repos/$REPO/releases/$ID/assets?name=latest.json" \
+            -H "Content-Type: application/json" --input latest.json > /dev/null
+          gh api -X PATCH "repos/$REPO/releases/$ID" -F draft=false -f make_latest=true > /dev/null
+
+  discard:
+    needs: [draft, build, publish]
+    if: failure() && needs.draft.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ID: ${{ needs.draft.outputs.id }}
+        run: gh api -X DELETE "repos/$REPO/releases/$ID"

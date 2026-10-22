@@ -3,8 +3,9 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
 default:
     @just --list
 
+[env("FOGDE_HOME", home_directory() / "Fogde-dev")]
 dev: server
-    npm run --prefix apps/desktop tauri dev
+    npm run --prefix apps/desktop tauri dev -- --config src-tauri/tauri.dev.conf.json
 
 # The host for 64-bit Linux servers, which the app installs over SSH. Zig cross-compiles its C parts.
 server:

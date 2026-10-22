@@ -19,6 +19,8 @@
     "notification:allow-notify",
     "notification:allow-register-listener",
     "notification:allow-remove-listener",
-    "opener:default"
+    "opener:default",
+    "process:allow-restart",
+    "updater:default"
   ]
 }

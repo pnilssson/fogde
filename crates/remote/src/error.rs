@@ -32,6 +32,11 @@ pub enum Error {
     #[error("the connection to the server failed: {0}")]
     Tunnel(String),
 
+    #[error(
+        "servers need a Fogde folder named with only letters, digits, '-', '_' and '.', not {0}"
+    )]
+    Folder(String),
+
     #[error("could not run SSH")]
     Io(#[from] io::Error),
 }

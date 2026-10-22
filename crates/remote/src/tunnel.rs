@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
@@ -88,21 +88,25 @@ enum Attempt {
     Failed(Error),
 }
 
-const BIN: &str = "$HOME/Fogde/.app/bin";
-
 pub const HOST_HEADER: &str = "fogde-host";
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 impl Server {
-    pub async fn open(&self, system: &System, binaries: &Binaries) -> Result<Tunnel, Error> {
+    pub async fn open(
+        &self,
+        system: &System,
+        binaries: &Binaries,
+        home: &Path,
+    ) -> Result<Tunnel, Error> {
+        let folder = folder(home)?;
         let build = binaries.build(&system.triple).await?;
 
-        let attempt = match self.connect(&build).await {
+        let attempt = match self.connect(&build, folder).await {
             Err(Attempt::NotInstalled) => {
-                self.install(&binaries.read(&system.triple).await?, &build)
+                self.install(&binaries.read(&system.triple).await?, &build, folder)
                     .await?;
-                self.connect(&build).await
+                self.connect(&build, folder).await
             }
             attempt => attempt,
         };
@@ -114,9 +118,9 @@ impl Server {
         })
     }
 
-    async fn connect(&self, build: &str) -> Result<Tunnel, Attempt> {
+    async fn connect(&self, build: &str, folder: &str) -> Result<Tunnel, Attempt> {
         for _ in 0..10 {
-            match self.attempt(build).await {
+            match self.attempt(build, folder).await {
                 Err(Attempt::Restarting) => tokio::time::sleep(Duration::from_millis(300)).await,
                 attempt => return attempt,
             }
@@ -125,8 +129,10 @@ impl Server {
         Err(Attempt::Restarting)
     }
 
-    async fn attempt(&self, build: &str) -> Result<Tunnel, Attempt> {
-        let script = format!("exec \"{BIN}/fogde-host-{build}\" proxy --build {build}");
+    async fn attempt(&self, build: &str, folder: &str) -> Result<Tunnel, Attempt> {
+        let script = format!(
+            "export FOGDE_HOME=\"$HOME/{folder}\"; exec \"$FOGDE_HOME/.app/bin/fogde-host-{build}\" proxy --build {build}"
+        );
         let mut ssh = self
             .command(&[], &script)
             .stdin(Stdio::piped())
@@ -198,9 +204,9 @@ impl Server {
         }
     }
 
-    async fn install(&self, binary: &[u8], build: &str) -> Result<(), Error> {
+    async fn install(&self, binary: &[u8], build: &str, folder: &str) -> Result<(), Error> {
         let script = format!(
-            "d=\"{BIN}\"; f=\"$d/fogde-host-{build}\"; mkdir -p \"$d\" && cat > \"$f.partial\" && chmod 700 \"$f.partial\" && mv \"$f.partial\" \"$f\""
+            "d=\"$HOME/{folder}/.app/bin\"; f=\"$d/fogde-host-{build}\"; mkdir -p \"$d\" && cat > \"$f.partial\" && chmod 700 \"$f.partial\" && mv \"$f.partial\" \"$f\""
         );
         let mut ssh = self
             .command(&[], &script)
@@ -227,6 +233,16 @@ impl Server {
     }
 }
 
+fn folder(home: &Path) -> Result<&str, Error> {
+    let name = home.file_name().and_then(|name| name.to_str());
+
+    name.filter(|name| {
+        name.chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+    })
+    .ok_or_else(|| Error::Folder(home.display().to_string()))
+}
+
 fn build(binary: &[u8]) -> String {
     Sha256::digest(binary)
         .iter()
@@ -246,5 +262,13 @@ mod tests {
         assert_eq!(build(b"fogde"), build(b"fogde"));
         assert_ne!(build(b"fogde"), build(b"fogde2"));
         assert_eq!(build(b"fogde").len(), 16);
+    }
+
+    #[test]
+    fn uses_the_folder_name_only_when_the_shell_can_take_it() {
+        assert_eq!(folder(Path::new("/home/jo/app-dev")).unwrap(), "app-dev");
+        assert!(folder(Path::new("/home/jo/app dev")).is_err());
+        assert!(folder(Path::new("/home/jo/app';rm")).is_err());
+        assert!(folder(Path::new("/home/jo/äpp")).is_err());
     }
 }

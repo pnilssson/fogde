@@ -11,7 +11,8 @@
   "app": {
     "macOSPrivateApi": true,
     "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost ws://127.0.0.1:*"
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost ws://127.0.0.1:*",
+      "dangerousDisableAssetCspModification": ["style-src"]
     }
   },
   "plugins": {

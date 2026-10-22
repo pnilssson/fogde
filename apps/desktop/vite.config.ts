@@ -5,6 +5,10 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+import tauri from "./src-tauri/tauri.conf.json" with { type: "json" };
+
+const csp = `${tauri.app.security.csp.replace("connect-src", "connect-src 'self'")}; script-src 'self' 'unsafe-inline'`;
+
 export default defineConfig({
   plugins: [
     tanstackRouter({
@@ -24,6 +28,9 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    headers: {
+      "Content-Security-Policy": csp,
+    },
     watch: {
       ignored: ["**/src-tauri/**"],
     },

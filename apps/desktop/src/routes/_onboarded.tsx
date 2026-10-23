@@ -5,6 +5,7 @@ import { StatusBar } from "@/components/status-bar";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { onboardedQuery } from "@/features/onboarding/api/onboarding";
 import { SettingsDialog } from "@/features/settings/components/settings-dialog";
+import { UsageMeters } from "@/features/usage/components/usage-meters";
 import { CommandPalette } from "@/features/workspaces/components/command-palette";
 import { WorkspaceSidebar } from "@/features/workspaces/components/workspace-sidebar";
 import { useAttention } from "@/features/workspaces/hooks/use-attention";
@@ -94,7 +95,10 @@ export const Route = createFileRoute("/_onboarded")({
               <Outlet />
             </SidebarInset>
           </div>
-          <StatusBar start={<SettingsDialog />} />
+          <StatusBar
+            start={<SettingsDialog />}
+            end={<UsageMeters machines={machines} />}
+          />
           <CommandPalette />
         </div>
       </WorkspaceContext>

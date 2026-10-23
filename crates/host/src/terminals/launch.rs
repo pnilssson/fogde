@@ -8,14 +8,20 @@ use tokio::sync::mpsc;
 
 use crate::rpc::notify;
 
-pub fn start(client: Client, pane: &Pane, agent: Agent, outgoing: mpsc::UnboundedSender<Message>) {
+pub fn start(
+    client: Client,
+    pane: &Pane,
+    agent: Agent,
+    args: Vec<String>,
+    outgoing: mpsc::UnboundedSender<Message>,
+) {
     let kind = kind(agent);
     let name = format!("{kind}-{}", pane.workspace.to_lowercase());
     let id = pane.workspace.clone();
     let pane = pane.id.clone();
 
     tokio::spawn(async move {
-        let Err(error) = client.start_agent(&name, kind, &pane).await else {
+        let Err(error) = client.start_agent(&name, kind, &pane, &args).await else {
             return;
         };
 

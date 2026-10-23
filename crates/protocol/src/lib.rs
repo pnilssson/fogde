@@ -15,6 +15,7 @@ pub mod server;
 pub mod stats;
 pub mod terminals;
 pub mod theme;
+pub mod usage;
 pub mod workspaces;
 pub mod worktrees;
 

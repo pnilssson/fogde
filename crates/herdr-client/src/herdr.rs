@@ -53,12 +53,9 @@ impl Herdr {
             herdr.wait(false).await?;
         }
 
-        process::detached(&herdr.program)
-            .arg("server")
+        process::detached(&herdr.program, &["server"])
             .env("XDG_CONFIG_HOME", herdr.config())
             .env("XDG_STATE_HOME", herdr.home.join("state"))
-            .env_remove("HERDR_SOCKET_PATH")
-            .env_remove("HERDR_SESSION")
             .env_remove("FOGDE_HOME")
             .spawn()
             .map_err(Error::Start)?;

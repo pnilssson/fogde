@@ -1,3 +1,5 @@
+mod binary;
+
 use std::fs::{File, Permissions, TryLockError};
 use std::io;
 use std::os::unix::fs::PermissionsExt;
@@ -21,6 +23,8 @@ use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::Notify;
 
 use crate::shared::{self, Shared};
+pub use binary::link;
+use binary::{prune, relink};
 
 struct Daemon {
     shared: Arc<Shared>,
@@ -45,6 +49,9 @@ pub async fn serve(build: String) -> io::Result<()> {
     let lock = claim(&app.join("host.lock")).await?;
     let _ = fs::remove_file(&path).await;
     prune(&app.join("bin"), &build).await;
+    if let Err(error) = relink(&std::env::current_exe()?).await {
+        tracing::warn!(%error, "could not link the host program");
+    }
     let id = HeaderValue::from_str(&identity(&app.join("id")).await?).map_err(io::Error::other)?;
 
     let listener = UnixListener::bind(&path)?;
@@ -141,20 +148,6 @@ async fn identity(path: &Path) -> io::Result<String> {
     fs::write(path, &id).await?;
 
     Ok(id)
-}
-
-async fn prune(bin: &Path, build: &str) {
-    let Ok(mut entries) = fs::read_dir(bin).await else {
-        return;
-    };
-    let current = format!("fogde-host-{build}");
-
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if name.starts_with("fogde-host-") && !name.ends_with(".partial") && name != current {
-            let _ = fs::remove_file(entry.path()).await;
-        }
-    }
 }
 
 async fn claim(path: &Path) -> io::Result<File> {

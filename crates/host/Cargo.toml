@@ -19,13 +19,14 @@ getrandom.workspace = true
 git.workspace = true
 github.workspace = true
 herdr-client.workspace = true
+process.workspace = true
 protocol.workspace = true
 remote.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sqlx.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["fs", "io-std", "io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { workspace = true, features = ["fs", "io-std", "io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-tungstenite.workspace = true
 tracing.workspace = true
 tracing-appender.workspace = true

@@ -24,7 +24,8 @@ use crate::folders;
 use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
 pub use changes::count;
-use launch::{label, path_with, start};
+pub use launch::path_with;
+use launch::{label, start};
 use stream::Control;
 pub use tracker::Tracker;
 
@@ -119,8 +120,15 @@ impl Handler for CreateTerminal {
         let folder = folders::absolute(&params.folder).map_err(failure)?;
         let name = label(params.agent);
         let mut env = herdr.pane_env().clone();
-        if matches!(params.agent, Some(Agent::Copilot)) {
-            env.insert("PATH".to_owned(), path_with(session.gh().await?.program()));
+        let mut args = Vec::new();
+        match params.agent {
+            Some(Agent::Copilot) => {
+                env.insert("PATH".to_owned(), path_with(session.gh().await?.program()));
+            }
+            Some(Agent::Claude) => {
+                args = crate::usage::launch(&session.shared, &folder, &mut env).await;
+            }
+            _ => {}
         }
 
         let checkouts = crate::workspaces::checkouts(&folder).await;
@@ -141,7 +149,7 @@ impl Handler for CreateTerminal {
         .await?;
         drop(placing);
         if let Some(agent) = params.agent {
-            start(herdr.client(), &pane, agent, session.outgoing.clone());
+            start(herdr.client(), &pane, agent, args, session.outgoing.clone());
         }
 
         Ok(Terminal {

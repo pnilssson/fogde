@@ -1,6 +1,7 @@
 mod agent;
 mod error;
 mod install;
+pub mod limits;
 mod signin;
 mod status;
 

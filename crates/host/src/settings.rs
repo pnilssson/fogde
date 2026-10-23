@@ -5,6 +5,7 @@ use protocol::accessibility::Accessibility;
 use protocol::notifications::Notifications;
 use protocol::stats::Stats;
 use protocol::theme::{Material, Theme};
+use protocol::usage::Shown;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tokio::sync::Mutex;
@@ -25,6 +26,8 @@ struct Values {
     accessibility: Accessibility,
     #[serde(default)]
     stats: Stats,
+    #[serde(default)]
+    shown: Shown,
 }
 
 pub struct Settings {
@@ -98,6 +101,14 @@ impl Settings {
         self.update(|values| values.stats = stats).await
     }
 
+    pub async fn shown(&self) -> io::Result<Shown> {
+        Ok(self.load().await?.shown)
+    }
+
+    pub async fn set_shown(&self, shown: Shown) -> io::Result<()> {
+        self.update(|values| values.shown = shown).await
+    }
+
     async fn load(&self) -> io::Result<Values> {
         match fs::read(&self.path).await {
             Ok(bytes) => serde_json::from_slice(&bytes).map_err(io::Error::other),
@@ -157,6 +168,11 @@ mod tests {
             screen_reader: true,
         };
         settings.set_accessibility(reader).await.unwrap();
+        let quiet_codex = Shown {
+            codex: false,
+            ..Shown::default()
+        };
+        settings.set_shown(quiet_codex).await.unwrap();
 
         let reopened = Settings::new(&app);
         assert!(reopened.onboarded().await.unwrap());
@@ -165,5 +181,6 @@ mod tests {
         assert_eq!(reopened.material().await.unwrap(), Material::Solid);
         assert_eq!(reopened.notifications().await.unwrap(), quiet);
         assert_eq!(reopened.accessibility().await.unwrap(), reader);
+        assert_eq!(reopened.shown().await.unwrap(), quiet_codex);
     }
 }

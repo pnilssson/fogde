@@ -8,5 +8,8 @@ publish.workspace = true
 [dependencies]
 tokio = { workspace = true, features = ["process"] }
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "process", "rt"] }
+
 [lints]
 workspace = true

@@ -70,9 +70,13 @@ export type ServerCheck = { "state": "ready" } | { "state": "untrusted", fingerp
 
 export type ServerCheckParams = { target: string, trust: string | null, };
 
+export type Shown = { claude: boolean, codex: boolean, copilot: boolean, };
+
 export type SignInCode = { code: string, url: string, };
 
 export type Size = { cols: number, rows: number, };
+
+export type Span = "session" | "week" | "month";
 
 export type SshKey = { name: string, fingerprint: string, };
 
@@ -96,7 +100,11 @@ export type TerminalState = { id: string, name: string, agent: Agent | null, sta
 
 export type Theme = "system" | "light" | "dark";
 
+export type Usage = { agent: Agent, windows: Array<Window>, at: number, };
+
 export type WatchTerminalParams = { id: string, size: Size, };
+
+export type Window = { span: Span, left: number, resets: number, };
 
 export type Workspace = { id: string, name: string, folder: string, missing: boolean, checkouts: Array<Checkout>, terminals: Array<Terminal>, };
 
@@ -151,6 +159,9 @@ export type Methods = {
   "theme.getMaterial": { params: null; result: Material };
   "theme.set": { params: Theme; result: null };
   "theme.setMaterial": { params: Material; result: null };
+  "usage.getShown": { params: null; result: Shown };
+  "usage.list": { params: null; result: Array<Usage> };
+  "usage.setShown": { params: Shown; result: null };
   "workspaces.create": { params: string; result: Workspace };
   "workspaces.delete": { params: string; result: null };
   "workspaces.list": { params: null; result: Array<Workspace> };
@@ -165,6 +176,7 @@ export type Events = {
   "terminals.failed": TerminalFailed;
   "terminals.state": TerminalState;
   "workspaces.changed": null;
+  "usage.changed": Array<Usage>;
 };
 
 export const offline = -32001;

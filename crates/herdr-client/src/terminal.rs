@@ -136,9 +136,7 @@ impl Terminal {
 
 fn command(herdr: &Path, socket: &Path) -> Command {
     let mut command = process::command(herdr);
-    command
-        .env("HERDR_SOCKET_PATH", socket)
-        .env_remove("HERDR_SESSION");
+    command.env("HERDR_SOCKET_PATH", socket);
 
     command
 }

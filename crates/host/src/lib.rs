@@ -22,6 +22,7 @@ mod stats;
 mod terminals;
 mod theme;
 mod token;
+mod usage;
 mod workspaces;
 mod worktrees;
 
@@ -31,3 +32,4 @@ pub use logs::log;
 pub use remote::Binaries;
 pub use shared::fogde;
 pub use socket::start;
+pub use usage::report;

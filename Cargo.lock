@@ -1849,6 +1849,7 @@ dependencies = [
  "git",
  "github",
  "herdr-client",
+ "process",
  "protocol",
  "remote",
  "semver",

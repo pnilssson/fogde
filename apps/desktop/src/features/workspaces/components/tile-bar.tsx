@@ -9,15 +9,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { BranchStats } from "@/features/workspaces/components/branch-stats";
+import { StateIcon } from "@/features/workspaces/components/state-icon";
 import { useActiveClose } from "@/features/workspaces/lib/closing";
 import { type Dragged, dragProps } from "@/features/workspaces/lib/drag";
-import type { Changes } from "@/generated/protocol";
+import type { Changes, Status } from "@/generated/protocol";
 
 interface Props {
   item: Dragged | undefined;
   active: boolean;
   icon: ReactNode;
   title: string;
+  status?: Status | undefined;
   place?: Place | undefined;
   branch?: string | null | undefined;
   changes?: Changes | null | undefined;
@@ -34,6 +36,7 @@ export function TileBar({
   active,
   icon,
   title,
+  status,
   place,
   branch,
   changes,
@@ -51,7 +54,10 @@ export function TileBar({
       )}
     >
       {icon}
-      <span className="min-w-0 flex-1 truncate">{title}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="truncate">{title}</span>
+        {status && <StateIcon status={status} />}
+      </div>
       {place && (
         <Tooltip>
           <TooltipTrigger

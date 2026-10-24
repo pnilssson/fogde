@@ -144,3 +144,15 @@ test("activating a tile by pointer keeps its content attached", () => {
   expect(removed).toEqual([]);
   expect(store.getState().active).toEqual(a);
 });
+
+test("opening a workspace focuses only its first terminal", () => {
+  dockview();
+  const focused: (string | undefined)[] = [];
+  const stop = store.subscribe(({ active }) => focused.push(active?.id));
+
+  sync([a, b, c], () => false);
+  stop();
+
+  expect(focused.filter((id) => id !== undefined)).toEqual(["a"]);
+  expect(store.getState().active).toEqual(a);
+});

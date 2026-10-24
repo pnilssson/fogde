@@ -1,4 +1,13 @@
+import { Field } from "@base-ui/react/field";
+import { InfoIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SectionProps {
   id: string;
@@ -24,6 +33,7 @@ export function SettingsSection({ id, title, action, children }: SectionProps) {
 interface RowProps {
   label: ReactNode;
   leading?: ReactNode;
+  hint?: string;
   labelled?: boolean;
   children: ReactNode;
 }
@@ -31,15 +41,35 @@ interface RowProps {
 export function SettingsRow({
   label,
   leading,
+  hint,
   labelled = false,
   children,
 }: RowProps) {
-  const Root = labelled ? "label" : "div";
+  const Root = labelled ? Field.Root : "div";
+  const Label = labelled ? Field.Label : "span";
 
   return (
     <Root className="flex h-8 items-center gap-2">
       {leading}
-      <span className="min-w-0 flex-1 truncate type-body">{label}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-1">
+        <Label className="min-w-0 truncate type-body">{label}</Label>
+        {hint && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="More information"
+                />
+              }
+            >
+              <InfoIcon />
+            </TooltipTrigger>
+            <TooltipContent>{hint}</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
       {children}
     </Root>
   );

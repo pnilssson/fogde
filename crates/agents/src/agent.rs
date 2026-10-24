@@ -118,6 +118,14 @@ impl Agent {
         Ok(command)
     }
 
+    pub(crate) async fn parentless(self, args: &[&str]) -> Result<Command, Error> {
+        let program = self.locate().await.ok_or(Error::Missing(self))?;
+        let mut command = process::parentless(program, args);
+        command.env("NO_COLOR", "1");
+
+        Ok(command)
+    }
+
     async fn run(self, args: &[&str]) -> Result<Output, Error> {
         self.command()
             .await?

@@ -133,6 +133,7 @@ export function place(
   selection: Selection,
   position: Position,
   group: DockviewGroupPanel | undefined,
+  inactive = false,
 ) {
   const direction =
     position === "center" ? "right" : positionToDirection(position);
@@ -142,6 +143,7 @@ export function place(
     component: "terminal",
     params: selection,
     position: group ? { referenceGroup: group, direction } : { direction },
+    inactive,
   });
 }
 
@@ -165,25 +167,6 @@ export function revealNext(groups: Parameters<typeof nextWaiting>[0]) {
   if (next) {
     reveal(next.workspace, next.terminal);
   }
-}
-
-function byPlace(groups: DockviewGroupPanel[]) {
-  const placed = groups.map((group) => ({
-    group,
-    rect: group.element.getBoundingClientRect(),
-  }));
-  placed.sort(
-    (a, b) =>
-      Math.round(a.rect.left - b.rect.left) ||
-      Math.round(a.rect.top - b.rect.top),
-  );
-
-  return placed.map(({ group }) => group);
-}
-
-export function focusTile(number: number) {
-  const group = current && byPlace(current.groups)[number - 1];
-  group?.activePanel?.focus();
 }
 
 export function activate(panel: DockviewPanelApi) {
@@ -212,7 +195,13 @@ export function sync(
 
   for (const terminal of terminals) {
     if (!current.getPanel(tileId(terminal))) {
-      place(current, terminal, "right", undefined);
+      place(
+        current,
+        terminal,
+        "right",
+        undefined,
+        current.activePanel !== undefined,
+      );
     }
   }
 

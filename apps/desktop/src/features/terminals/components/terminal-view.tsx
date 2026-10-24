@@ -1,5 +1,4 @@
 import { FitAddon } from "@xterm/addon-fit";
-import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { Terminal } from "@xterm/xterm";
 import { useQuery } from "@tanstack/react-query";
 import type { DockviewPanelApi } from "dockview-react";
@@ -57,8 +56,6 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
     view.current = terminal;
     const fit = new FitAddon();
     terminal.loadAddon(fit);
-    terminal.loadAddon(new Unicode11Addon());
-    terminal.unicode.activeVersion = "11";
     openLinks(terminal);
 
     let open = true;
@@ -112,7 +109,9 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
           terminal.options.disableStdin = false;
           setStatus("ready");
           resize();
-          terminal.focus();
+          if (panel.isActive && panel.group.api.isActive) {
+            terminal.focus();
+          }
           refresh();
         },
         (error) => {

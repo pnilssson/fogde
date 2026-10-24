@@ -50,6 +50,7 @@ export function TerminalPane({ panel, machine, workspace, terminal }: Props) {
         active={active}
         icon={<TerminalIcon agent={terminal.agent} />}
         title={terminal.name}
+        status={terminal.status}
         place={placeOf(terminal, workspace)}
         branch={terminal.branch}
         changes={terminal.changes}

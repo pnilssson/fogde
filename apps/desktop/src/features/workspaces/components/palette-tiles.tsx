@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/command";
 import { closeActive } from "@/features/workspaces/lib/closing";
 import { moveTile, type Side } from "@/features/workspaces/lib/drag";
-import { focusTile } from "@/features/workspaces/lib/tiles";
+import { focusTile } from "@/features/workspaces/lib/tile-focus";
 import { arrows, shortcuts } from "@/lib/shortcuts";
 
 const moves: { side: Side; label: string; icon: typeof ArrowLeftIcon }[] = [

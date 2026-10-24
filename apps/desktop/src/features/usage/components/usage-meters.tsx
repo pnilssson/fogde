@@ -15,6 +15,7 @@ import type { Agent, Span, Window } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 const TICK = 30_000;
+const SESSION = 5 * 60 * 60_000;
 
 const names: Record<Agent, string> = {
   claude: "Claude",
@@ -86,7 +87,7 @@ function Meter({ agent, windows, shown, now }: MeterProps) {
           </ProgressTrack>
         </Progress.Root>
         <span className="tabular-nums">{left}%</span>
-        <span className="tabular-nums">{until(shown.resets * 1000 - now)}</span>
+        <span className="tabular-nums">{remaining(shown, now)}</span>
       </TooltipTrigger>
       <TooltipContent side="top">
         {lines.map((line) => (
@@ -131,9 +132,18 @@ function tone(left: number) {
 
 function describe(window: Window, now: number) {
   const left = String(Math.floor(window.left));
-  const remaining = until(window.resets * 1000 - now);
 
-  return `${spans[window.span]} limit ${left}% left, resets in ${remaining} (${resetTime(window)})`;
+  return `${spans[window.span]} limit ${left}% left, resets in ${remaining(window, now)} (${resetTime(window, now)})`;
+}
+
+function resetsAt(window: Window, now: number) {
+  const at = window.resets * 1000;
+
+  return window.span === "session" ? Math.min(at, now + SESSION) : at;
+}
+
+function remaining(window: Window, now: number) {
+  return until(resetsAt(window, now) - now);
 }
 
 function until(milliseconds: number) {
@@ -151,8 +161,8 @@ function until(milliseconds: number) {
   return `${String(minutes)}m`;
 }
 
-function resetTime(window: Window) {
-  const date = new Date(window.resets * 1000);
+function resetTime(window: Window, now: number) {
+  const date = new Date(resetsAt(window, now));
   if (window.span === "month") {
     return date.toLocaleDateString(undefined, {
       day: "numeric",

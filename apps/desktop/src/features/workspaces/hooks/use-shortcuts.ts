@@ -10,11 +10,8 @@ import {
   type View,
   viewFolder,
 } from "@/features/workspaces/lib/selection";
-import {
-  focusTile,
-  openStart,
-  revealNext,
-} from "@/features/workspaces/lib/tiles";
+import { focusTile } from "@/features/workspaces/lib/tile-focus";
+import { openStart, revealNext } from "@/features/workspaces/lib/tiles";
 import { arrowSide, pressed, shortcuts, tileNumber } from "@/lib/shortcuts";
 
 type Groups = ReturnType<typeof useGroups>;

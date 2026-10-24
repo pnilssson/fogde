@@ -7,9 +7,13 @@ async fn exchange(url: &str, message: &str) -> Result<Value, Box<dyn std::error:
     let (mut socket, _) = connect_async(url).await?;
     socket.send(Message::text(message)).await?;
 
-    let reply = socket.next().await.ok_or("socket closed")??;
-
-    Ok(serde_json::from_str(reply.to_text()?)?)
+    loop {
+        let reply = socket.next().await.ok_or("socket closed")??;
+        let value: Value = serde_json::from_str(reply.to_text()?)?;
+        if value.get("method").is_none() {
+            return Ok(value);
+        }
+    }
 }
 
 #[tokio::test]

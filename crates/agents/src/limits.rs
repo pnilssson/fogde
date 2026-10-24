@@ -52,9 +52,8 @@ struct Fault {
 pub async fn codex() -> Result<Vec<Limit>, Error> {
     let agent = Agent::Codex;
     let mut child = agent
-        .command()
+        .parentless(&["app-server"])
         .await?
-        .arg("app-server")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())

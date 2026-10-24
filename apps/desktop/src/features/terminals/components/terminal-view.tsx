@@ -20,7 +20,7 @@ import { handleKeys } from "@/features/terminals/lib/keys";
 import { openLinks } from "@/features/terminals/lib/links";
 import { report } from "@/features/terminals/lib/report";
 import { copyOnSelect } from "@/features/terminals/lib/selection";
-import { measure, same } from "@/features/terminals/lib/size";
+import { measure, observeSize, same } from "@/features/terminals/lib/size";
 import { watchTerminal } from "@/features/terminals/lib/watch";
 import { scrollOnWheel } from "@/features/terminals/lib/wheel";
 import { accessibilityQuery } from "@/lib/accessibility";
@@ -224,7 +224,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
     const focusing = panel.onWillFocus(() => {
       terminal.focus();
     });
-    const resizing = new ResizeObserver(resize);
+    const resizing = observeSize(element, resize);
     const theming = new MutationObserver(() => {
       terminal.options = appearance(element);
       resize();
@@ -233,7 +233,6 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       event.stopPropagation();
     };
 
-    resizing.observe(element);
     theming.observe(document.documentElement, { attributeFilter: ["class"] });
     element.addEventListener("keydown", shortcuts);
     void document.fonts
@@ -258,7 +257,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       stopClipboard();
       stopCopy();
       focusing.dispose();
-      resizing.disconnect();
+      resizing();
       theming.disconnect();
       element.removeEventListener("keydown", shortcuts);
       terminal.dispose();

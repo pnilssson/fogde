@@ -25,16 +25,25 @@ use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
 pub use changes::count;
 pub use launch::path_with;
-use launch::{label, start};
+use launch::{Launch, Launches, label};
 use stream::Control;
 pub use tracker::Tracker;
 
 #[derive(Default)]
-pub struct State(Mutex<HashMap<String, mpsc::UnboundedSender<Control>>>);
+pub struct State {
+    controls: Mutex<HashMap<String, mpsc::UnboundedSender<Control>>>,
+    launches: Launches,
+}
 
 impl State {
     pub fn clear(&self) {
         self.lock().clear();
+        self.launches.clear();
+    }
+
+    fn forget(&self, id: &str) {
+        self.lock().remove(id);
+        self.launches.take(id);
     }
 
     fn send(&self, id: &str, control: Control) -> Result<(), Failure> {
@@ -50,7 +59,7 @@ impl State {
     }
 
     fn lock(&self) -> MutexGuard<'_, HashMap<String, mpsc::UnboundedSender<Control>>> {
-        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+        self.controls.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
@@ -99,7 +108,7 @@ pub async fn close(session: &Session, ids: &[String]) -> Result<(), Failure> {
     }
 
     for id in ids {
-        session.terminals.lock().remove(id);
+        session.terminals.forget(id);
     }
     let client = session.herdr().await?.client();
     let open = client.workspaces().await.map_err(failure)?;
@@ -141,20 +150,19 @@ impl Handler for CreateTerminal {
             .create_workspace(&folder, name, &env)
             .await
             .map_err(failure)?;
-        crate::workspaces::place(
-            session,
-            &pane.workspace,
-            &params.workspace,
-            checkout.as_deref(),
-        )
-        .await?;
+        let workspace = pane.workspace.clone();
+        crate::workspaces::place(session, &workspace, &params.workspace, checkout.as_deref())
+            .await?;
         drop(placing);
         if let Some(agent) = params.agent {
-            start(herdr.client(), &pane, agent, args, session.outgoing.clone());
+            session
+                .terminals
+                .launches
+                .hold(workspace.clone(), Launch { pane, agent, args });
         }
 
         Ok(Terminal {
-            id: pane.workspace,
+            id: workspace,
             name: name.to_owned(),
             agent: params.agent,
             status: Status::Idle,
@@ -168,7 +176,7 @@ impl Handler for CreateTerminal {
 
 impl Handler for CloseTerminal {
     async fn handle(session: &Session, id: String) -> Result<(), Failure> {
-        session.terminals.lock().remove(&id);
+        session.terminals.forget(&id);
 
         session
             .herdr()

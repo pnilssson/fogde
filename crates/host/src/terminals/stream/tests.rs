@@ -71,6 +71,7 @@ async fn a_client_that_falls_behind_holds_herdr_back_without_losing_frames() {
         "w1".to_owned(),
         receiver,
         frames,
+        None,
     ));
 
     tokio::time::timeout(Duration::from_secs(10), async {
@@ -109,6 +110,7 @@ async fn idle_terminals_never_hold_back_a_busy_one() {
             name.to_owned(),
             receiver,
             frames.clone(),
+            None,
         ));
     }
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -121,6 +123,7 @@ async fn idle_terminals_never_hold_back_a_busy_one() {
         "busy".to_owned(),
         receiver,
         frames,
+        None,
     ));
 
     let arrived = tokio::time::timeout(Duration::from_secs(10), async {
@@ -148,6 +151,7 @@ async fn a_key_that_fails_to_send_leaves_the_terminal_open() {
         "w1".to_owned(),
         receiver,
         frames,
+        None,
     ));
     let frame = wire(queued.recv().await.unwrap());
     assert_eq!(frame["method"], "terminals.frame");
@@ -156,4 +160,26 @@ async fn a_key_that_fails_to_send_leaves_the_terminal_open() {
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     assert!(queued.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn the_first_frame_tells_the_agent_it_can_start() {
+    let dir = tempfile::tempdir().unwrap();
+    let stream = open(dir.path(), "herdr", 1, true);
+    let (_controls, receiver) = mpsc::unbounded_channel();
+    let (frames, _queued) = mpsc::channel(4);
+    let (attached, ready) = oneshot::channel();
+    tokio::spawn(watch(
+        stream,
+        keys(dir.path()),
+        "w1".to_owned(),
+        receiver,
+        frames,
+        Some(attached),
+    ));
+
+    tokio::time::timeout(Duration::from_secs(10), ready)
+        .await
+        .unwrap()
+        .unwrap();
 }

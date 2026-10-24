@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use herdr_client::{Client, Pane};
 use protocol::agents::Agent;
@@ -8,17 +10,43 @@ use tokio::sync::mpsc;
 
 use crate::rpc::notify;
 
-pub fn start(
-    client: Client,
-    pane: &Pane,
-    agent: Agent,
-    args: Vec<String>,
-    outgoing: mpsc::UnboundedSender<Message>,
-) {
+pub struct Launch {
+    pub pane: Pane,
+    pub agent: Agent,
+    pub args: Vec<String>,
+}
+
+#[derive(Clone, Default)]
+pub struct Launches(Arc<Mutex<HashMap<String, Launch>>>);
+
+impl Launches {
+    pub fn hold(&self, id: String, launch: Launch) {
+        self.lock().insert(id, launch);
+    }
+
+    pub fn holds(&self, id: &str) -> bool {
+        self.lock().contains_key(id)
+    }
+
+    pub fn take(&self, id: &str) -> Option<Launch> {
+        self.lock().remove(id)
+    }
+
+    pub fn clear(&self) {
+        self.lock().clear();
+    }
+
+    fn lock(&self) -> MutexGuard<'_, HashMap<String, Launch>> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+pub fn start(client: Client, launch: Launch, outgoing: mpsc::UnboundedSender<Message>) {
+    let Launch { pane, agent, args } = launch;
     let kind = kind(agent);
     let name = format!("{kind}-{}", pane.workspace.to_lowercase());
-    let id = pane.workspace.clone();
-    let pane = pane.id.clone();
+    let id = pane.workspace;
+    let pane = pane.id;
 
     tokio::spawn(async move {
         let Err(error) = client.start_agent(&name, kind, &pane, &args).await else {

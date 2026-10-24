@@ -10,9 +10,12 @@ use protocol::terminals::{
     WatchTerminalParams,
 };
 use tokio::sync::mpsc::{self, OwnedPermit, error::SendError};
+use tokio::sync::oneshot;
 
 use crate::rpc::{cancelled, failure, notification};
 use crate::session::Session;
+
+use super::launch;
 
 mod scroll;
 
@@ -52,12 +55,31 @@ pub async fn open(session: &Session, params: WatchTerminalParams) -> Result<(), 
     watches.insert(params.id.clone(), controls);
     drop(watches);
     let keys = press(herdr.client(), pane.id.clone());
+    let attached = session.terminals.launches.holds(&params.id).then(|| {
+        let (attached, ready) = oneshot::channel();
+        let launches = session.terminals.launches.clone();
+        let id = params.id.clone();
+        let client = herdr.client();
+        let outgoing = session.outgoing.clone();
+        tokio::spawn(async move {
+            if ready.await.is_err() {
+                return;
+            }
+
+            if let Some(launching) = launches.take(&id) {
+                launch::start(client, launching, outgoing);
+            }
+        });
+
+        attached
+    });
     let watching = tokio::spawn(watch(
         stream,
         keys,
         params.id.clone(),
         receiver,
         session.frames.clone(),
+        attached,
     ));
     tokio::spawn(scroll::follow(
         herdr.client(),
@@ -89,6 +111,7 @@ async fn watch(
     id: String,
     mut controls: mpsc::UnboundedReceiver<Control>,
     frames: mpsc::Sender<Message>,
+    mut attached: Option<oneshot::Sender<()>>,
 ) {
     let mut pending = None;
     let mut slot: Option<Slot> = None;
@@ -107,6 +130,9 @@ async fn watch(
             }
             frame = stream.next(), if pending.is_none() => match frame {
                 Ok(frame) => {
+                    if let Some(attached) = attached.take() {
+                        let _ = attached.send(());
+                    }
                     pending = notification::<FrameEvent>(TerminalFrame {
                         id: id.clone(),
                         cols: frame.width,

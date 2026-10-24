@@ -14,3 +14,21 @@ export function measure(fit: FitAddon): Size | undefined {
 export function same(size: Size, other: Size | undefined) {
   return size.cols === other?.cols && size.rows === other.rows;
 }
+
+export function observeSize(
+  element: HTMLElement,
+  changed: () => void,
+  wait = 150,
+) {
+  let timer = 0;
+  const observer = new ResizeObserver(() => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(changed, wait);
+  });
+  observer.observe(element);
+
+  return () => {
+    window.clearTimeout(timer);
+    observer.disconnect();
+  };
+}

@@ -20,7 +20,7 @@ pub async fn prune(bin: &Path, build: &str) {
     }
 }
 
-pub fn link(exe: &Path) -> Option<PathBuf> {
+fn link(exe: &Path) -> Option<PathBuf> {
     let name = exe.file_name()?.to_str()?;
 
     name.starts_with(PREFIX).then(|| exe.with_file_name(LINK))

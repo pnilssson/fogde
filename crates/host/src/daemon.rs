@@ -23,7 +23,6 @@ use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::Notify;
 
 use crate::shared::{self, Shared};
-pub use binary::link;
 use binary::{prune, relink};
 
 struct Daemon {

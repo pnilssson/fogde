@@ -130,15 +130,8 @@ impl Handler for CreateTerminal {
         let folder = folders::absolute(&params.folder).map_err(failure)?;
         let name = label(params.agent);
         let mut env = herdr.pane_env().clone();
-        let mut args = Vec::new();
-        match params.agent {
-            Some(Agent::Copilot) => {
-                env.insert("PATH".to_owned(), path_with(session.gh().await?.program()));
-            }
-            Some(Agent::Claude) => {
-                args = crate::usage::launch(&session.shared, &folder, &mut env).await;
-            }
-            _ => {}
+        if params.agent == Some(Agent::Copilot) {
+            env.insert("PATH".to_owned(), path_with(session.gh().await?.program()));
         }
 
         let checkouts = crate::workspaces::checkouts(&folder).await;
@@ -158,7 +151,7 @@ impl Handler for CreateTerminal {
             session
                 .terminals
                 .launches
-                .hold(workspace.clone(), Launch { pane, agent, args });
+                .hold(workspace.clone(), Launch { pane, agent });
         }
 
         Ok(Terminal {

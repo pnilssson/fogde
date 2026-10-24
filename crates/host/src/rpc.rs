@@ -27,6 +27,7 @@ pub static ROUTER: LazyLock<Router> = LazyLock::new(|| {
     crate::onboarding::register(&mut router);
     crate::repos::register(&mut router);
     crate::server::register(&mut router);
+    crate::shell::register(&mut router);
     crate::stats::register(&mut router);
     crate::terminals::register(&mut router);
     crate::theme::register(&mut router);

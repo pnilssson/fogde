@@ -16,6 +16,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "time",
  "tokio",
 ]
 
@@ -1849,7 +1850,6 @@ dependencies = [
  "git",
  "github",
  "herdr-client",
- "process",
  "protocol",
  "remote",
  "semver",

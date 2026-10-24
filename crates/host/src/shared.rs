@@ -62,7 +62,8 @@ impl Shared {
 
         self.herdr
             .get_or_try_init(|| async move {
-                let herdr = Herdr::start(&self.tools, &home).await?;
+                let shell = self.settings.shell().await.ok().flatten();
+                let herdr = Herdr::start(&self.tools, &home, shell.as_deref()).await?;
                 tokio::spawn(Arc::clone(&self.tracker).run(herdr.client()));
                 tokio::spawn(terminals::count(Arc::clone(&self.tracker)));
 

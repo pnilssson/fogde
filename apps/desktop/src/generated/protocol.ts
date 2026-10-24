@@ -72,6 +72,10 @@ export type ServerCheck = { "state": "ready" } | { "state": "untrusted", fingerp
 
 export type ServerCheckParams = { target: string, trust: string | null, };
 
+export type Shell = { program: string | null, };
+
+export type ShellOption = { name: string, program: string, };
+
 export type Shown = { claude: boolean, codex: boolean, copilot: boolean, };
 
 export type SignInCode = { code: string, url: string, };
@@ -147,6 +151,9 @@ export type Methods = {
   "server.connect": { params: string; result: null };
   "server.hosts": { params: null; result: Array<string> };
   "server.setUp": { params: string; result: string };
+  "shell.get": { params: null; result: Shell };
+  "shell.list": { params: null; result: Array<ShellOption> };
+  "shell.set": { params: Shell; result: null };
   "stats.get": { params: null; result: Stats };
   "stats.set": { params: Stats; result: null };
   "terminals.close": { params: string; result: null };

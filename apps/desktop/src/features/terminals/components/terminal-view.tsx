@@ -220,7 +220,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
         );
       }
     };
-    const stopCopy = copyOnSelect(terminal, element, copy);
+    const stopCopy = copyOnSelect(terminal, copy);
     const focusing = panel.onWillFocus(() => {
       terminal.focus();
     });

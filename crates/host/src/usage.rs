@@ -1,6 +1,4 @@
-mod claude;
 mod poll;
-mod statusline;
 
 use std::future;
 use std::sync::{Arc, Once};
@@ -14,8 +12,6 @@ use tokio::sync::watch;
 use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
 use crate::shared::Shared;
-
-pub use claude::{launch, report};
 
 pub struct Meter {
     usage: watch::Sender<Vec<Usage>>,
@@ -62,8 +58,7 @@ impl Meter {
 
 pub fn changes(shared: &Arc<Shared>) -> watch::Receiver<Vec<Usage>> {
     shared.usage.started.call_once(|| {
-        tokio::spawn(poll::claude(Arc::clone(shared)));
-        tokio::spawn(poll::others(Arc::clone(shared)));
+        tokio::spawn(poll::run(Arc::clone(shared)));
     });
 
     shared.usage.usage.subscribe()

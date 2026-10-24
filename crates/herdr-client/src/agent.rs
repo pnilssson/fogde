@@ -11,20 +11,13 @@ const SHELL_WAIT: Duration = Duration::from_secs(10);
 const RETRY: Duration = Duration::from_millis(50);
 
 impl Client {
-    pub async fn start_agent(
-        &self,
-        name: &str,
-        kind: &str,
-        pane: &str,
-        args: &[String],
-    ) -> Result<(), Error> {
+    pub async fn start_agent(&self, name: &str, kind: &str, pane: &str) -> Result<(), Error> {
         let deadline = Instant::now() + SHELL_WAIT;
         loop {
             let request = Start {
                 name,
                 kind,
                 pane_id: pane,
-                args,
             };
             match self.request::<IgnoredAny>("agent.start", request).await {
                 Err(Error::Herdr { code, .. }) if code == BUSY && Instant::now() < deadline => {
@@ -41,8 +34,6 @@ struct Start<'a> {
     name: &'a str,
     kind: &'a str,
     pane_id: &'a str,
-    #[serde(skip_serializing_if = "<[String]>::is_empty")]
-    args: &'a [String],
 }
 
 #[cfg(test)]
@@ -65,7 +56,7 @@ mod tests {
         );
 
         Client::new(&socket)
-            .start_agent("codex-w4", "codex", "w4:p1", &[])
+            .start_agent("codex-w4", "codex", "w4:p1")
             .await
             .unwrap();
     }

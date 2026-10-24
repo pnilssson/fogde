@@ -12,10 +12,6 @@ async fn main() -> std::io::Result<()> {
             host::serve(build.to_owned()).await
         }
         ["proxy", "--build", build] => host::proxy(build).await,
-        ["usage"] => {
-            host::report().await;
-            Ok(())
-        }
         _ => Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "usage: fogde-host serve|proxy --build <id>",

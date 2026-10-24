@@ -28,6 +28,8 @@ struct Values {
     stats: Stats,
     #[serde(default)]
     shown: Shown,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    shell: Option<String>,
 }
 
 pub struct Settings {
@@ -109,6 +111,14 @@ impl Settings {
         self.update(|values| values.shown = shown).await
     }
 
+    pub async fn shell(&self) -> io::Result<Option<String>> {
+        Ok(self.load().await?.shell)
+    }
+
+    pub async fn set_shell(&self, shell: Option<String>) -> io::Result<()> {
+        self.update(|values| values.shell = shell).await
+    }
+
     async fn load(&self) -> io::Result<Values> {
         match fs::read(&self.path).await {
             Ok(bytes) => serde_json::from_slice(&bytes).map_err(io::Error::other),
@@ -173,6 +183,7 @@ mod tests {
             ..Shown::default()
         };
         settings.set_shown(quiet_codex).await.unwrap();
+        settings.set_shell(Some("zsh".into())).await.unwrap();
 
         let reopened = Settings::new(&app);
         assert!(reopened.onboarded().await.unwrap());
@@ -182,5 +193,6 @@ mod tests {
         assert_eq!(reopened.notifications().await.unwrap(), quiet);
         assert_eq!(reopened.accessibility().await.unwrap(), reader);
         assert_eq!(reopened.shown().await.unwrap(), quiet_codex);
+        assert_eq!(reopened.shell().await.unwrap().as_deref(), Some("zsh"));
     }
 }

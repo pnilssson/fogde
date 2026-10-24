@@ -33,11 +33,6 @@ fn binaries(app: &tauri::App) -> tauri::Result<host::Binaries> {
 }
 
 fn main() -> anyhow::Result<()> {
-    if std::env::args().nth(1).as_deref() == Some("usage") {
-        tauri::async_runtime::block_on(host::report());
-        return Ok(());
-    }
-
     if let Err(error) = host::log("desktop", cfg!(debug_assertions)) {
         tracing::warn!(%error, "could not open the log file");
     }

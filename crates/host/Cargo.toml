@@ -19,7 +19,6 @@ getrandom.workspace = true
 git.workspace = true
 github.workspace = true
 herdr-client.workspace = true
-process.workspace = true
 protocol.workspace = true
 remote.workspace = true
 serde.workspace = true

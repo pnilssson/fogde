@@ -4,38 +4,15 @@ use std::time::{Duration, SystemTime};
 use agents::limits;
 use protocol::agents::Agent;
 use protocol::usage::{Shown, Span, Window};
-use tokio::fs;
 use tokio::time::{Instant, MissedTickBehavior};
 
-use super::{claude, seconds, span, window};
+use super::{seconds, span, window};
 use crate::shared::Shared;
 
 const CHECK: Duration = Duration::from_secs(5);
 const POLL: Duration = Duration::from_secs(300);
 
-pub async fn claude(shared: Arc<Shared>) {
-    let file = claude::file(&shared);
-    let mut ticks = tokio::time::interval(CHECK);
-    ticks.set_missed_tick_behavior(MissedTickBehavior::Delay);
-    let mut seen = None;
-
-    loop {
-        ticks.tick().await;
-        let Ok(modified) = fs::metadata(&file).await.and_then(|meta| meta.modified()) else {
-            continue;
-        };
-        if seen == Some(modified) {
-            continue;
-        }
-
-        seen = Some(modified);
-        if let Some(windows) = claude::read(&file).await {
-            shared.usage.set(Agent::Claude, windows, seconds(modified));
-        }
-    }
-}
-
-pub async fn others(shared: Arc<Shared>) {
+pub async fn run(shared: Arc<Shared>) {
     let mut ticks = tokio::time::interval(CHECK);
     ticks.set_missed_tick_behavior(MissedTickBehavior::Delay);
     let mut polled: Option<(Instant, Shown)> = None;
@@ -51,7 +28,14 @@ pub async fn others(shared: Arc<Shared>) {
         }
 
         polled = Some((Instant::now(), shown));
-        let (codex, copilot) = tokio::join!(
+        let (claude, codex, copilot) = tokio::join!(
+            async {
+                if shown.claude {
+                    claude().await
+                } else {
+                    Vec::new()
+                }
+            },
             async {
                 if shown.codex {
                     codex().await
@@ -68,22 +52,37 @@ pub async fn others(shared: Arc<Shared>) {
             },
         );
         let at = seconds(SystemTime::now());
+        shared.usage.set(Agent::Claude, claude, at);
         shared.usage.set(Agent::Codex, codex, at);
         shared.usage.set(Agent::Copilot, copilot, at);
     }
 }
 
+async fn claude() -> Vec<Window> {
+    match limits::claude().await {
+        Ok(limits) => windows(limits),
+        Err(error) => {
+            tracing::debug!(%error, "could not read the Claude limits");
+            Vec::new()
+        }
+    }
+}
+
 async fn codex() -> Vec<Window> {
     match limits::codex().await {
-        Ok(limits) => limits
-            .into_iter()
-            .map(|limit| window(span(limit.minutes), 100.0 - limit.used, limit.resets))
-            .collect(),
+        Ok(limits) => windows(limits),
         Err(error) => {
             tracing::debug!(%error, "could not read the Codex limits");
             Vec::new()
         }
     }
+}
+
+fn windows(limits: Vec<limits::Limit>) -> Vec<Window> {
+    limits
+        .into_iter()
+        .map(|limit| window(span(limit.minutes), 100.0 - limit.used, limit.resets))
+        .collect()
 }
 
 async fn copilot(shared: &Shared) -> Vec<Window> {

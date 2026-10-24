@@ -23,6 +23,7 @@ import {
   SettingsRow,
   SettingsSection,
 } from "@/features/settings/components/settings-section";
+import { ShellSettings } from "@/features/settings/components/shell-settings";
 import { StatsSettings } from "@/features/settings/components/stats-settings";
 import { TranslucentSwitch } from "@/features/settings/components/translucent-switch";
 import { UsageSettings } from "@/features/settings/components/usage-settings";
@@ -65,6 +66,7 @@ export function SettingsDialog() {
             </SettingsSection>
             <StatsSettings />
             <UsageSettings />
+            <ShellSettings />
             <NotificationSettings />
             <AccessibilitySettings />
             <MachineSettings

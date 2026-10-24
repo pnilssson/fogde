@@ -13,7 +13,6 @@ use crate::rpc::notify;
 pub struct Launch {
     pub pane: Pane,
     pub agent: Agent,
-    pub args: Vec<String>,
 }
 
 #[derive(Clone, Default)]
@@ -42,14 +41,14 @@ impl Launches {
 }
 
 pub fn start(client: Client, launch: Launch, outgoing: mpsc::UnboundedSender<Message>) {
-    let Launch { pane, agent, args } = launch;
+    let Launch { pane, agent } = launch;
     let kind = kind(agent);
     let name = format!("{kind}-{}", pane.workspace.to_lowercase());
     let id = pane.workspace;
     let pane = pane.id;
 
     tokio::spawn(async move {
-        let Err(error) = client.start_agent(&name, kind, &pane, &args).await else {
+        let Err(error) = client.start_agent(&name, kind, &pane).await else {
             return;
         };
 

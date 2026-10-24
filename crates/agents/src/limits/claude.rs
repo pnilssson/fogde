@@ -6,7 +6,7 @@ use super::{Answer, Limit, ask};
 use crate::{Agent, Error};
 
 const USAGE: &str = "usage";
-const CLAUDE_ARGS: [&str; 7] = [
+const CLAUDE_ARGS: [&str; 11] = [
     "-p",
     "--input-format",
     "stream-json",
@@ -14,6 +14,10 @@ const CLAUDE_ARGS: [&str; 7] = [
     "stream-json",
     "--verbose",
     "--no-session-persistence",
+    "--setting-sources",
+    "",
+    "--strict-mcp-config",
+    "--disable-slash-commands",
 ];
 
 #[derive(Deserialize)]

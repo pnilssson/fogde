@@ -2,28 +2,42 @@ import type { Terminal } from "@xterm/xterm";
 
 import { report } from "@/features/terminals/lib/report";
 
-const SETTLE = 150;
-
-export function copyOnSelect(terminal: Terminal, copied: () => void) {
+export function copyOnSelect(
+  terminal: Terminal,
+  element: HTMLElement,
+  copied: () => void,
+) {
+  let pressed = false;
   let timer = 0;
 
-  const selecting = terminal.onSelectionChange(() => {
-    window.clearTimeout(timer);
-    if (!terminal.hasSelection()) {
+  const press = () => {
+    pressed = true;
+  };
+  const release = () => {
+    if (!pressed) {
       return;
     }
 
+    pressed = false;
     timer = window.setTimeout(() => {
+      if (!terminal.hasSelection()) {
+        return;
+      }
+
       navigator.clipboard
         .writeText(terminal.getSelection())
         .then(copied, (error: unknown) => {
           report("Could not copy", error);
         });
-    }, SETTLE);
-  });
+    });
+  };
+
+  element.addEventListener("mousedown", press, { capture: true });
+  document.addEventListener("mouseup", release);
 
   return () => {
     window.clearTimeout(timer);
-    selecting.dispose();
+    element.removeEventListener("mousedown", press, { capture: true });
+    document.removeEventListener("mouseup", release);
   };
 }

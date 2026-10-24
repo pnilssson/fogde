@@ -14,9 +14,9 @@ use protocol::agents::Agent;
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::terminals::{
     CloseTerminal, CreateTerminal, CreateTerminalParams, Key, PasteImage, PasteImageParams,
-    ResizeTerminal, ScrollTerminal, ScrollTerminalParams, Status, Terminal, TerminalInput,
-    TerminalInputParams, TerminalKey, TerminalKeyParams, UnwatchTerminal, ViewTerminal,
-    WatchTerminal, WatchTerminalParams,
+    ResizeTerminal, ScrollTerminal, ScrollTerminalParams, SeekTerminal, Status, Terminal,
+    TerminalInput, TerminalInputParams, TerminalKey, TerminalKeyParams, UnwatchTerminal,
+    ViewTerminal, WatchTerminal, WatchTerminalParams,
 };
 use tokio::sync::mpsc;
 
@@ -63,6 +63,7 @@ pub fn register(router: &mut Router) {
     router.add::<TerminalKey>();
     router.add::<ResizeTerminal>();
     router.add::<ScrollTerminal>();
+    router.add::<SeekTerminal>();
     router.add::<PasteImage>();
     router.add::<ViewTerminal>();
 }

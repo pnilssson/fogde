@@ -109,6 +109,12 @@ pub struct ScrollTerminalParams {
     pub row: u16,
 }
 
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct SeekTerminalParams {
+    pub id: String,
+    pub offset: u32,
+}
+
 pub const IMAGE_LIMIT: usize = 10 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, TS)]
@@ -134,6 +140,14 @@ pub struct TerminalFrame {
     pub rows: u16,
     pub full: bool,
     pub data: String,
+}
+
+#[derive(Clone, Debug, Serialize, TS)]
+pub struct TerminalScrolled {
+    pub id: String,
+    pub offset: u32,
+    pub max: u32,
+    pub rows: u32,
 }
 
 #[derive(Clone, Debug, Serialize, TS)]
@@ -213,6 +227,14 @@ impl Method for ScrollTerminal {
     type Result = ();
 }
 
+pub struct SeekTerminal;
+
+impl Method for SeekTerminal {
+    const NAME: &'static str = "terminals.seek";
+    type Params = SeekTerminalParams;
+    type Result = ();
+}
+
 pub struct PasteImage;
 
 impl Method for PasteImage {
@@ -234,6 +256,13 @@ pub struct FrameEvent;
 impl Event for FrameEvent {
     const NAME: &'static str = "terminals.frame";
     type Params = TerminalFrame;
+}
+
+pub struct ScrolledEvent;
+
+impl Event for ScrolledEvent {
+    const NAME: &'static str = "terminals.scrolled";
+    type Params = TerminalScrolled;
 }
 
 pub struct StateEvent;

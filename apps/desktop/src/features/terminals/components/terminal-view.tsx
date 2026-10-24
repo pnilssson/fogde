@@ -1,19 +1,25 @@
 import { FitAddon } from "@xterm/addon-fit";
+import { UnicodeGraphemesAddon } from "@xterm/addon-unicode-graphemes";
 import { Terminal } from "@xterm/xterm";
 import { useQuery } from "@tanstack/react-query";
 import type { DockviewPanelApi } from "dockview-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import { toast } from "@/components/ui/toast";
+import { CopiedNotice } from "@/features/terminals/components/copied-notice";
+import { TerminalScrollbar } from "@/features/terminals/components/terminal-scrollbar";
 import {
   type Status,
   TerminalStatus,
 } from "@/features/terminals/components/terminal-status";
+import { useFlash } from "@/features/terminals/hooks/use-flash";
+import { useScrolled } from "@/features/terminals/hooks/use-scrolled";
 import { appearance } from "@/features/terminals/lib/appearance";
 import { handleClipboard } from "@/features/terminals/lib/clipboard";
 import { showFrames } from "@/features/terminals/lib/frames";
 import { handleKeys } from "@/features/terminals/lib/keys";
 import { openLinks } from "@/features/terminals/lib/links";
+import { report } from "@/features/terminals/lib/report";
+import { copyOnSelect } from "@/features/terminals/lib/selection";
 import { measure, same } from "@/features/terminals/lib/size";
 import { watchTerminal } from "@/features/terminals/lib/watch";
 import { scrollOnWheel } from "@/features/terminals/lib/wheel";
@@ -31,7 +37,10 @@ interface Props {
 export function TerminalView({ id, machine, panel, onChange }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const retry = useRef<() => void>(() => undefined);
+  const seek = useRef<(offset: number) => void>(() => undefined);
   const [status, setStatus] = useState<Status>("opening");
+  const scroll = useScrolled(machine.client, id);
+  const [copied, copy] = useFlash(1500);
   const view = useRef<Terminal>(undefined);
   const reader = useQuery(accessibilityQuery).data?.screenReader ?? false;
   const reading = useEffectEvent(() => reader);
@@ -56,6 +65,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
     view.current = terminal;
     const fit = new FitAddon();
     terminal.loadAddon(fit);
+    terminal.loadAddon(new UnicodeGraphemesAddon());
     openLinks(terminal);
 
     let open = true;
@@ -202,6 +212,15 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
         );
       }
     });
+    seek.current = (offset) => {
+      if (watching) {
+        attempt(
+          client.call("terminals.seek", { id, offset }),
+          "Could not scroll the terminal",
+        );
+      }
+    };
+    const stopCopy = copyOnSelect(terminal, element, copy);
     const focusing = panel.onWillFocus(() => {
       terminal.focus();
     });
@@ -237,6 +256,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       stopEnded();
       typing.dispose();
       stopClipboard();
+      stopCopy();
       focusing.dispose();
       resizing.disconnect();
       theming.disconnect();
@@ -244,7 +264,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       terminal.dispose();
       view.current = undefined;
     };
-  }, [id, machine, panel]);
+  }, [id, machine, panel, copy]);
 
   useEffect(() => {
     if (view.current) {
@@ -266,15 +286,14 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
           ref={container}
           className="flex size-full flex-col justify-center"
         />
+        <TerminalScrollbar
+          scroll={scroll}
+          onSeek={(offset) => {
+            seek.current(offset);
+          }}
+        />
+        <CopiedNotice copied={copied} />
       </div>
     </div>
   );
-}
-
-function report(title: string, error: unknown) {
-  toast.add({
-    type: "error",
-    title,
-    description: error instanceof Error ? error.message : String(error),
-  });
 }

@@ -2,7 +2,7 @@ use serde::de::IgnoredAny;
 use serde::{Deserialize, Serialize};
 
 use crate::client::{Connection, reply};
-use crate::{Client, Error};
+use crate::{Client, Error, Scrollback};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "type")]
@@ -25,6 +25,17 @@ pub enum Subscription {
     AgentDetected,
     #[serde(rename = "pane.agent_status_changed")]
     AgentStatus { pane_id: String },
+    #[serde(rename = "pane.scroll_changed")]
+    ScrollChanged { pane_id: String },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Event {
+    Scrolled {
+        pane: String,
+        scrollback: Scrollback,
+    },
+    Other,
 }
 
 pub struct Events(Connection);
@@ -42,14 +53,22 @@ impl Client {
 
 impl Events {
     pub async fn next(&mut self) -> Result<(), Error> {
+        self.event().await.map(drop)
+    }
+
+    pub async fn event(&mut self) -> Result<Event, Error> {
         read(&self.0.line().await?)
     }
 }
 
-fn read(line: &str) -> Result<(), Error> {
+fn read(line: &str) -> Result<Event, Error> {
     match serde_json::from_str(line)? {
-        Line::Event { .. } => Ok(()),
-        Line::Reply(_) => reply::<IgnoredAny>(line).map(drop),
+        Line::Scrolled { data, .. } => Ok(Event::Scrolled {
+            pane: data.pane_id,
+            scrollback: data.scroll,
+        }),
+        Line::Event { .. } => Ok(Event::Other),
+        Line::Reply(_) => reply::<IgnoredAny>(line).map(|_| Event::Other),
     }
 }
 
@@ -61,11 +80,28 @@ struct Subscribe<'a> {
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum Line {
+    Scrolled {
+        #[serde(rename = "event")]
+        _event: ScrollChanged,
+        data: ScrollData,
+    },
     Event {
         #[serde(rename = "event")]
         _event: String,
     },
     Reply(IgnoredAny),
+}
+
+#[derive(Deserialize)]
+enum ScrollChanged {
+    #[serde(rename = "pane.scroll_changed")]
+    Changed,
+}
+
+#[derive(Deserialize)]
+struct ScrollData {
+    pane_id: String,
+    scroll: Scrollback,
 }
 
 #[cfg(test)]
@@ -81,6 +117,9 @@ mod tests {
             Subscription::AgentStatus {
                 pane_id: "w1:p1".into(),
             },
+            Subscription::ScrollChanged {
+                pane_id: "w1:p1".into(),
+            },
         ];
 
         assert_eq!(
@@ -91,6 +130,7 @@ mod tests {
             json!({"subscriptions": [
                 {"type": "pane.created"},
                 {"type": "pane.agent_status_changed", "pane_id": "w1:p1"},
+                {"type": "pane.scroll_changed", "pane_id": "w1:p1"},
             ]})
         );
     }
@@ -100,8 +140,25 @@ mod tests {
         let status = r#"{"data":{"agent":"claude","agent_status":"blocked","pane_id":"w1:p1","workspace_id":"w1"},"event":"pane.agent_status_changed"}"#;
         let renamed = r#"{"data":{"label":"renamed","type":"workspace_renamed","workspace_id":"w1"},"event":"workspace_renamed"}"#;
 
-        assert!(read(status).is_ok());
-        assert!(read(renamed).is_ok());
+        assert_eq!(read(status).unwrap(), Event::Other);
+        assert_eq!(read(renamed).unwrap(), Event::Other);
+    }
+
+    #[test]
+    fn reads_scroll_changes() {
+        let scrolled = r#"{"data":{"pane_id":"w1:p1","scroll":{"max_offset_from_bottom":240,"offset_from_bottom":12,"viewport_rows":30},"workspace_id":"w1"},"event":"pane.scroll_changed"}"#;
+
+        assert_eq!(
+            read(scrolled).unwrap(),
+            Event::Scrolled {
+                pane: "w1:p1".into(),
+                scrollback: Scrollback {
+                    offset: 12,
+                    max: 240,
+                    rows: 30,
+                },
+            }
+        );
     }
 
     #[test]

@@ -10,8 +10,8 @@ mod workspace;
 
 pub use client::Client;
 pub use error::Error;
-pub use events::{Events, Subscription};
+pub use events::{Event, Events, Subscription};
 pub use herdr::Herdr;
-pub use pane::{Key, Pane, Session, Status};
+pub use pane::{Key, Pane, Scrollback, Session, Status};
 pub use terminal::{Frame, Scroll, Terminal};
 pub use workspace::Workspace;

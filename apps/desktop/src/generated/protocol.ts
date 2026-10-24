@@ -66,6 +66,8 @@ export type Scroll = "up" | "down";
 
 export type ScrollTerminalParams = { id: string, direction: Scroll, lines: number, column: number, row: number, };
 
+export type SeekTerminalParams = { id: string, offset: number, };
+
 export type ServerCheck = { "state": "ready" } | { "state": "untrusted", fingerprint: string, } | { "state": "keyRejected", keys: Array<SshKey>, };
 
 export type ServerCheckParams = { target: string, trust: string | null, };
@@ -95,6 +97,8 @@ export type TerminalFrame = { id: string, cols: number, rows: number, full: bool
 export type TerminalInputParams = { id: string, data: string, };
 
 export type TerminalKeyParams = { id: string, key: Key, };
+
+export type TerminalScrolled = { id: string, offset: number, max: number, rows: number, };
 
 export type TerminalState = { id: string, name: string, agent: Agent | null, status: Status, folder: string, branch: string | null, changes: Changes | null, };
 
@@ -152,6 +156,7 @@ export type Methods = {
   "terminals.pasteImage": { params: PasteImageParams; result: null };
   "terminals.resize": { params: WatchTerminalParams; result: null };
   "terminals.scroll": { params: ScrollTerminalParams; result: null };
+  "terminals.seek": { params: SeekTerminalParams; result: null };
   "terminals.unwatch": { params: string; result: null };
   "terminals.view": { params: string | null; result: null };
   "terminals.watch": { params: WatchTerminalParams; result: null };
@@ -172,6 +177,7 @@ export type Methods = {
 
 export type Events = {
   "terminals.frame": TerminalFrame;
+  "terminals.scrolled": TerminalScrolled;
   "terminals.ended": TerminalEnded;
   "terminals.failed": TerminalFailed;
   "terminals.state": TerminalState;

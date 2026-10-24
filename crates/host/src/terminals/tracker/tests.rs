@@ -104,6 +104,7 @@ fn titled(agent: Option<&str>, title: Option<&str>) -> Pane {
         cwd: None,
         title: title.map(Into::into),
         stripped: title.map(|title| title.strip_prefix("✳ ").unwrap_or(title).into()),
+        scrollback: None,
     }
 }
 

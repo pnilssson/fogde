@@ -58,6 +58,21 @@
   background-color: transparent;
 }
 
-.terminal-view .xterm-scrollable-element > .scrollbar > .slider {
+.terminal-thumb {
+  position: absolute;
+  inset-inline: 0;
+  top: calc((100% - var(--size)) * var(--at));
+  height: var(--size);
   border-radius: var(--radius-sm);
+  background-color: var(--terminal-scrollbar);
+  touch-action: none;
+  transition: background-color 150ms;
+}
+
+.terminal-thumb:hover {
+  background-color: var(--terminal-scrollbar-hover);
+}
+
+.terminal-thumb[data-dragging] {
+  background-color: var(--terminal-scrollbar-active);
 }

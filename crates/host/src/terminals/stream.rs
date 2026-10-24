@@ -14,6 +14,8 @@ use tokio::sync::mpsc::{self, OwnedPermit, error::SendError};
 use crate::rpc::{cancelled, failure, notification};
 use crate::session::Session;
 
+mod scroll;
+
 pub enum Control {
     Input(Vec<u8>),
     Key(Key),
@@ -49,13 +51,20 @@ pub async fn open(session: &Session, params: WatchTerminalParams) -> Result<(), 
     }
     watches.insert(params.id.clone(), controls);
     drop(watches);
-    let keys = press(herdr.client(), pane.id);
-    tokio::spawn(watch(
+    let keys = press(herdr.client(), pane.id.clone());
+    let watching = tokio::spawn(watch(
         stream,
         keys,
-        params.id,
+        params.id.clone(),
         receiver,
         session.frames.clone(),
+    ));
+    tokio::spawn(scroll::follow(
+        herdr.client(),
+        pane.id,
+        params.id,
+        session.outgoing.clone(),
+        watching,
     ));
 
     Ok(())

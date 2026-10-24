@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use protocol::terminals::{EndedEvent, FailedEvent, FrameEvent, StateEvent};
+use protocol::terminals::{EndedEvent, FailedEvent, FrameEvent, ScrolledEvent, StateEvent};
 use protocol::usage::UsageEvent;
 use protocol::workspaces::ChangedEvent;
 use protocol::{Connection, Event, Frame};
@@ -72,6 +72,7 @@ fn export_protocol() {
         .unwrap();
     }
     let events = event::<FrameEvent>(&mut types)
+        + &event::<ScrolledEvent>(&mut types)
         + &event::<EndedEvent>(&mut types)
         + &event::<FailedEvent>(&mut types)
         + &event::<StateEvent>(&mut types)

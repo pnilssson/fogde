@@ -1,4 +1,3 @@
-import { UnicodeGraphemesAddon } from "@xterm/addon-unicode-graphemes";
 import type { Terminal } from "@xterm/xterm";
 
 import type { Client } from "@/lib/client";
@@ -9,7 +8,6 @@ const nowrap = "\x1b[?7l";
 export function showFrames(client: Client, id: string, terminal: Terminal) {
   let open = true;
   let rendering = Promise.resolve();
-  terminal.loadAddon(new UnicodeGraphemesAddon());
 
   const stop = client.listen("terminals.frame", (frame) => {
     if (frame.id !== id) {

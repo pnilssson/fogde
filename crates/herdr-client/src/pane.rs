@@ -22,6 +22,18 @@ pub struct Pane {
     pub title: Option<String>,
     #[serde(rename = "terminal_title_stripped")]
     pub stripped: Option<String>,
+    #[serde(rename = "scroll")]
+    pub scrollback: Option<Scrollback>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+pub struct Scrollback {
+    #[serde(rename = "offset_from_bottom")]
+    pub offset: u64,
+    #[serde(rename = "max_offset_from_bottom")]
+    pub max: u64,
+    #[serde(rename = "viewport_rows")]
+    pub rows: u64,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
@@ -62,6 +74,19 @@ impl Client {
         Ok(())
     }
 
+    pub async fn scroll_pane(&self, pane: &str, offset: u64) -> Result<(), Error> {
+        self.request::<IgnoredAny>(
+            "pane.scroll",
+            Scroll {
+                pane_id: pane,
+                offset_from_bottom: offset,
+            },
+        )
+        .await?;
+
+        Ok(())
+    }
+
     pub async fn send_keys(&self, pane: &str, keys: &[Key]) -> Result<(), Error> {
         self.request::<IgnoredAny>(
             "pane.send_keys",
@@ -84,6 +109,12 @@ struct PaneList {
 #[derive(Serialize)]
 struct Focus<'a> {
     pane_id: &'a str,
+}
+
+#[derive(Serialize)]
+struct Scroll<'a> {
+    pane_id: &'a str,
+    offset_from_bottom: u64,
 }
 
 #[derive(Serialize)]
@@ -114,6 +145,11 @@ mod tests {
                     cwd: Some(PathBuf::from(r"C:\Users\dev\app")),
                     title: Some("✳ Claude Code".into()),
                     stripped: Some("Claude Code".into()),
+                    scrollback: Some(Scrollback {
+                        offset: 0,
+                        max: 0,
+                        rows: 56,
+                    }),
                 },
                 Pane {
                     id: "w3:p2".into(),
@@ -124,8 +160,27 @@ mod tests {
                     cwd: Some(PathBuf::from(r"C:\Users\dev\notes")),
                     title: None,
                     stripped: None,
+                    scrollback: Some(Scrollback {
+                        offset: 0,
+                        max: 20,
+                        rows: 14,
+                    }),
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn writes_scroll() {
+        let scroll = serde_json::to_value(Scroll {
+            pane_id: "w3:p1",
+            offset_from_bottom: 12,
+        })
+        .unwrap();
+
+        assert_eq!(
+            scroll,
+            serde_json::json!({"pane_id": "w3:p1", "offset_from_bottom": 12})
         );
     }
 

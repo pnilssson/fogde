@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { UnicodeGraphemesAddon } from "@xterm/addon-unicode-graphemes";
 import { Terminal } from "@xterm/xterm";
 import { expect, test } from "vitest";
 
@@ -11,6 +12,7 @@ const rows = 2;
 
 function view() {
   const terminal = new Terminal({ allowProposedApi: true, cols, rows });
+  terminal.loadAddon(new UnicodeGraphemesAddon());
   let send: (frame: TerminalFrame) => void = () => undefined;
   const client = {
     listen: (_event: string, listener: (frame: TerminalFrame) => void) => {

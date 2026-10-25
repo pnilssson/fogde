@@ -1,5 +1,4 @@
 import { Progress } from "@base-ui/react/progress";
-import { cn } from "cn";
 import { useEffect, useState } from "react";
 
 import { AgentIcon } from "@/components/agent-icon";
@@ -76,6 +75,7 @@ function Meter({ agent, windows, shown, now }: MeterProps) {
           <Button
             variant="ghost"
             size="sm"
+            className="text-muted-foreground"
             aria-label={`${names[agent]}: ${lines.join(", ")}`}
           />
         }
@@ -83,11 +83,13 @@ function Meter({ agent, windows, shown, now }: MeterProps) {
         <AgentIcon agent={agent} />
         <Progress.Root value={left} aria-hidden>
           <ProgressTrack className="h-1 w-12">
-            <ProgressIndicator className={cn("rounded-full", tone(left))} />
+            <ProgressIndicator className="rounded-full bg-muted-foreground" />
           </ProgressTrack>
         </Progress.Root>
-        <span className="tabular-nums">{left}%</span>
-        <span className="tabular-nums">{remaining(shown, now)}</span>
+        <span className="flex gap-2 font-mono type-caption tabular-nums">
+          <span>{left}%</span>
+          <span>{remaining(shown, now)}</span>
+        </span>
       </TooltipTrigger>
       <TooltipContent side="top">
         {lines.map((line) => (
@@ -114,20 +116,6 @@ function useNow() {
   }, []);
 
   return now;
-}
-
-function tone(left: number) {
-  if (left >= 75) {
-    return "bg-success";
-  }
-  if (left >= 50) {
-    return "bg-warning";
-  }
-  if (left >= 25) {
-    return "bg-caution";
-  }
-
-  return "bg-destructive";
 }
 
 function describe(window: Window, now: number) {

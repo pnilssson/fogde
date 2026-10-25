@@ -19,7 +19,6 @@ interface Props {
   active: boolean;
   icon: ReactNode;
   title: string;
-  mono?: boolean | undefined;
   status?: Status | undefined;
   place?: Place | undefined;
   branch?: string | null | undefined;
@@ -37,7 +36,6 @@ export function TileBar({
   active,
   icon,
   title,
-  mono,
   status,
   place,
   branch,
@@ -50,8 +48,7 @@ export function TileBar({
     <header
       {...(item ? dragProps(item) : {})}
       className={cn(
-        "flex h-8 shrink-0 items-center gap-2 border-b px-2 type-caption",
-        mono && "font-mono",
+        "flex h-8 shrink-0 items-center gap-2 border-b px-2 font-mono type-caption",
         item && "cursor-grab active:cursor-grabbing",
         !active && "text-muted-foreground",
       )}

@@ -202,16 +202,13 @@ fn note(path: &Path, folder: &Path, metadata: &Metadata) -> Note {
 }
 
 async fn note_file(root: &Path, path: &Path) -> io::Result<PathBuf> {
-    let root = fs::canonicalize(root).await?;
-    let file = fs::canonicalize(path).await?;
-    if !markdown(&file) || !folders::inside(&file, &root) {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
+    match files::entry(root, path).await? {
+        files::Entry::Note(file) => Ok(file),
+        files::Entry::Folder(_) => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
             format!("{} is not a note", path.display()),
-        ));
+        )),
     }
-
-    Ok(file)
 }
 
 async fn read(root: &Path, path: &Path) -> io::Result<NoteText> {

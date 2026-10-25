@@ -8,6 +8,8 @@ import type {
 import { positionToDirection } from "dockview-react";
 
 import {
+  followedNote,
+  followNotes,
   holdId,
   layoutKey,
   setOpen,
@@ -19,6 +21,7 @@ import {
   Selection,
   type View,
 } from "@/features/workspaces/lib/selection";
+import { onRename } from "@/lib/note-renames";
 
 let current: DockviewApi | undefined;
 let pending: Selection | undefined;
@@ -232,6 +235,19 @@ export function attach(api: DockviewApi) {
   const laidOut = api.onDidLayoutChange(() => {
     save(api);
   });
+  const renamed = onRename((rename) => {
+    followNotes(rename);
+    for (const panel of api.panels) {
+      const params =
+        panel.view.contentComponent === "notes"
+          ? followedNote(panel.params, rename)
+          : undefined;
+      if (params) {
+        panel.api.updateParameters(params);
+      }
+    }
+    save(api);
+  });
 
   focus(api.activePanel);
 
@@ -239,6 +255,7 @@ export function attach(api: DockviewApi) {
     added.dispose();
     changed.dispose();
     laidOut.dispose();
+    renamed();
     current = undefined;
     focus(undefined);
   };

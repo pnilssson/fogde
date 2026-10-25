@@ -16,6 +16,7 @@ import {
   selectWorkspace,
   sync,
 } from "@/features/workspaces/lib/tiles";
+import { announce } from "@/lib/note-renames";
 
 const a = { machine: "m1", id: "a" };
 const b = { machine: "m1", id: "b" };
@@ -220,4 +221,32 @@ test("closing a tile in another workspace removes it from its saved layout", () 
   selectWorkspace(workspace);
 
   expect(tiles(api)).toEqual([["m1:a"], ["m1:b"]]);
+});
+
+test("notes tiles and saved layouts follow a renamed folder", () => {
+  const api = dockview();
+  const workspace = { machine: "m1", id: "w1" };
+  const other = { machine: "m1", id: "w2" };
+  const plan = { machine: "m1", note: "/notes/app/plan.md" };
+  const elsewhere = { machine: "m2", note: "/notes/app/plan.md" };
+  const followed = { machine: "m1", note: "/notes/web/plan.md" };
+  api.addPanel({ id: "notes:1", component: "notes", params: plan });
+  api.addPanel({
+    id: "notes:2",
+    component: "notes",
+    params: elsewhere,
+    position: { direction: "right" },
+  });
+  store.setState({ workspace, layouts: { [layoutKey(other)]: api.toJSON() } });
+
+  announce({ machine: "m1", from: "/notes/app", to: "/notes/web" });
+
+  expect(api.getPanel("notes:1")?.params).toEqual(followed);
+  expect(api.getPanel("notes:2")?.params).toEqual(elsewhere);
+  const { layouts } = store.getState();
+  for (const view of [workspace, other]) {
+    const panels = layouts[layoutKey(view)]?.panels;
+    expect(panels?.["notes:1"]?.params).toEqual(followed);
+    expect(panels?.["notes:2"]?.params).toEqual(elsewhere);
+  }
 });

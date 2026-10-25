@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { noteQuery, notesQuery } from "@/features/notes/api/notes";
+import { follow } from "@/features/notes/lib/recent";
+import type { NoteText } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { announce, moved } from "@/lib/note-renames";
 import { report } from "@/lib/report";
 
 export type Entry = "note" | "folder";
@@ -12,10 +15,7 @@ function failed(title: string) {
   };
 }
 
-export function useNoteFiles(
-  machine: Machine,
-  renamed: (from: string, to: string) => void,
-) {
+export function useNoteFiles(machine: Machine) {
   const queries = useQueryClient();
   const refresh = () => queries.invalidateQueries(notesQuery(machine));
 
@@ -41,18 +41,25 @@ export function useNoteFiles(
   const rename = useMutation({
     mutationFn: async (entry: { path: string; name: string }) => {
       const path = await machine.client.call("notes.rename", entry);
-      const text = queries.getQueryData(
-        noteQuery(machine, entry.path).queryKey,
-      );
-      if (text) {
-        queries.setQueryData(noteQuery(machine, path).queryKey, text);
+      const cached = queries.getQueriesData<NoteText>({
+        queryKey: [machine.id, "notes.read"],
+      });
+      for (const [[, , old], text] of cached) {
+        const next =
+          typeof old === "string" ? moved(old, entry.path, path) : undefined;
+        if (next && text) {
+          queries.setQueryData(noteQuery(machine, next).queryKey, text);
+        }
       }
-      renamed(entry.path, path);
+
+      const rename = { machine: machine.id, from: entry.path, to: path };
+      follow(rename);
+      announce(rename);
       await refresh();
 
       return path;
     },
-    onError: failed("Could not rename the note"),
+    onError: failed("Could not rename it"),
   });
 
   const remove = useMutation({
@@ -60,7 +67,7 @@ export function useNoteFiles(
       await machine.client.call("notes.delete", path);
       await refresh();
     },
-    onError: failed("Could not delete the note"),
+    onError: failed("Could not delete it"),
   });
 
   return { create, rename, remove };

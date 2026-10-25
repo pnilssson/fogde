@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 import { createStore } from "zustand/vanilla";
 
 import type { Note } from "@/generated/protocol";
+import { moved, type Rename } from "@/lib/note-renames";
 
 const kept = 20;
 const shown = 8;
@@ -34,6 +35,17 @@ export function view(machine: string, path: string) {
         path,
         ...(viewed[machine] ?? []).filter((item) => item !== path),
       ].slice(0, kept),
+    },
+  }));
+}
+
+export function follow({ machine, from, to }: Rename) {
+  store.setState(({ viewed }) => ({
+    viewed: {
+      ...viewed,
+      [machine]: (viewed[machine] ?? []).map(
+        (path) => moved(path, from, to) ?? path,
+      ),
     },
   }));
 }

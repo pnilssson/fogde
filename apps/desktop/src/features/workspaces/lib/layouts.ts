@@ -6,6 +6,7 @@ import { createStore } from "zustand/vanilla";
 
 import { type Selection, View } from "@/features/workspaces/lib/selection";
 import { folderName } from "@/lib/folders";
+import { moved, type Rename } from "@/lib/note-renames";
 
 export const startId = "start";
 export const holdId = "hold";
@@ -164,6 +165,39 @@ export function useStart(view: View | undefined) {
   const layout = useTiles(({ layouts }) => view && layouts[layoutKey(view)]);
 
   return sharedStart(layout);
+}
+
+export function followedNote(params: unknown, rename: Rename) {
+  const parsed = NotesParams.safeParse(params).data;
+  const note =
+    parsed?.note && parsed.machine === rename.machine
+      ? moved(parsed.note, rename.from, rename.to)
+      : undefined;
+
+  return parsed && note ? { ...parsed, note } : undefined;
+}
+
+export function followNotes(rename: Rename) {
+  const { layouts } = store.getState();
+  const follow = (layout: SerializedDockview) => ({
+    ...layout,
+    panels: Object.fromEntries(
+      Object.entries(layout.panels).map(([id, panel]) => {
+        const params =
+          panel.contentComponent === "notes"
+            ? followedNote(panel.params, rename)
+            : undefined;
+
+        return [id, params ? { ...panel, params } : panel];
+      }),
+    ),
+  });
+
+  store.setState({
+    layouts: Object.fromEntries(
+      Object.entries(layouts).map(([key, layout]) => [key, follow(layout)]),
+    ),
+  });
 }
 
 export function noteTitle(note: string | undefined) {

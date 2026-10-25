@@ -1,4 +1,4 @@
-import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
+import { ArrowCircleUpIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 
@@ -57,9 +57,9 @@ export function UpdateButton() {
         {install.isPending ? (
           <Spinner aria-hidden data-icon="inline-start" />
         ) : (
-          <ArrowsClockwiseIcon data-icon="inline-start" />
+          <ArrowCircleUpIcon data-icon="inline-start" />
         )}
-        Restart to update
+        Update ready
       </Button>
     </SidebarFooter>
   );

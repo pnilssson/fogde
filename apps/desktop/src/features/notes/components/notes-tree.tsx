@@ -1,6 +1,6 @@
 import { CaretRightIcon, FolderSimpleIcon } from "@phosphor-icons/react";
 import { cn } from "cn";
-import { type ComponentProps, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
@@ -8,17 +8,27 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { NoteRow, type RowActions } from "@/features/notes/components/note-row";
+import { EntryMenu } from "@/features/notes/components/entry-menu";
+import {
+  NoteRow,
+  type RowActions,
+  SubButton,
+} from "@/features/notes/components/note-row";
+import type { Entry } from "@/features/notes/hooks/use-note-files";
 import { type Folder, foldersAbove } from "@/features/notes/lib/tree";
+import { moved, onRename } from "@/lib/note-renames";
+
+interface TreeActions extends RowActions {
+  onCreate: (kind: Entry, parent: string) => void;
+}
 
 interface Props {
   machine: string;
   root: Folder;
   note: string | undefined;
-  actions: RowActions;
+  actions: TreeActions;
 }
 
 interface RowsProps {
@@ -28,7 +38,7 @@ interface RowsProps {
   note: string | undefined;
   open: Set<string>;
   onToggle: (path: string) => void;
-  actions: RowActions;
+  actions: TreeActions;
 }
 
 export function NotesTree({ machine, root, note, actions }: Props) {
@@ -43,6 +53,25 @@ export function NotesTree({ machine, root, note, actions }: Props) {
       setOpen(new Set([...open, ...foldersAbove(note, root.path)]));
     }
   }
+
+  useEffect(
+    () =>
+      onRename((rename) => {
+        if (rename.machine !== machine) {
+          return;
+        }
+
+        setOpen(
+          (current) =>
+            new Set(
+              [...current].map(
+                (path) => moved(path, rename.from, rename.to) ?? path,
+              ),
+            ),
+        );
+      }),
+    [machine],
+  );
 
   const toggle = (path: string) => {
     setOpen((current) => {
@@ -90,11 +119,26 @@ function Rows({
         return (
           <Item key={inner.path}>
             <Collapsible open={expanded}>
-              <Button
-                aria-expanded={expanded}
-                onClick={() => {
-                  onToggle(inner.path);
+              <EntryMenu
+                kind="folder"
+                name={inner.name}
+                path={inner.path}
+                trigger={
+                  <Button
+                    aria-expanded={expanded}
+                    onClick={() => {
+                      onToggle(inner.path);
+                    }}
+                  />
+                }
+                onCreate={(kind) => {
+                  if (!expanded) {
+                    onToggle(inner.path);
+                  }
+                  actions.onCreate(kind, inner.path);
                 }}
+                onRename={actions.onRename}
+                onDelete={actions.onDelete}
               >
                 <CaretRightIcon
                   className={cn(
@@ -104,7 +148,7 @@ function Rows({
                 />
                 <FolderSimpleIcon />
                 <span className="min-w-0 flex-1 truncate">{inner.name}</span>
-              </Button>
+              </EntryMenu>
               <CollapsibleContent>
                 {(inner.folders.length > 0 || inner.notes.length > 0) && (
                   <SidebarMenuSub>
@@ -131,13 +175,11 @@ function Rows({
           note={current}
           active={current.path === note}
           nested={nested}
-          {...actions}
+          onOpen={actions.onOpen}
+          onRename={actions.onRename}
+          onDelete={actions.onDelete}
         />
       ))}
     </>
   );
-}
-
-function SubButton(props: ComponentProps<typeof SidebarMenuSubButton>) {
-  return <SidebarMenuSubButton render={<button type="button" />} {...props} />;
 }

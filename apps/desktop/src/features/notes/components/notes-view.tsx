@@ -48,11 +48,8 @@ export function NotesView({ machine, note, onOpen }: Props) {
   const [browsing, setBrowsing] = useState(true);
   const [creating, setCreating] = useState(false);
   const [kind, setKind] = useState<Entry>("note");
-  const files = useNoteFiles(machine, (from, to) => {
-    if (from === note) {
-      onOpen(to);
-    }
-  });
+  const [parent, setParent] = useState<string>();
+  const files = useNoteFiles(machine);
   const tree = useMemo(
     () => list.data && buildTree(list.data, order),
     [list.data, order],
@@ -77,6 +74,11 @@ export function NotesView({ machine, note, onOpen }: Props) {
 
   const open = list.data.notes.find(({ path }) => path === note);
   const root = list.data.root;
+  const create = (entry: Entry, folder: string) => {
+    setKind(entry);
+    setParent(folder);
+    setCreating(true);
+  };
 
   return (
     <div className="flex h-full min-h-0">
@@ -87,16 +89,14 @@ export function NotesView({ machine, note, onOpen }: Props) {
               label="New note"
               icon={<FilePlusIcon />}
               onClick={() => {
-                setKind("note");
-                setCreating(true);
+                create("note", open?.folder ?? root);
               }}
             />
             <Action
               label="New folder"
               icon={<FolderPlusIcon />}
               onClick={() => {
-                setKind("folder");
-                setCreating(true);
+                create("folder", open?.folder ?? root);
               }}
             />
             <SortMenu />
@@ -116,6 +116,7 @@ export function NotesView({ machine, note, onOpen }: Props) {
               note={note}
               actions={{
                 onOpen,
+                onCreate: create,
                 onRename: (path, name) =>
                   files.rename.mutateAsync({ path, name }),
                 onDelete: (path) => {
@@ -134,7 +135,7 @@ export function NotesView({ machine, note, onOpen }: Props) {
             onSubmit={async (name) => {
               const path = await files.create.mutateAsync({
                 kind,
-                parent: open?.folder ?? root,
+                parent: parent ?? root,
                 name,
               });
               setCreating(false);

@@ -5,7 +5,7 @@ use tokio::sync::broadcast;
 use super::watch::{start, visible};
 use super::*;
 
-fn create(path: &Path) {
+pub(super) fn create(path: &Path) {
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(path, "# Note").unwrap();
 }
@@ -62,6 +62,7 @@ async fn reads_only_notes_inside_the_folder() {
     let root = dir.path().join("notes");
     create(&root.join("app").join("plan.md"));
     create(&root.join("readme.txt"));
+    create(&root.join(".trash").join("old.md"));
     create(&dir.path().join("outside.md"));
 
     let plan = read(&root, &root.join("app").join("plan.md"))
@@ -71,6 +72,8 @@ async fn reads_only_notes_inside_the_folder() {
     assert_eq!(plan.text, "# Note");
     for path in [
         root.join("readme.txt"),
+        root.join(".trash").join("old.md"),
+        root.join("app"),
         dir.path().join("outside.md"),
         root.join("app").join("..").join("..").join("outside.md"),
         root.join("missing.md"),
@@ -146,99 +149,4 @@ async fn reports_an_edited_note() {
         .await
         .unwrap()
         .unwrap();
-}
-
-#[tokio::test]
-async fn creates_notes_and_folders_inside_the_notes_folder() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().join("notes");
-    std::fs::create_dir_all(root.join("app")).unwrap();
-
-    let note = super::files::note(&root, &root.join("app"), " Login flow ")
-        .await
-        .unwrap();
-    let named = super::files::note(&root, &root, "plan.md").await.unwrap();
-    let folder = super::files::folder(&root, &root, "specs").await.unwrap();
-
-    assert_eq!(note, root.join("app").join("Login flow.md"));
-    assert_eq!(std::fs::read_to_string(&note).unwrap(), "");
-    assert_eq!(named, root.join("plan.md"));
-    assert!(folder.is_dir());
-
-    let again = super::files::note(&root, &root.join("app"), "Login flow")
-        .await
-        .unwrap_err();
-    assert_eq!(again.kind(), std::io::ErrorKind::AlreadyExists);
-    assert!(super::files::folder(&root, &root, "specs").await.is_err());
-    for name in ["", ".hidden", "../outside", "app/plan"] {
-        assert!(
-            super::files::note(&root, &root, name).await.is_err(),
-            "{name}"
-        );
-    }
-    assert!(
-        super::files::note(&root, dir.path(), "outside")
-            .await
-            .is_err()
-    );
-    assert!(!dir.path().join("outside.md").exists());
-}
-
-#[tokio::test]
-async fn renames_a_note_in_its_folder_without_replacing_another() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().to_path_buf();
-    let plan = root.join("app").join("plan.md");
-    create(&plan);
-    create(&root.join("app").join("backlog.md"));
-
-    let renamed = super::files::rename(&root, &plan, "Login plan")
-        .await
-        .unwrap();
-    let cased = super::files::rename(&root, &renamed, "login plan.md")
-        .await
-        .unwrap();
-    let taken = super::files::rename(&root, &cased, "backlog").await;
-
-    assert_eq!(renamed, root.join("app").join("Login plan.md"));
-    assert_eq!(cased, root.join("app").join("login plan.md"));
-    assert!(cased.exists());
-    assert!(!plan.exists());
-    assert_eq!(taken.unwrap_err().kind(), std::io::ErrorKind::AlreadyExists);
-    assert_eq!(
-        std::fs::read_to_string(root.join("app").join("backlog.md")).unwrap(),
-        "# Note"
-    );
-    assert!(
-        super::files::rename(&root, &cased, "../plan")
-            .await
-            .is_err()
-    );
-}
-
-#[tokio::test]
-async fn deletes_a_note_into_the_trash_folder() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().to_path_buf();
-    for folder in ["app", "web"] {
-        create(&root.join(folder).join("plan.md"));
-    }
-
-    super::files::trash(&root, &root.join("app").join("plan.md"))
-        .await
-        .unwrap();
-    super::files::trash(&root, &root.join("web").join("plan.md"))
-        .await
-        .unwrap();
-
-    assert!(!root.join("app").join("plan.md").exists());
-    assert!(root.join(".trash").join("plan.md").exists());
-    assert!(root.join(".trash").join("plan 2.md").exists());
-    let listed = list(&root).unwrap();
-    assert_eq!(listed.notes, Vec::new());
-    assert!(
-        super::files::trash(&root, &root.join("missing.md"))
-            .await
-            .is_err()
-    );
 }

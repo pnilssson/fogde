@@ -15,6 +15,16 @@ server:
 build: server
     npm run --prefix apps/desktop tauri build -- --config src-tauri/tauri.release.conf.json
 
+# The app icons, from a full-bleed tile and a macOS tile with the margin macOS expects around it.
+icons:
+    npm run --prefix apps/desktop tauri icon -- app-icon.svg --output ../../target/icons
+    npm run --prefix apps/desktop tauri icon -- app-icon-macos.svg --output ../../target/icons-macos
+    cp target/icons/32x32.png apps/desktop/src-tauri/icons/32x32.png
+    cp target/icons/128x128.png apps/desktop/src-tauri/icons/128x128.png
+    cp target/icons/128x128@2x.png apps/desktop/src-tauri/icons/128x128@2x.png
+    cp target/icons/icon.ico apps/desktop/src-tauri/icons/icon.ico
+    cp target/icons-macos/icon.icns apps/desktop/src-tauri/icons/icon.icns
+
 fmt:
     cargo fmt --all
     npm run --prefix apps/desktop format

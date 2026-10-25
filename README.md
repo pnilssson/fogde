@@ -1,4 +1,7 @@
-# Fogde
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.png">
+  <img alt="Fogde" src=".github/assets/banner-light.png">
+</picture>
 
 Named after the *fogde*, the bailiff who ran a district on the crown's behalf in medieval Sweden, Fogde runs your coding agents, repos, and notes on your behalf.
 

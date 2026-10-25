@@ -6,6 +6,8 @@ import { SidebarInset } from "@/components/ui/sidebar";
 import { onboardedQuery } from "@/features/onboarding/api/onboarding";
 import { SettingsDialog } from "@/features/settings/components/settings-dialog";
 import { UsageMeters } from "@/features/usage/components/usage-meters";
+import { PaletteNotes } from "@/features/notes/components/palette-notes";
+import { useNotesChanges } from "@/features/notes/hooks/use-notes-changes";
 import { CommandPalette } from "@/features/workspaces/components/command-palette";
 import { WorkspaceSidebar } from "@/features/workspaces/components/workspace-sidebar";
 import { useAttention } from "@/features/workspaces/hooks/use-attention";
@@ -19,11 +21,8 @@ import {
   resolveWorkspace,
   WorkspaceContext,
 } from "@/features/workspaces/lib/selection";
-import {
-  openStart,
-  selectWorkspace,
-  show,
-} from "@/features/workspaces/lib/tiles";
+import { openStart } from "@/features/workspaces/lib/opening";
+import { selectWorkspace, show } from "@/features/workspaces/lib/tiles";
 import { useMachines } from "@/hooks/use-machines";
 import { useRetryOnReturn } from "@/hooks/use-retry-on-return";
 import { entryId, machinesQuery } from "@/lib/machines";
@@ -58,6 +57,7 @@ export const Route = createFileRoute("/_onboarded")({
     useAttention(machines);
     useFailures(machines);
     useCheckouts(machines);
+    useNotesChanges(machines);
     useViewing(machines);
     useShortcuts(groups, workspace);
 
@@ -99,7 +99,7 @@ export const Route = createFileRoute("/_onboarded")({
             start={<SettingsDialog />}
             end={<UsageMeters machines={machines} />}
           />
-          <CommandPalette />
+          <CommandPalette notes={(props) => <PaletteNotes {...props} />} />
         </div>
       </WorkspaceContext>
     );

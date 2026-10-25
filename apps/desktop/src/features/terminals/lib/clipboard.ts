@@ -1,4 +1,5 @@
 import { type Image, imageLimit } from "@/generated/protocol";
+import { bracket } from "@/lib/paste";
 
 const images: Partial<Record<string, Image>> = {
   "image/png": "png",
@@ -82,15 +83,6 @@ export function handleClipboard(element: HTMLElement, paste: Paste) {
     element.removeEventListener("dragover", over);
     element.removeEventListener("drop", dropped);
   };
-}
-
-export function bracket(text: string) {
-  const clean = text
-    .replace(/\r\n?/g, "\n")
-    .replaceAll("\x1b[200~", "")
-    .replaceAll("\x1b[201~", "");
-
-  return `\x1b[200~${clean}\x1b[201~`;
 }
 
 function encode(file: File) {

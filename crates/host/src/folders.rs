@@ -98,18 +98,22 @@ pub async fn directory(path: &Path) -> io::Result<()> {
 }
 
 pub async fn create(parent: &Path, name: &str) -> io::Result<PathBuf> {
+    let path = entry(parent, name)?;
+    fs::create_dir_all(&path).await?;
+
+    Ok(path)
+}
+
+pub fn entry(parent: &Path, name: &str) -> io::Result<PathBuf> {
     let mut parts = Path::new(name).components();
     let (Some(Component::Normal(_)), None) = (parts.next(), parts.next()) else {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("\"{name}\" can't be a folder name"),
+            format!("\"{name}\" can't be a name"),
         ));
     };
 
-    let path = parent.join(name);
-    fs::create_dir_all(&path).await?;
-
-    Ok(path)
+    Ok(parent.join(name))
 }
 
 pub async fn remove(path: &Path) -> io::Result<()> {
@@ -156,7 +160,7 @@ async fn existing(path: &Path) -> io::Result<PathBuf> {
 }
 
 #[cfg(windows)]
-fn hidden(name: &str, metadata: &Metadata) -> bool {
+pub fn hidden(name: &str, metadata: &Metadata) -> bool {
     use std::os::windows::fs::MetadataExt;
 
     const HIDDEN: u32 = 0x2;
@@ -165,7 +169,7 @@ fn hidden(name: &str, metadata: &Metadata) -> bool {
 }
 
 #[cfg(not(windows))]
-fn hidden(name: &str, _metadata: &Metadata) -> bool {
+pub fn hidden(name: &str, _metadata: &Metadata) -> bool {
     name.starts_with('.')
 }
 

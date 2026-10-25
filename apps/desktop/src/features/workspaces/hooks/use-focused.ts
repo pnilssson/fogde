@@ -1,4 +1,9 @@
-import { startId, useStart, useTiles } from "@/features/workspaces/lib/layouts";
+import {
+  startId,
+  useNoteTiles,
+  useStart,
+  useTiles,
+} from "@/features/workspaces/lib/layouts";
 import {
   inView,
   sameView,
@@ -9,13 +14,17 @@ import type { Workspace } from "@/generated/protocol";
 export function useFocused(workspace: Workspace, view: View) {
   const here = useTiles((tiles) => sameView(tiles.workspace, view));
   const active = useTiles((tiles) => tiles.active);
-  const starting = useTiles((tiles) => tiles.startActive);
+  const focused = useTiles((tiles) => tiles.focused);
+  const notes = useNoteTiles(view);
   const shared = useStart(view) !== undefined;
   if (!here) {
     return undefined;
   }
 
-  if (starting) {
+  if (notes.some(({ id }) => id === focused)) {
+    return focused;
+  }
+  if (focused === startId) {
     return shared ? startId : undefined;
   }
 

@@ -8,15 +8,15 @@ import {
   type Dragged,
   dragged,
   endDrag,
+  isTerminal,
   useDragging,
 } from "@/features/workspaces/lib/drag";
-import { startId } from "@/features/workspaces/lib/layouts";
 import {
   findTerminal,
   WorkspaceContext,
 } from "@/features/workspaces/lib/selection";
 import { busy } from "@/features/workspaces/lib/status";
-import { closeStart } from "@/features/workspaces/lib/tiles";
+import { closeTile } from "@/features/workspaces/lib/opening";
 import type { Terminal } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
@@ -28,7 +28,7 @@ export function Trash({ machine }: { machine: Machine }) {
   const [target, setTarget] = useState<Terminal>();
   const [confirming, setConfirming] = useState(false);
   const accepts =
-    item !== undefined && (item === startId || item.machine === machine.id);
+    item !== undefined && (!isTerminal(item) || item.machine === machine.id);
 
   const hover = (event: DragEvent) => {
     event.preventDefault();
@@ -37,8 +37,8 @@ export function Trash({ machine }: { machine: Machine }) {
   };
 
   const discard = (dropped: Dragged) => {
-    if (dropped === startId) {
-      closeStart();
+    if (!isTerminal(dropped)) {
+      closeTile(dropped.tile, dropped.view);
       return;
     }
 

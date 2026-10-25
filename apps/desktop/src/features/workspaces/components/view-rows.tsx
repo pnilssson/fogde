@@ -1,13 +1,19 @@
+import { NoteItem } from "@/features/workspaces/components/note-item";
 import { StartItem } from "@/features/workspaces/components/start-item";
 import { TerminalItem } from "@/features/workspaces/components/terminal-item";
 import { useFocused } from "@/features/workspaces/hooks/use-focused";
-import { startId, useStart } from "@/features/workspaces/lib/layouts";
+import {
+  startId,
+  useNoteTiles,
+  useStart,
+} from "@/features/workspaces/lib/layouts";
 import {
   inView,
   type Selection,
   type View,
 } from "@/features/workspaces/lib/selection";
 import { byAttention } from "@/features/workspaces/lib/status";
+import { revealTile } from "@/features/workspaces/lib/tiles";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
@@ -30,6 +36,7 @@ export function ViewRows({
   onStart,
 }: Props) {
   const start = useStart(view);
+  const notes = useNoteTiles(view);
   const focused = useFocused(workspace, view);
 
   return (
@@ -47,8 +54,21 @@ export function ViewRows({
           }}
         />
       ))}
+      {notes.map(({ id, title }) => (
+        <NoteItem
+          key={id}
+          view={view}
+          id={id}
+          title={title}
+          active={focused === id}
+          onSelect={() => {
+            revealTile(view, id);
+          }}
+        />
+      ))}
       {start !== undefined && (
         <StartItem
+          view={view}
           active={focused === startId}
           onSelect={() => {
             onStart(view, start);

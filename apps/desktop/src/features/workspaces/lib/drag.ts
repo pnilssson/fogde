@@ -9,13 +9,14 @@ import { z } from "zod";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 
-import { holdId, startId, store } from "@/features/workspaces/lib/layouts";
-import { Selection } from "@/features/workspaces/lib/selection";
+import { holdId, store } from "@/features/workspaces/lib/layouts";
+import { Selection, View } from "@/features/workspaces/lib/selection";
 import { dockview, place, tileId } from "@/features/workspaces/lib/tiles";
 
-export const dragType = "application/x-fogde-terminal";
+export const dragType = "application/x-fogde-tile";
 
-const Dragged = z.union([Selection, z.literal(startId)]);
+const Placed = z.object({ tile: z.string(), view: View.optional() });
+const Dragged = z.union([Selection, Placed]);
 export type Dragged = z.infer<typeof Dragged>;
 
 const drags = createStore<{ item: Dragged | undefined }>()(() => ({
@@ -26,8 +27,12 @@ export function useDragging() {
   return useStore(drags, ({ item }) => item);
 }
 
+export function isTerminal(item: Dragged): item is Selection {
+  return "id" in item;
+}
+
 function panelId(item: Dragged) {
-  return item === startId ? startId : tileId(item);
+  return isTerminal(item) ? tileId(item) : item.tile;
 }
 
 export function dragProps(item: Dragged) {
@@ -165,18 +170,14 @@ export function canDrop(
     return false;
   }
 
-  if (
-    dragging !== startId &&
-    dragging.machine !== store.getState().workspace?.machine
-  ) {
+  const terminal = isTerminal(dragging);
+  if (terminal && dragging.machine !== store.getState().workspace?.machine) {
     return false;
   }
 
   const existing = api.getPanel(panelId(dragging));
   if (!existing) {
-    return (
-      dragging !== startId && (position !== "center" || api.panels.length === 0)
-    );
+    return terminal && (position !== "center" || api.panels.length === 0);
   }
 
   if (!group) {
@@ -198,7 +199,7 @@ export function drop(
 
   const existing = api.getPanel(panelId(item));
   if (!existing) {
-    if (item !== startId) {
+    if (isTerminal(item)) {
       place(api, item, position, group);
     }
 

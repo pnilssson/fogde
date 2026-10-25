@@ -14,7 +14,7 @@ import {
   removeTerminal,
   workspacesQuery,
 } from "@/features/workspaces/api/workspaces";
-import { opened } from "@/features/workspaces/lib/tiles";
+import { opened } from "@/features/workspaces/lib/opening";
 import { useConnection } from "@/hooks/use-connection";
 import type {
   Agent,

@@ -18,7 +18,7 @@ import { handleClipboard } from "@/features/terminals/lib/clipboard";
 import { showFrames } from "@/features/terminals/lib/frames";
 import { handleKeys } from "@/features/terminals/lib/keys";
 import { openLinks } from "@/features/terminals/lib/links";
-import { report } from "@/features/terminals/lib/report";
+import { report } from "@/lib/report";
 import { copyOnSelect } from "@/features/terminals/lib/selection";
 import { measure, observeSize, same } from "@/features/terminals/lib/size";
 import { watchTerminal } from "@/features/terminals/lib/watch";

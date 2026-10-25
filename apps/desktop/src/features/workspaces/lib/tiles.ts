@@ -11,7 +11,6 @@ import {
   holdId,
   layoutKey,
   setOpen,
-  startId,
   store,
 } from "@/features/workspaces/lib/layouts";
 import {
@@ -20,7 +19,6 @@ import {
   Selection,
   type View,
 } from "@/features/workspaces/lib/selection";
-import { requestStartFocus } from "@/features/workspaces/lib/start-focus";
 
 let current: DockviewApi | undefined;
 let pending: Selection | undefined;
@@ -35,7 +33,7 @@ export function tileId({ machine, id }: Selection) {
 }
 
 function selectionOf(panel: IDockviewPanel | undefined) {
-  if (!panel || panel.id === startId) {
+  if (panel?.view.contentComponent !== "terminal") {
     return undefined;
   }
 
@@ -45,7 +43,7 @@ function selectionOf(panel: IDockviewPanel | undefined) {
 function focus(panel: IDockviewPanel | undefined) {
   store.setState({
     active: selectionOf(panel),
-    startActive: panel?.id === startId,
+    focused: panel?.id,
   });
 }
 
@@ -79,8 +77,12 @@ function load(api: DockviewApi) {
     loading = false;
   }
 
-  for (const group of api.groups) {
-    hideHeader(group);
+  for (const group of [...api.groups]) {
+    if (group.panels.length === 0) {
+      api.removeGroup(group);
+    } else {
+      hideHeader(group);
+    }
   }
   separate(api);
 }
@@ -111,21 +113,6 @@ export function leaveWorkspace(gone: Selection) {
   if (current) {
     load(current);
   }
-}
-
-function replace(
-  api: DockviewApi,
-  selection: Selection,
-  group: DockviewGroupPanel,
-) {
-  const old = group.activePanel;
-  api.addPanel({
-    id: tileId(selection),
-    component: "terminal",
-    params: selection,
-    position: { referenceGroup: group, direction: "within" },
-  });
-  old?.api.close();
 }
 
 export function place(
@@ -160,6 +147,11 @@ export function show(selection: Selection) {
 export function reveal(workspace: View, terminal: Selection) {
   selectWorkspace(workspace);
   show(terminal);
+}
+
+export function revealTile(view: View, id: string) {
+  selectWorkspace(view);
+  current?.getPanel(id)?.focus();
 }
 
 export function revealNext(groups: Parameters<typeof nextWaiting>[0]) {
@@ -212,54 +204,23 @@ export function sync(
   }
 }
 
-export function openStart(folder: string, focus = false) {
-  if (!current) {
-    return;
-  }
-
-  requestStartFocus(focus);
-
-  const existing = current.getPanel(startId);
-  if (existing) {
-    existing.api.updateParameters({ folder });
-    existing.api.setActive();
-    return;
-  }
-
-  const focused = current.activePanel;
-  current.addPanel({
-    id: startId,
-    component: "start",
-    params: { folder },
-    position: focused
-      ? { referencePanel: focused, direction: "right" }
-      : { direction: "right" },
-  });
-}
-
-export function closeStart() {
-  current?.getPanel(startId)?.api.close();
-}
-
-export function opened(selection: Selection) {
-  const start = current?.getPanel(startId);
-  if (!current || !start) {
-    show(selection);
-    return;
-  }
-
-  const existing = current.getPanel(tileId(selection));
-  if (existing) {
-    existing.api.moveTo({ group: start.group, position: "center" });
-    start.api.close();
-    return;
-  }
-
-  replace(current, selection, start.group);
-}
-
 export function restore(api: DockviewApi) {
   load(api);
+}
+
+function save(api: DockviewApi) {
+  const { workspace, layouts } = store.getState();
+  if (!loading && workspace) {
+    store.setState({
+      layouts: { ...layouts, [layoutKey(workspace)]: api.toJSON() },
+    });
+  }
+}
+
+export function saveLayout() {
+  if (current) {
+    save(current);
+  }
 }
 
 export function attach(api: DockviewApi) {
@@ -269,12 +230,7 @@ export function attach(api: DockviewApi) {
     focus(panel);
   });
   const laidOut = api.onDidLayoutChange(() => {
-    const { workspace, layouts } = store.getState();
-    if (!loading && workspace) {
-      store.setState({
-        layouts: { ...layouts, [layoutKey(workspace)]: api.toJSON() },
-      });
-    }
+    save(api);
   });
 
   focus(api.activePanel);

@@ -20,6 +20,7 @@ import { NewWorktree } from "@/features/workspaces/components/new-worktree";
 import { PaletteTiles } from "@/features/workspaces/components/palette-tiles";
 import { PaletteWorkspace } from "@/features/workspaces/components/palette-workspace";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
+import { openNotes } from "@/features/workspaces/lib/opening";
 import {
   findWorkspace,
   viewOf,
@@ -32,6 +33,7 @@ import {
   revealNext,
   selectWorkspace,
 } from "@/features/workspaces/lib/tiles";
+import type { RenderPaletteNotes } from "@/features/workspaces/lib/slot";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 import { shortcuts } from "@/lib/shortcuts";
@@ -40,10 +42,11 @@ type Run = (action: () => void) => void;
 
 interface CommandsProps {
   run: Run;
+  notes: RenderPaletteNotes;
   onNewWorktree: () => void;
 }
 
-export function CommandPalette() {
+export function CommandPalette({ notes }: { notes: RenderPaletteNotes }) {
   const { groups, workspace } = useContext(WorkspaceContext);
   const found = findWorkspace(groups, workspace);
   const open = usePaletteOpen();
@@ -79,6 +82,7 @@ export function CommandPalette() {
             <CommandEmpty>Nothing matches.</CommandEmpty>
             <Commands
               run={run}
+              notes={notes}
               onNewWorktree={() => {
                 setNaming(true);
               }}
@@ -98,7 +102,7 @@ export function CommandPalette() {
   );
 }
 
-function Commands({ run, onNewWorktree }: CommandsProps) {
+function Commands({ run, notes, onNewWorktree }: CommandsProps) {
   const { groups, workspace } = useContext(WorkspaceContext);
   const found = findWorkspace(groups, workspace);
   const needs = waiting(groups);
@@ -153,6 +157,16 @@ function Commands({ run, onNewWorktree }: CommandsProps) {
           onNewWorktree={onNewWorktree}
         />
       )}
+      {found &&
+        !found.workspace.missing &&
+        notes({
+          machine: found.group.machine,
+          onOpen: (note) => {
+            run(() => {
+              openNotes(found.group.machine.id, note);
+            });
+          },
+        })}
       <CommandGroup heading="Terminals">
         {groups.flatMap(({ machine, workspaces }) =>
           (workspaces.data ?? []).flatMap((current) =>

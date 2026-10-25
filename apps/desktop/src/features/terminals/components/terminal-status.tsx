@@ -1,5 +1,4 @@
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { TileStatus } from "@/components/tile-status";
 import { useConnection } from "@/hooks/use-connection";
 import type { Machine } from "@/lib/machines";
 
@@ -25,17 +24,9 @@ export function TerminalStatus({ machine, status, onRetry }: Props) {
     return null;
   }
 
-  const busy = status === "opening";
-
-  return (
-    <div className="flex items-center gap-2 p-2" role="status" aria-busy={busy}>
-      {busy && <Spinner aria-hidden />}
-      <span className="type-caption">{notice}</span>
-      {!busy && (
-        <Button size="sm" variant="secondary" onClick={onRetry}>
-          Reopen terminal
-        </Button>
-      )}
-    </div>
+  return status === "opening" ? (
+    <TileStatus notice={notice} busy />
+  ) : (
+    <TileStatus notice={notice} retry="Reopen terminal" onRetry={onRetry} />
   );
 }

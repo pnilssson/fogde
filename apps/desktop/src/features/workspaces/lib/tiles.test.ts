@@ -9,6 +9,7 @@ import {
   startDrag,
 } from "@/features/workspaces/lib/drag";
 import { layoutKey, store } from "@/features/workspaces/lib/layouts";
+import { closeTile } from "@/features/workspaces/lib/opening";
 import {
   activate,
   attach,
@@ -155,4 +156,68 @@ test("opening a workspace focuses only its first terminal", () => {
 
   expect(focused.filter((id) => id !== undefined)).toEqual(["a"]);
   expect(store.getState().active).toEqual(a);
+});
+
+function addOther(api: DockviewApi, id: string) {
+  return api.addPanel({
+    id,
+    component: "other",
+    params: { machine: "m1", id },
+    position: { direction: "right" },
+  });
+}
+
+test("syncing terminals leaves other tiles open", () => {
+  const api = dockview();
+  sync([a, b], () => false);
+  addOther(api, "other:1");
+
+  sync([a], () => false);
+
+  expect(tiles(api)).toEqual([["m1:a"], ["other:1"]]);
+});
+
+test("another tile moves by its id and drops only where it exists", () => {
+  const api = dockview();
+  store.setState({ workspace: { machine: "m1", id: "w1" } });
+  sync([a, b], () => false);
+  addOther(api, "other:1");
+
+  startDrag({ tile: "other:1" });
+  expect(canDrop(groupOf(api, "m1:a"), "center")).toBe(true);
+  startDrag({ tile: "other:2" });
+  expect(canDrop(groupOf(api, "m1:a"), "left")).toBe(false);
+  endDrag();
+
+  drop({ tile: "other:1" }, "center", groupOf(api, "m1:a"));
+
+  expect(tiles(api)).toEqual([["other:1"], ["m1:b"], ["m1:a"]]);
+});
+
+test("focusing another tile clears the active terminal", () => {
+  const api = dockview();
+  sync([a], () => false);
+  const other = addOther(api, "other:1");
+
+  activate(other.api);
+
+  expect(store.getState().focused).toBe("other:1");
+  expect(store.getState().active).toBeUndefined();
+});
+
+test("closing a tile in another workspace removes it from its saved layout", () => {
+  const api = dockview();
+  const workspace = { machine: "m1", id: "w1" };
+  sync([a, b], () => false);
+  addOther(api, "other:1");
+  store.setState({
+    workspace: { machine: "m1", id: "w2" },
+    layouts: { [layoutKey(workspace)]: api.toJSON() },
+  });
+  api.clear();
+
+  closeTile("other:1", workspace);
+  selectWorkspace(workspace);
+
+  expect(tiles(api)).toEqual([["m1:a"], ["m1:b"]]);
 });

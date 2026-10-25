@@ -1,4 +1,4 @@
-import { TerminalWindowIcon } from "@phosphor-icons/react";
+import { NotebookIcon, TerminalWindowIcon } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 
 import { AgentIcon } from "@/components/agent-icon";
@@ -8,6 +8,7 @@ import {
   useChoices,
   useCreateTerminal,
 } from "@/features/workspaces/hooks/use-terminals";
+import { openNotes } from "@/features/workspaces/lib/opening";
 import {
   startFocused,
   useStartFocus,
@@ -63,6 +64,17 @@ export function StartActions({ machine, workspace, folder }: Props) {
           </Button>
         );
       })}
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={create.isPending}
+        onClick={() => {
+          openNotes(machine.id);
+        }}
+      >
+        <NotebookIcon data-icon="inline-start" />
+        Notes
+      </Button>
     </div>
   );
 }

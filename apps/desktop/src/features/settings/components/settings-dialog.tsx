@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/tooltip";
 import { AccessibilitySettings } from "@/features/settings/components/accessibility-settings";
 import { MachineSettings } from "@/features/settings/components/machine-settings";
+import { NotesSettings } from "@/features/settings/components/notes-settings";
 import { NotificationSettings } from "@/features/settings/components/notification-settings";
 import {
   SettingsRow,
@@ -67,6 +68,7 @@ export function SettingsDialog() {
             <StatsSettings />
             <UsageSettings />
             <ShellSettings />
+            <NotesSettings />
             <NotificationSettings />
             <AccessibilitySettings />
             <MachineSettings

@@ -1,5 +1,6 @@
 import {
   GitBranchIcon,
+  NotebookIcon,
   PlusCircleIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
@@ -22,7 +23,7 @@ import {
   mainCheckout,
 } from "@/features/workspaces/lib/checkouts";
 import { viewFolder, type View } from "@/features/workspaces/lib/selection";
-import { openStart } from "@/features/workspaces/lib/tiles";
+import { openNotes, openStart } from "@/features/workspaces/lib/opening";
 import type { Workspace } from "@/generated/protocol";
 import { useConnection } from "@/hooks/use-connection";
 import { agentName } from "@/lib/agents";
@@ -73,6 +74,18 @@ export function PaletteWorkspace({
           <CommandShortcut>
             <Keys letter={shortcuts.tile} />
           </CommandShortcut>
+        </CommandItem>
+        <CommandItem
+          value="open notes"
+          keywords={["view", "show", "tile"]}
+          onSelect={() => {
+            run(() => {
+              openNotes(machine.id);
+            });
+          }}
+        >
+          <NotebookIcon />
+          Open notes
         </CommandItem>
         {choices.map((agent) => {
           const name = agent ? agentName[agent] : "terminal";

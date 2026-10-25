@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 import { createStore } from "zustand/vanilla";
 
 import { type Selection, View } from "@/features/workspaces/lib/selection";
+import { folderName } from "@/lib/folders";
 
 export const startId = "start";
 export const holdId = "hold";
@@ -14,7 +15,7 @@ interface Tiles {
   layouts: Record<string, SerializedDockview>;
   closed: string[];
   active: Selection | undefined;
-  startActive: boolean;
+  focused: string | undefined;
 }
 
 const saved = z.object({
@@ -30,12 +31,19 @@ const saved = z.object({
 
 const StartParams = z.object({ folder: z.string() });
 
+export const NotesParams = z.object({
+  machine: z.string(),
+  note: z.string().optional(),
+});
+
+export type NotesParams = z.infer<typeof NotesParams>;
+
 const initial: Tiles = {
   workspace: undefined,
   layouts: {},
   closed: [],
   active: undefined,
-  startActive: false,
+  focused: undefined,
 };
 
 export const store = createStore<Tiles>()(
@@ -91,6 +99,46 @@ export function forget(view: View) {
   });
 }
 
+type Node = SerializedDockview["grid"]["root"];
+
+function withoutTile(node: Node, id: string): Node {
+  if (Array.isArray(node.data)) {
+    return { ...node, data: node.data.map((child) => withoutTile(child, id)) };
+  }
+
+  const { activeView, ...group } = node.data;
+  const views = group.views.filter((view) => view !== id);
+  const active = activeView === id ? views[0] : activeView;
+
+  return {
+    ...node,
+    data: active
+      ? { ...group, views, activeView: active }
+      : { ...group, views },
+  };
+}
+
+export function dropTile(view: View, id: string) {
+  const key = layoutKey(view);
+  const { layouts } = store.getState();
+  const layout = layouts[key];
+  if (!layout?.panels[id]) {
+    return;
+  }
+
+  const panels = Object.fromEntries(
+    Object.entries(layout.panels).filter(([panel]) => panel !== id),
+  );
+  const root = withoutTile(layout.grid.root, id);
+
+  store.setState({
+    layouts: {
+      ...layouts,
+      [key]: { ...layout, panels, grid: { ...layout.grid, root } },
+    },
+  });
+}
+
 export function useOpen(view: View) {
   const key = layoutKey(view);
 
@@ -116,4 +164,24 @@ export function useStart(view: View | undefined) {
   const layout = useTiles(({ layouts }) => view && layouts[layoutKey(view)]);
 
   return sharedStart(layout);
+}
+
+export function noteTitle(note: string | undefined) {
+  return note ? folderName(note).replace(/\.md$/i, "") : "Notes";
+}
+
+function noteTiles(layout: SerializedDockview | undefined) {
+  return Object.values(layout?.panels ?? {}).flatMap((panel) => {
+    const params = NotesParams.safeParse(panel.params).data;
+
+    return panel.contentComponent === "notes" && params
+      ? [{ id: panel.id, title: noteTitle(params.note) }]
+      : [];
+  });
+}
+
+export function useNoteTiles(view: View) {
+  const layout = useTiles(({ layouts }) => layouts[layoutKey(view)]);
+
+  return noteTiles(layout);
 }

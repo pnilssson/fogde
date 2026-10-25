@@ -8,6 +8,12 @@ export const reposFolderQuery = (machine: Machine) =>
     queryFn: () => machine.client.call("repos.folder"),
   });
 
+export const notesFolderQuery = (machine: Machine) =>
+  queryOptions({
+    queryKey: [machine.id, "notes.folder"],
+    queryFn: () => machine.client.call("notes.folder"),
+  });
+
 export const foldersQuery = (machine: Machine, path: string) =>
   queryOptions({
     queryKey: [machine.id, "folders.list", path],

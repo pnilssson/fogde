@@ -1,6 +1,6 @@
 import type { Terminal } from "@xterm/xterm";
 
-import { report } from "@/features/terminals/lib/report";
+import { report } from "@/lib/report";
 
 export function copyOnSelect(
   terminal: Terminal,

@@ -12,17 +12,27 @@ import {
 interface SectionProps {
   id: string;
   title: string;
+  hint?: string;
   action?: ReactNode;
   children: ReactNode;
 }
 
-export function SettingsSection({ id, title, action, children }: SectionProps) {
+export function SettingsSection({
+  id,
+  title,
+  hint,
+  action,
+  children,
+}: SectionProps) {
   return (
     <section className="flex flex-col gap-1" aria-labelledby={id}>
       <div className="flex h-8 items-center gap-2">
-        <h2 id={id} className="min-w-0 flex-1 truncate type-title">
-          {title}
-        </h2>
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          <h2 id={id} className="min-w-0 truncate type-title">
+            {title}
+          </h2>
+          {hint && <Hint text={hint} />}
+        </div>
         {action}
       </div>
       {children}
@@ -33,7 +43,6 @@ export function SettingsSection({ id, title, action, children }: SectionProps) {
 interface RowProps {
   label: ReactNode;
   leading?: ReactNode;
-  hint?: string;
   labelled?: boolean;
   children: ReactNode;
 }
@@ -41,7 +50,6 @@ interface RowProps {
 export function SettingsRow({
   label,
   leading,
-  hint,
   labelled = false,
   children,
 }: RowProps) {
@@ -51,26 +59,27 @@ export function SettingsRow({
   return (
     <Root className="flex h-8 items-center gap-2">
       {leading}
-      <div className="flex min-w-0 flex-1 items-center gap-1">
-        <Label className="min-w-0 truncate type-body">{label}</Label>
-        {hint && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="More information"
-                />
-              }
-            >
-              <InfoIcon />
-            </TooltipTrigger>
-            <TooltipContent>{hint}</TooltipContent>
-          </Tooltip>
-        )}
-      </div>
+      <Label className="min-w-0 flex-1 truncate type-body">{label}</Label>
       {children}
     </Root>
+  );
+}
+
+function Hint({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="More information"
+          />
+        }
+      >
+        <InfoIcon />
+      </TooltipTrigger>
+      <TooltipContent>{text}</TooltipContent>
+    </Tooltip>
   );
 }

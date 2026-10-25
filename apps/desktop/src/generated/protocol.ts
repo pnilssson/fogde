@@ -46,6 +46,12 @@ export type MachineId = { "kind": "computer" } | { "kind": "server", id: string,
 
 export type Material = "translucent" | "solid";
 
+export type Note = { name: string, path: string, folder: string, modified: number, created: number, };
+
+export type NoteList = { root: string, folders: Array<string>, notes: Array<Note>, };
+
+export type NoteText = { text: string, version: string, };
+
 export type Notifications = { enabled: boolean, sound: boolean, };
 
 export type PasteImageParams = { id: string, image: Image, data: string, };
@@ -59,6 +65,8 @@ export type RemoteRepo = { host: string, owner: string, name: string, cloned: bo
 export type RemoveWorktreeParams = { repo: string, path: string, };
 
 export type RenameMachineParams = { machine: MachineId, name: string, };
+
+export type RenameNoteParams = { path: string, name: string, };
 
 export type Repo = { host: string, owner: string, name: string, };
 
@@ -116,6 +124,10 @@ export type Window = { span: Span, left: number, resets: number, };
 
 export type Workspace = { id: string, name: string, folder: string, missing: boolean, checkouts: Array<Checkout>, terminals: Array<Terminal>, };
 
+export type WriteNoteParams = { path: string, text: string, version: string, };
+
+export type Written = { "kind": "saved", version: string, } | { "kind": "changed" };
+
 export type Methods = {
   "accessibility.get": { params: null; result: Accessibility };
   "accessibility.set": { params: Accessibility; result: null };
@@ -138,6 +150,15 @@ export type Methods = {
   "machines.list": { params: null; result: Array<Machine> };
   "machines.remove": { params: MachineId; result: null };
   "machines.rename": { params: RenameMachineParams; result: null };
+  "notes.createFolder": { params: CreateFolderParams; result: string };
+  "notes.createNote": { params: CreateFolderParams; result: string };
+  "notes.delete": { params: string; result: null };
+  "notes.folder": { params: null; result: string };
+  "notes.list": { params: null; result: NoteList };
+  "notes.read": { params: string; result: NoteText };
+  "notes.rename": { params: RenameNoteParams; result: string };
+  "notes.setFolder": { params: string; result: null };
+  "notes.write": { params: WriteNoteParams; result: Written };
   "notifications.get": { params: null; result: Notifications };
   "notifications.set": { params: Notifications; result: null };
   "onboarding.done": { params: null; result: boolean };
@@ -190,6 +211,7 @@ export type Events = {
   "terminals.state": TerminalState;
   "workspaces.changed": null;
   "usage.changed": Array<Usage>;
+  "notes.changed": null;
 };
 
 export const offline = -32001;

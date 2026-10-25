@@ -9,6 +9,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use protocol::Connection;
+use protocol::notes::NotesEvent;
 use protocol::rpc::{self, Failure, PARSE_ERROR};
 use protocol::terminals::StateEvent;
 use protocol::usage::UsageEvent;
@@ -101,6 +102,7 @@ pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: boo
     let mut changes = shared.tracker.changes();
     let mut checkouts = crate::workspaces::changes(&shared);
     let mut usage = crate::usage::changes(&shared);
+    let mut notes = crate::notes::changes(&shared);
     let session = Arc::new(Session::new(shared, local, replies.clone(), frames));
 
     loop {
@@ -136,6 +138,9 @@ pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: boo
             }
             Ok(()) = checkouts.recv() => {
                 notify::<ChangedEvent>(&replies, ());
+            }
+            Ok(()) = notes.recv() => {
+                notify::<NotesEvent>(&replies, ());
             }
             Ok(()) = usage.changed() => {
                 notify::<UsageEvent>(&replies, usage.borrow_and_update().clone());

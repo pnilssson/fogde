@@ -10,12 +10,8 @@ import type { Shown } from "@/generated/protocol";
 import { callOwn } from "@/lib/host";
 import { shownQuery } from "@/lib/usage";
 
-const rows: { key: keyof Shown; label: string; hint?: string }[] = [
-  {
-    key: "claude",
-    label: "Claude usage left",
-    hint: "Shown once you start a conversation with Claude",
-  },
+const rows: { key: keyof Shown; label: string }[] = [
+  { key: "claude", label: "Claude usage left" },
   { key: "codex", label: "Codex usage left" },
   { key: "copilot", label: "GitHub Copilot usage left" },
 ];
@@ -30,8 +26,8 @@ export function UsageSettings() {
 
   return (
     <SettingsSection id="status-bar-heading" title="Status bar">
-      {rows.map(({ key, label, hint }) => (
-        <SettingsRow key={key} label={label} hint={hint} labelled>
+      {rows.map(({ key, label }) => (
+        <SettingsRow key={key} label={label} labelled>
           <Switch
             checked={data?.[key] ?? false}
             disabled={!data}

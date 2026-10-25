@@ -3,7 +3,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { WorktreeForm } from "@/features/workspaces/components/new-worktree";
 import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
 import { checkoutOf, mainCheckout } from "@/features/workspaces/lib/checkouts";
-import { closeStart } from "@/features/workspaces/lib/tiles";
+import { closeStart } from "@/features/workspaces/lib/opening";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 

@@ -23,6 +23,7 @@ github = { path = "crates/github" }
 herdr-client = { path = "crates/herdr-client" }
 host = { path = "crates/host" }
 interprocess = { version = "2.4.6", features = ["tokio"] }
+notify-debouncer-mini = "0.7.0"
 process = { path = "crates/process" }
 protocol = { path = "crates/protocol" }
 remote = { path = "crates/remote" }

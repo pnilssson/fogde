@@ -10,14 +10,16 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { closeStart } from "@/features/workspaces/lib/tiles";
+import { closeStart } from "@/features/workspaces/lib/opening";
+import type { View } from "@/features/workspaces/lib/selection";
 
 interface Props {
+  view: View;
   active: boolean;
   onSelect: () => void;
 }
 
-export function StartItem({ active, onSelect }: Props) {
+export function StartItem({ view, active, onSelect }: Props) {
   return (
     <SidebarMenuSubItem>
       <ContextMenu>
@@ -35,7 +37,13 @@ export function StartItem({ active, onSelect }: Props) {
           <span>New tile</span>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem onClick={closeStart}>Close</ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => {
+              closeStart(view);
+            }}
+          >
+            Close
+          </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
     </SidebarMenuSubItem>

@@ -85,7 +85,9 @@ export function TileBar({
                 variant="ghost"
                 size="icon-xs"
                 aria-label={`Close ${title}`}
-                onClick={onClose}
+                onClick={() => {
+                  onClose();
+                }}
               />
             }
           >

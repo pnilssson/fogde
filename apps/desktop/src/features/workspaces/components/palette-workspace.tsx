@@ -2,6 +2,7 @@ import {
   GitBranchIcon,
   NotebookIcon,
   PlusCircleIcon,
+  PulseIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/command";
 import { Spinner } from "@/components/ui/spinner";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
+import { useOpenMonitor } from "@/features/workspaces/hooks/use-monitor";
 import {
   useChoices,
   useCreateTerminal,
@@ -57,6 +59,7 @@ export function PaletteWorkspace({
   const create = useCreateTerminal();
   const remove = useRemoveWorktree(machine, workspace);
   const openNote = useOpenNote();
+  const openMonitor = useOpenMonitor();
   if (connection.state !== "connected") {
     return null;
   }
@@ -97,6 +100,21 @@ export function PaletteWorkspace({
         >
           <NotebookIcon />
           Open notes
+        </CommandItem>
+        <CommandItem
+          value="open monitor"
+          keywords={["view", "show", "tile", "cpu", "memory", "usage"]}
+          onSelect={() => {
+            run(() => {
+              openMonitor.mutate({
+                machine,
+                view: view ?? { machine: machine.id, id: workspace.id },
+              });
+            });
+          }}
+        >
+          <PulseIcon />
+          Open monitor
         </CommandItem>
         {(choices ?? [null]).map((agent) => {
           const name = agent ? agents[agent].name : "terminal";

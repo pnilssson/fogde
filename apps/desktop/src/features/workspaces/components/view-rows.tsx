@@ -1,3 +1,4 @@
+import { MonitorItem } from "@/features/workspaces/components/monitor-item";
 import { NoteItem } from "@/features/workspaces/components/note-item";
 import { StartItem } from "@/features/workspaces/components/start-item";
 import { TerminalItem } from "@/features/workspaces/components/terminal-item";
@@ -58,11 +59,14 @@ export function ViewRows({
           onArrange: arrange,
         };
 
-        return tile.kind === "terminal" ? (
-          <TerminalItem key={tile.id} {...shared} terminal={tile} />
-        ) : (
-          <NoteItem key={tile.id} {...shared} note={tile} />
-        );
+        switch (tile.kind) {
+          case "terminal":
+            return <TerminalItem key={tile.id} {...shared} terminal={tile} />;
+          case "note":
+            return <NoteItem key={tile.id} {...shared} note={tile} />;
+          case "monitor":
+            return <MonitorItem key={tile.id} {...shared} monitor={tile} />;
+        }
       })}
       {start !== undefined && (
         <StartItem

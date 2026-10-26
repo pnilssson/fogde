@@ -3,6 +3,7 @@ import { folderName } from "@/lib/folders";
 
 export type TerminalTile = Extract<Tile, { kind: "terminal" }>;
 export type NoteTile = Extract<Tile, { kind: "note" }>;
+export type MonitorTile = Extract<Tile, { kind: "monitor" }>;
 
 export function terminalsOf(workspace: Workspace) {
   return workspace.tiles.filter(

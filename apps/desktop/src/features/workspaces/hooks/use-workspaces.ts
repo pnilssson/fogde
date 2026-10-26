@@ -12,7 +12,7 @@ import {
   workspacesQuery,
 } from "@/features/workspaces/api/workspaces";
 import { forget } from "@/features/workspaces/lib/layouts";
-import { placeNote, type Spot } from "@/features/workspaces/lib/opening";
+import { placeTile, type Spot } from "@/features/workspaces/lib/opening";
 import { arranged } from "@/features/workspaces/lib/order";
 import type { View } from "@/features/workspaces/lib/selection";
 import { terminalsOf } from "@/features/workspaces/lib/tile-kinds";
@@ -164,7 +164,7 @@ export function useOpenNote() {
         checkout: view.checkout ?? null,
         note: note ?? null,
       });
-      placeNote(view, id, spot);
+      placeTile(view, "note", id, spot);
     },
     onError: (error, { machine }) => {
       failed(queries, machine, "Could not open the notes", error);
@@ -200,23 +200,23 @@ export function useShowNote() {
   });
 }
 
-interface CloseNote {
+interface CloseTile {
   machine: Machine;
   tile: string;
 }
 
-export function useCloseNote() {
+export function useCloseTile() {
   const queries = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ machine, tile }: CloseNote) =>
-      machine.client.call("workspaces.closeNote", tile),
+    mutationFn: ({ machine, tile }: CloseTile) =>
+      machine.client.call("workspaces.closeTile", tile),
     onMutate: async ({ machine, tile }) => {
       await queries.cancelQueries(workspacesQuery(machine));
       removeTile(queries, machine, tile);
     },
     onError: (error, { machine }) => {
-      failed(queries, machine, "Could not close the notes", error);
+      failed(queries, machine, "Could not close the tile", error);
     },
     onSettled: (_, __, { machine }) =>
       queries.invalidateQueries(workspacesQuery(machine)),

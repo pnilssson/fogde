@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT tile, checkout FROM tiles WHERE kind = 'note' AND checkout IS NOT NULL",
+  "query": "SELECT tile, checkout FROM tiles WHERE kind != 'terminal' AND checkout IS NOT NULL",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       true
     ]
   },
-  "hash": "dd0a4c27e4b6bfb10b6456a1517291ba857c02514c38ae4bd7cc221f5673fe50"
+  "hash": "30d84ac9943dc99f64c3bafe1c3dcce3fb418228b2a92ebf5dc454e8168bec31"
 }

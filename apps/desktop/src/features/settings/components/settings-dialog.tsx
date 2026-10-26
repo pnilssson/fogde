@@ -27,7 +27,7 @@ import {
 import { ShellSettings } from "@/features/settings/components/shell-settings";
 import { StatsSettings } from "@/features/settings/components/stats-settings";
 import { TranslucentSwitch } from "@/features/settings/components/translucent-switch";
-import { UsageSettings } from "@/features/settings/components/usage-settings";
+import { StatusBarSettings } from "@/features/settings/components/status-bar-settings";
 import { frame } from "@/lib/frame";
 
 export function SettingsDialog() {
@@ -66,7 +66,7 @@ export function SettingsDialog() {
               )}
             </SettingsSection>
             <StatsSettings />
-            <UsageSettings />
+            <StatusBarSettings />
             <ShellSettings />
             <NotesSettings />
             <NotificationSettings />

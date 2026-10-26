@@ -1,5 +1,6 @@
 import type { DockviewApi, DockviewGroupPanel, Position } from "dockview-react";
 
+import type { Listed } from "@/features/workspaces/lib/drag";
 import { dropTile, startId, store } from "@/features/workspaces/lib/layouts";
 import {
   sameView,
@@ -91,14 +92,21 @@ export interface Spot {
   group: DockviewGroupPanel | undefined;
 }
 
-export function placeNote(view: View, id: string, spot?: Spot) {
+export function placeTile(
+  view: View,
+  kind: Listed["kind"],
+  id: string,
+  spot?: Spot,
+) {
   const api = dockview();
-  const tile = { kind: "note" as const, machine: view.machine, id };
-  if (
-    !api ||
-    !sameView(view, store.getState().workspace) ||
-    api.getPanel(tileId(tile))
-  ) {
+  const tile = { kind, machine: view.machine, id };
+  if (!api || !sameView(view, store.getState().workspace)) {
+    return;
+  }
+
+  const existing = api.getPanel(tileId(tile));
+  if (existing) {
+    existing.api.setActive();
     return;
   }
 

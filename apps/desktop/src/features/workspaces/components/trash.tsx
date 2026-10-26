@@ -4,7 +4,7 @@ import { type DragEvent, useContext, useState } from "react";
 
 import { CloseTerminal } from "@/features/workspaces/components/close-terminal";
 import { useCloseTerminal } from "@/features/workspaces/hooks/use-terminals";
-import { useCloseNote } from "@/features/workspaces/hooks/use-workspaces";
+import { useCloseTile } from "@/features/workspaces/hooks/use-workspaces";
 import {
   type Dragged,
   dragged,
@@ -25,7 +25,7 @@ export function Trash({ machine }: { machine: Machine }) {
   const { groups } = useContext(WorkspaceContext);
   const item = useDragging();
   const close = useCloseTerminal(machine);
-  const closeNote = useCloseNote();
+  const closing = useCloseTile();
   const [over, setOver] = useState(false);
   const [target, setTarget] = useState<Terminal>();
   const [confirming, setConfirming] = useState(false);
@@ -44,8 +44,8 @@ export function Trash({ machine }: { machine: Machine }) {
       return;
     }
 
-    if (dropped.kind === "note") {
-      closeNote.mutate({ machine, tile: dropped.id });
+    if (dropped.kind !== "terminal") {
+      closing.mutate({ machine, tile: dropped.id });
       return;
     }
 

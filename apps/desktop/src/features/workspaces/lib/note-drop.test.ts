@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from "vitest";
 
 import { store } from "@/features/workspaces/lib/layouts";
 import { canDropNote, dropNote } from "@/features/workspaces/lib/note-drop";
-import { openStart, placeNote } from "@/features/workspaces/lib/opening";
+import { openStart, placeTile } from "@/features/workspaces/lib/opening";
 import { attach, sync } from "@/features/workspaces/lib/tiles";
 import { noteDragProps } from "@/lib/note-drag";
 
@@ -94,7 +94,7 @@ test("a note dropped on the new tile opens in its place", () => {
   const done = actions();
 
   dropNote("center", groupOf(api, "start"), done);
-  placeNote({ machine: "m1", id: "w1" }, "note-1");
+  placeTile({ machine: "m1", id: "w1" }, "note", "note-1");
 
   expect(done.open).toHaveBeenCalledWith(undefined);
   expect(api.getPanel("start")).toBeUndefined();

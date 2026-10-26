@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { Switch } from "@/components/ui/switch";
+import { MonitorRows } from "@/features/settings/components/monitor-rows";
 import {
   SettingsRow,
   SettingsSection,
@@ -11,7 +12,7 @@ import { agents, allAgents } from "@/lib/agents";
 import { callOwn } from "@/lib/host";
 import { shownQuery, shows } from "@/lib/usage";
 
-export function UsageSettings() {
+export function StatusBarSettings() {
   const { data } = useQuery(shownQuery);
   const save = useSaveSetting(
     shownQuery,
@@ -38,6 +39,7 @@ export function UsageSettings() {
           />
         </SettingsRow>
       ))}
+      <MonitorRows />
     </SettingsSection>
   );
 }

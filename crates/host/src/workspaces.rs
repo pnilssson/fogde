@@ -4,7 +4,7 @@ mod tiles;
 mod watch;
 
 pub use identity::Searches;
-pub use tiles::{close_notes_in, follow};
+pub use tiles::{close_in, follow};
 pub use watch::{Watch, changes};
 
 use std::path::{Path, PathBuf};
@@ -13,8 +13,8 @@ use futures_util::future::join_all;
 use protocol::rpc::Failure;
 use protocol::terminals::Terminal;
 use protocol::workspaces::{
-    Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, NoteTile, PlaceTerminal,
-    PlaceTerminalParams, Tile, Workspace,
+    Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, MonitorTile, NoteTile,
+    PlaceTerminal, PlaceTerminalParams, Tile, Workspace,
 };
 use sqlx::SqlitePool;
 
@@ -198,6 +198,10 @@ async fn compose(workspace: store::Workspace, missing: bool) -> Workspace {
             Tile::Note(note) => Tile::Note(NoteTile {
                 checkout: note.checkout.and_then(|path| listed(&path, &checkouts)),
                 ..note
+            }),
+            Tile::Monitor(monitor) => Tile::Monitor(MonitorTile {
+                checkout: monitor.checkout.and_then(|path| listed(&path, &checkouts)),
+                ..monitor
             }),
         })
         .collect();

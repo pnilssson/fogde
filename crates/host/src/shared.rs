@@ -10,6 +10,7 @@ use tokio::fs;
 use tokio::sync::{Mutex, OnceCell};
 
 use crate::db::Db;
+use crate::monitor::Monitor;
 use crate::notes::Notes;
 use crate::settings::Settings;
 use crate::terminals::{self, Tracker};
@@ -27,6 +28,7 @@ pub struct Shared {
     pub watch: Watch,
     pub notes: Notes,
     pub usage: Meter,
+    pub monitor: Monitor,
     fogde: PathBuf,
     tools: PathBuf,
     gh: OnceCell<Gh>,
@@ -49,6 +51,7 @@ impl Shared {
             watch: Watch::default(),
             notes: Notes::default(),
             usage: Meter::default(),
+            monitor: Monitor::default(),
             tools: app.join("tools"),
             fogde,
             gh: OnceCell::new(),
@@ -73,6 +76,10 @@ impl Shared {
                 Ok(herdr)
             })
             .await
+    }
+
+    pub fn running_herdr(&self) -> Option<&Herdr> {
+        self.herdr.get()
     }
 
     pub async fn repos(&self) -> io::Result<PathBuf> {

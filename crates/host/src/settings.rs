@@ -2,6 +2,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use protocol::accessibility::Accessibility;
+use protocol::monitor::Bar;
 use protocol::notifications::Notifications;
 use protocol::stats::Stats;
 use protocol::theme::{Material, Theme};
@@ -30,6 +31,8 @@ struct Values {
     stats: Stats,
     #[serde(default)]
     shown: Shown,
+    #[serde(default)]
+    bar: Bar,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     shell: Option<String>,
 }
@@ -121,6 +124,14 @@ impl Settings {
         self.update(|values| values.shown = shown).await
     }
 
+    pub async fn bar(&self) -> io::Result<Bar> {
+        Ok(self.load().await?.bar)
+    }
+
+    pub async fn set_bar(&self, bar: Bar) -> io::Result<()> {
+        self.update(|values| values.bar = bar).await
+    }
+
     pub async fn shell(&self) -> io::Result<Option<String>> {
         Ok(self.load().await?.shell)
     }
@@ -158,6 +169,8 @@ mod tests {
     use std::collections::BTreeMap;
 
     use protocol::agents::Agent;
+    use protocol::machines::MachineId;
+    use protocol::monitor::Metric;
 
     #[tokio::test]
     async fn remembers_what_was_saved() {
@@ -196,6 +209,11 @@ mod tests {
         let quiet_codex = Shown(BTreeMap::from([(Agent::Codex, false)]));
         settings.set_shown(quiet_codex.clone()).await.unwrap();
         settings.set_shell(Some("zsh".into())).await.unwrap();
+        let vps = Bar {
+            machine: MachineId::Server { id: "vps".into() },
+            metrics: vec![Metric::Latency],
+        };
+        settings.set_bar(vps.clone()).await.unwrap();
 
         let reopened = Settings::new(&app);
         assert!(reopened.onboarded().await.unwrap());
@@ -207,5 +225,6 @@ mod tests {
         assert_eq!(reopened.accessibility().await.unwrap(), reader);
         assert_eq!(reopened.shown().await.unwrap(), quiet_codex);
         assert_eq!(reopened.shell().await.unwrap().as_deref(), Some("zsh"));
+        assert_eq!(reopened.bar().await.unwrap(), vps);
     }
 }

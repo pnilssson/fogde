@@ -1,7 +1,7 @@
 import { NotebookIcon } from "@phosphor-icons/react";
 
 import { TileItem } from "@/features/workspaces/components/tile-item";
-import { useCloseNote } from "@/features/workspaces/hooks/use-workspaces";
+import { useCloseTile } from "@/features/workspaces/hooks/use-workspaces";
 import { type NoteTile, noteTitle } from "@/features/workspaces/lib/tile-kinds";
 import type { Machine } from "@/lib/machines";
 
@@ -22,7 +22,7 @@ export function NoteItem({
   onSelect,
   onArrange,
 }: Props) {
-  const close = useCloseNote();
+  const close = useCloseTile();
 
   return (
     <TileItem

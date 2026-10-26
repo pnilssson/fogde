@@ -33,7 +33,11 @@ export function tileId({ machine, id }: Selection) {
   return `${machine}:${id}`;
 }
 
-const components = { terminal: "terminal", note: "notes" } as const;
+const components = {
+  terminal: "terminal",
+  note: "notes",
+  monitor: "monitor",
+} as const;
 
 function listedOf(panel: IDockviewPanel) {
   const kind = Object.entries(components).find(

@@ -84,7 +84,10 @@ export function useStatus(
 }
 
 export function useChoices(machine: Machine): (Agent | null)[] | undefined {
-  const { data: agents = [], isPending } = useQuery(agentsQuery(machine));
+  const { data: agents = [], isPending } = useQuery({
+    ...agentsQuery(machine),
+    staleTime: Infinity,
+  });
   if (isPending) {
     return undefined;
   }

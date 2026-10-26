@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { StatusBar } from "@/components/status-bar";
 import { SidebarInset } from "@/components/ui/sidebar";
+import { useAgents } from "@/features/agents/hooks/use-agents";
 import { onboardedQuery } from "@/features/onboarding/api/onboarding";
 import { SettingsDialog } from "@/features/settings/components/settings-dialog";
 import { UsageMeters } from "@/features/usage/components/usage-meters";
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/_onboarded")({
     useRetryOnReturn(machines);
     useAttention(machines);
     useFailures(machines);
+    useAgents(machines);
     useCheckouts(machines);
     useNotesChanges(machines);
     useViewing(machines);

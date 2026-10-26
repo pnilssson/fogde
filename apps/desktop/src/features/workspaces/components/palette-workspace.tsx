@@ -11,6 +11,7 @@ import {
   CommandItem,
   CommandShortcut,
 } from "@/components/ui/command";
+import { Spinner } from "@/components/ui/spinner";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
 import {
   useChoices,
@@ -26,9 +27,14 @@ import { viewFolder, type View } from "@/features/workspaces/lib/selection";
 import { openNotes, openStart } from "@/features/workspaces/lib/opening";
 import type { Workspace } from "@/generated/protocol";
 import { useConnection } from "@/hooks/use-connection";
-import { agents } from "@/lib/agents";
+import { agents, allAgents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 import { shortcuts } from "@/lib/shortcuts";
+
+const searched = allAgents.flatMap((agent) => [
+  agents[agent].name,
+  agents[agent].short,
+]);
 
 interface Props {
   machine: Machine;
@@ -46,7 +52,7 @@ export function PaletteWorkspace({
   onNewWorktree,
 }: Props) {
   const connection = useConnection(machine);
-  const choices = useChoices(machine) ?? [null];
+  const choices = useChoices(machine);
   const create = useCreateTerminal();
   const remove = useRemoveWorktree(machine, workspace);
   if (connection.state !== "connected") {
@@ -87,7 +93,7 @@ export function PaletteWorkspace({
           <NotebookIcon />
           Open notes
         </CommandItem>
-        {choices.map((agent) => {
+        {(choices ?? [null]).map((agent) => {
           const name = agent ? agents[agent].name : "terminal";
 
           return (
@@ -110,6 +116,16 @@ export function PaletteWorkspace({
             </CommandItem>
           );
         })}
+        {!choices && (
+          <CommandItem
+            value="loading agents"
+            keywords={["new", "open", "start", ...searched]}
+            disabled
+          >
+            <Spinner aria-hidden />
+            Loading agents…
+          </CommandItem>
+        )}
         {main && (
           <CommandItem
             value="new worktree"

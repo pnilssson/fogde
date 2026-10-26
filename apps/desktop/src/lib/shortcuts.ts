@@ -46,8 +46,8 @@ export function arrowSide(event: KeyboardEvent) {
 
 export function keys(key: string, alt = false) {
   if (mac) {
-    return alt ? ["⌘", "⌥", key] : ["⌘", key];
+    return alt ? `⌘⌥${key}` : `⌘${key}`;
   }
 
-  return alt ? ["Ctrl", "Shift", "Alt", key] : ["Ctrl", "Shift", key];
+  return alt ? `Ctrl+Shift+Alt+${key}` : `Ctrl+Shift+${key}`;
 }

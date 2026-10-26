@@ -24,8 +24,9 @@ use crate::folders;
 use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
 pub use changes::count;
+pub use images::prune;
 pub use launch::path_with;
-use launch::{Launch, Launches, label};
+use launch::{Launch, Launches};
 use stream::Control;
 pub use tracker::Tracker;
 
@@ -128,7 +129,10 @@ impl Handler for CreateTerminal {
     async fn handle(session: &Session, params: CreateTerminalParams) -> Result<Terminal, Failure> {
         let herdr = session.herdr().await?;
         let folder = folders::absolute(&params.folder).map_err(failure)?;
-        let name = label(params.agent);
+        let name = match params.agent {
+            Some(agent) => agent.spec().short.to_owned(),
+            None => crate::shell::name(session.shared.settings.shell().await.ok().flatten()).await,
+        };
         let mut env = herdr.pane_env().clone();
         if params.agent.is_some_and(|agent| agent.spec().github) {
             env.insert("PATH".to_owned(), path_with(session.gh().await?.program()));
@@ -140,7 +144,7 @@ impl Handler for CreateTerminal {
         let placing = session.shared.placing.lock().await;
         let pane = herdr
             .client()
-            .create_workspace(&folder, name, &env)
+            .create_workspace(&folder, &name, &env)
             .await
             .map_err(failure)?;
         let workspace = pane.workspace.clone();
@@ -156,7 +160,7 @@ impl Handler for CreateTerminal {
 
         Ok(Terminal {
             id: workspace,
-            name: name.to_owned(),
+            name,
             agent: params.agent,
             status: Status::Idle,
             folder: folder.display().to_string(),

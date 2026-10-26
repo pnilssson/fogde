@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
@@ -5,6 +6,7 @@ use std::time::{Duration, SystemTime};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use protocol::terminals::{IMAGE_LIMIT, Image};
+use sha2::{Digest, Sha256};
 use tokio::fs;
 
 const KEPT: Duration = Duration::from_hours(7 * 24);
@@ -16,14 +18,18 @@ pub async fn save(dir: &Path, image: Image, data: String) -> io::Result<PathBuf>
             format!("the image is larger than {} MB", IMAGE_LIMIT / 1024 / 1024),
         ));
     }
-    let bytes = tokio::task::spawn_blocking(move || STANDARD.decode(data))
-        .await
-        .map_err(io::Error::other)?
-        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    let (bytes, name) = tokio::task::spawn_blocking(move || {
+        STANDARD.decode(data).map(|bytes| {
+            let name = name(&bytes);
+            (bytes, name)
+        })
+    })
+    .await
+    .map_err(io::Error::other)?
+    .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
 
     create(dir).await?;
     prune(dir).await;
-    let name = &crate::token::generate()?[..16];
     let path = dir.join(format!("{name}.{}", extension(image)));
     fs::write(&path, bytes).await?;
 
@@ -50,7 +56,7 @@ async fn create(dir: &Path) -> io::Result<()> {
     builder.create(dir).await
 }
 
-async fn prune(dir: &Path) {
+pub async fn prune(dir: &Path) {
     let Ok(mut entries) = fs::read_dir(dir).await else {
         return;
     };
@@ -68,6 +74,15 @@ async fn prune(dir: &Path) {
             let _ = fs::remove_file(entry.path()).await;
         }
     }
+}
+
+fn name(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)[..8]
+        .iter()
+        .fold(String::new(), |mut hex, byte| {
+            let _ = write!(hex, "{byte:02x}");
+            hex
+        })
 }
 
 fn extension(image: Image) -> &'static str {
@@ -106,6 +121,26 @@ mod tests {
         assert_eq!(std::fs::read(&saved).unwrap(), b"jpeg");
         assert!(!old.exists());
         assert!(recent.exists());
+    }
+
+    #[tokio::test]
+    async fn pastes_of_the_same_image_share_one_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let images = dir.path().join("images");
+
+        let first = save(&images, Image::Png, STANDARD.encode(b"png"))
+            .await
+            .unwrap();
+        let second = save(&images, Image::Png, STANDARD.encode(b"png"))
+            .await
+            .unwrap();
+        let other = save(&images, Image::Png, STANDARD.encode(b"other"))
+            .await
+            .unwrap();
+
+        assert_eq!(first, second);
+        assert_ne!(first, other);
+        assert_eq!(std::fs::read_dir(&images).unwrap().count(), 2);
     }
 
     #[tokio::test]

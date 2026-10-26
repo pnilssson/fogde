@@ -2,7 +2,6 @@ import { GearSixIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,11 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { AccessibilitySettings } from "@/features/settings/components/accessibility-settings";
 import { MachineSettings } from "@/features/settings/components/machine-settings";
 import { NotesSettings } from "@/features/settings/components/notes-settings";
@@ -35,20 +30,10 @@ export function SettingsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <DialogTrigger
-              render={
-                <Button variant="ghost" size="sm" aria-label="Settings" />
-              }
-            />
-          }
-        >
-          <GearSixIcon />
-        </TooltipTrigger>
-        <TooltipContent side="top">Settings</TooltipContent>
-      </Tooltip>
+      <DialogTrigger render={<SidebarMenuButton />}>
+        <GearSixIcon />
+        <span>Settings</span>
+      </DialogTrigger>
       <DialogContent className="flex max-h-[calc(100%-2rem)] flex-col">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>

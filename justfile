@@ -91,4 +91,35 @@ lines:
       process.exit(1);
     }
 
-check: lint lines test sqlx-check deny shear typos zizmor knip
+# Clears the build output once stale builds from dependency and toolchain changes grow it past the limit.
+[script("node")]
+clean:
+    const { execFileSync } = require("node:child_process");
+    const { existsSync, lstatSync, readdirSync } = require("node:fs");
+    const { join } = require("node:path");
+
+    const limit = 15 * 1024 ** 3;
+
+    const target = JSON.parse(execFileSync("cargo", ["metadata", "--format-version", "1", "--no-deps"], { encoding: "utf8" }))
+      .target_directory;
+
+    if (!existsSync(target)) {
+      process.exit(0);
+    }
+
+    const files = new Map();
+    for (const entry of readdirSync(target, { recursive: true, withFileTypes: true })) {
+      const stats = entry.isFile() && lstatSync(join(entry.parentPath, entry.name), { bigint: true, throwIfNoEntry: false });
+      if (stats) {
+        files.set(`${stats.dev}:${stats.ino}`, stats.size);
+      }
+    }
+
+    const size = Number([...files.values()].reduce((total, bytes) => total + bytes, 0n));
+
+    if (size > limit) {
+      console.log(`${target} is ${(size / 1024 ** 3).toFixed(1)} GB, over the ${limit / 1024 ** 3} GB limit`);
+      execFileSync("cargo", ["clean"], { stdio: "inherit" });
+    }
+
+check: lint lines test sqlx-check deny shear typos zizmor knip clean

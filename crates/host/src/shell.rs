@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::shell::{GetShell, ListShells, SetShell, Shell, ShellOption};
 
@@ -53,6 +55,57 @@ impl Handler for SetShell {
 
 async fn installed() -> Vec<ShellOption> {
     tokio::task::spawn_blocking(find).await.unwrap_or_default()
+}
+
+pub async fn name(program: Option<String>) -> String {
+    tokio::task::spawn_blocking(move || {
+        let program = program.unwrap_or_else(default);
+
+        named(&program, &find())
+    })
+    .await
+    .unwrap_or_else(|_| "Terminal".to_owned())
+}
+
+fn named(program: &str, options: &[ShellOption]) -> String {
+    let file = |program: &str| {
+        Path::new(program)
+            .file_name()
+            .map(|name| name.to_string_lossy().to_lowercase())
+    };
+    let wanted = file(program);
+
+    options
+        .iter()
+        .find(|option| file(&option.program) == wanted)
+        .map_or_else(
+            || {
+                Path::new(program).file_stem().map_or_else(
+                    || program.to_owned(),
+                    |stem| stem.to_string_lossy().into_owned(),
+                )
+            },
+            |option| option.name.clone(),
+        )
+}
+
+#[cfg(windows)]
+fn default() -> String {
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    let pwsh = std::env::split_paths(&path)
+        .filter(|dir| dir.is_absolute())
+        .any(|dir| dir.join("pwsh.exe").is_file());
+
+    if pwsh { "pwsh.exe" } else { "powershell.exe" }.to_owned()
+}
+
+#[cfg(unix)]
+fn default() -> String {
+    std::env::var("SHELL")
+        .ok()
+        .map(|shell| shell.trim().to_owned())
+        .filter(|shell| !shell.is_empty())
+        .unwrap_or_else(|| "/bin/sh".to_owned())
 }
 
 #[cfg(windows)]

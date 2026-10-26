@@ -2,8 +2,7 @@ import { ArrowCircleUpIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { Button } from "@/components/ui/button";
-import { SidebarFooter } from "@/components/ui/sidebar";
+import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { restart, updateQuery } from "@/lib/update";
@@ -14,7 +13,7 @@ function message(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function UpdateButton() {
+export function UpdateItem() {
   const { data: update, error } = useQuery(updateQuery);
   const install = useMutation({
     mutationFn: restart,
@@ -45,25 +44,23 @@ export function UpdateButton() {
   }
 
   return (
-    <SidebarFooter>
-      <Button
-        variant="secondary"
-        className="w-full justify-start"
+    <SidebarMenuItem>
+      <SidebarMenuButton
         disabled={install.isPending}
         onClick={() => {
           install.mutate(update);
         }}
       >
         {install.isPending ? (
-          <Spinner aria-hidden data-icon="inline-start" />
+          <Spinner aria-hidden />
         ) : (
-          <ArrowCircleUpIcon data-icon="inline-start" />
+          <ArrowCircleUpIcon className="text-success" />
         )}
-        Update ready
-        <span className="ml-auto type-caption text-muted-foreground tabular-nums">
+        <span className="min-w-0 flex-1 truncate">Update ready</span>
+        <span className="type-caption text-muted-foreground tabular-nums">
           {update.version}
         </span>
-      </Button>
-    </SidebarFooter>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }

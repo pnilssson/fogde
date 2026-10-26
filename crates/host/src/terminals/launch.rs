@@ -72,8 +72,12 @@ pub fn launched(label: &str) -> Option<Agent> {
         .find(|agent| agent.spec().short == label)
 }
 
-pub fn label(agent: Option<Agent>) -> &'static str {
-    agent.map_or("Terminal", |agent| agent.spec().short)
+pub fn shell(label: &str) -> &str {
+    if launched(label).is_some() {
+        return "Terminal";
+    }
+
+    label
 }
 
 pub fn agent(command: &str) -> Option<Agent> {

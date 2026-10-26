@@ -95,18 +95,14 @@ export const Route = createFileRoute("/_onboarded")({
                 selectWorkspace(next);
                 openStart(folder);
               }}
+              settings={<SettingsDialog />}
             />
             <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-surface-3">
               <Outlet />
             </SidebarInset>
           </div>
           <StatusBar
-            start={
-              <div className="flex items-center gap-2">
-                <SettingsDialog />
-                <MonitorMeters machines={machines} onOpen={showMonitor} />
-              </div>
-            }
+            start={<MonitorMeters machines={machines} onOpen={showMonitor} />}
             end={<UsageMeters machines={machines} />}
           />
           <CommandPalette notes={(props) => <PaletteNotes {...props} />} />

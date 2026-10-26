@@ -153,6 +153,18 @@ fn an_agent_is_named_after_its_task_until_it_exits() {
 }
 
 #[test]
+fn a_shell_keeps_its_name_around_an_agent_run_in_it() {
+    let tracker = Tracker::default();
+    let shell = workspace("PowerShell");
+    let names = [pane(None), pane(Some("claude")), pane(None)].map(|pane| {
+        tracker.update(std::slice::from_ref(&shell), &[pane]);
+        current(&tracker).name
+    });
+
+    assert_eq!(names, ["PowerShell", "Claude", "PowerShell"]);
+}
+
+#[test]
 fn a_new_agent_drops_the_last_task() {
     let tracker = Tracker::default();
     let shell = workspace("Terminal");

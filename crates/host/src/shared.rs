@@ -40,7 +40,7 @@ impl Shared {
         let fogde = fogde()?;
         let app = fogde.join(".app");
 
-        Ok(Self {
+        let shared = Self {
             settings: Settings::new(&app),
             db: Db::new(app.join("fogde.db")),
             binaries,
@@ -56,7 +56,11 @@ impl Shared {
             fogde,
             gh: OnceCell::new(),
             herdr: OnceCell::new(),
-        })
+        };
+        let images = shared.images();
+        tokio::spawn(async move { terminals::prune(&images).await });
+
+        Ok(shared)
     }
 
     pub async fn gh(&self) -> Result<&Gh, github::Error> {

@@ -59,10 +59,7 @@ function Row({ machine }: { machine: Machine }) {
   };
 
   return (
-    <SettingsRow label={machine.name}>
-      <span className="max-w-64 min-w-0 truncate type-body text-muted-foreground">
-        {folder}
-      </span>
+    <SettingsRow label={machine.name} detail={folder}>
       <Button
         variant="ghost"
         size="sm"

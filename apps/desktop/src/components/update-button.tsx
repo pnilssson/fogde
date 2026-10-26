@@ -60,6 +60,9 @@ export function UpdateButton() {
           <ArrowCircleUpIcon data-icon="inline-start" />
         )}
         Update ready
+        <span className="ml-auto type-caption text-muted-foreground tabular-nums">
+          {update.version}
+        </span>
       </Button>
     </SidebarFooter>
   );

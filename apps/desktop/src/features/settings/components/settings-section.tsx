@@ -44,6 +44,7 @@ interface RowProps {
   label: ReactNode;
   leading?: ReactNode;
   labelled?: boolean;
+  detail?: ReactNode;
   children: ReactNode;
 }
 
@@ -51,15 +52,23 @@ export function SettingsRow({
   label,
   leading,
   labelled = false,
+  detail,
   children,
 }: RowProps) {
   const Root = labelled ? Field.Root : "div";
   const Label = labelled ? Field.Label : "span";
 
   return (
-    <Root className="flex h-8 items-center gap-2">
+    <Root className="flex min-h-8 items-center gap-2">
       {leading}
-      <Label className="min-w-0 flex-1 truncate type-body">{label}</Label>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Label className="truncate type-body">{label}</Label>
+        {detail && (
+          <span className="type-caption wrap-anywhere text-muted-foreground">
+            {detail}
+          </span>
+        )}
+      </div>
       {children}
     </Root>
   );

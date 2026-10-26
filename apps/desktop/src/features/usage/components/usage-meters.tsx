@@ -86,11 +86,9 @@ function Meter({ agent, windows, shown, now }: MeterProps) {
           <span>{remaining(shown, now)}</span>
         </span>
       </TooltipTrigger>
-      <TooltipContent side="top">
+      <TooltipContent side="top" className="max-w-none flex-col items-start">
         {lines.map((line) => (
-          <span key={line} className="block">
-            {line}
-          </span>
+          <span key={line}>{line}</span>
         ))}
       </TooltipContent>
     </Tooltip>

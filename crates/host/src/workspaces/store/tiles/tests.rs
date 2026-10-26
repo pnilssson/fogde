@@ -144,8 +144,8 @@ async fn closing_a_note_removes_only_that_tile() {
     placed(&pool, &app, &["w1"]).await;
     let note = open_note(&pool, &app.id, None, None).await.unwrap();
 
-    close_note(&pool, &note).await.unwrap();
-    close_note(&pool, "w1").await.unwrap();
+    close(&pool, &note).await.unwrap();
+    close(&pool, "w1").await.unwrap();
 
     assert_eq!(order(&pool, None, &["w1"]).await, ["w1"]);
     assert!(matches!(
@@ -177,8 +177,8 @@ async fn removing_a_worktree_closes_its_notes() {
         .unwrap();
     let kept = open_note(&pool, &app.id, None, None).await.unwrap();
 
-    assert!(close_notes_in(&pool, login).await.unwrap());
-    assert!(!close_notes_in(&pool, login).await.unwrap());
+    assert!(close_in(&pool, login).await.unwrap());
+    assert!(!close_in(&pool, login).await.unwrap());
     let listing = list(&pool, &[]).await.unwrap();
 
     assert_eq!(ids(&listing.workspaces[0]).len(), 2);
@@ -229,4 +229,52 @@ async fn renames_move_the_notes_inside() {
         notes(&listing.workspaces[0]),
         expected.iter().map(Option::as_deref).collect::<Vec<_>>()
     );
+}
+
+#[tokio::test]
+async fn opening_the_monitor_again_reuses_its_tile() {
+    let pool = db::memory().await;
+    let app = create(&pool, "/repos/app", None).await.unwrap();
+    let login = Some("/worktrees/app/login");
+
+    let first = open_monitor(&pool, &app.id, None).await.unwrap();
+    let again = open_monitor(&pool, &app.id, None).await.unwrap();
+    let other = open_monitor(&pool, &app.id, login).await.unwrap();
+    let listing = list(&pool, &[]).await.unwrap();
+
+    assert_eq!(first, again);
+    assert_ne!(first, other);
+    assert_eq!(
+        ids(&listing.workspaces[0]),
+        [first.as_str(), other.as_str()]
+    );
+}
+
+#[tokio::test]
+async fn closing_and_removing_a_worktree_close_monitors() {
+    let pool = db::memory().await;
+    let app = create(&pool, "/repos/app", None).await.unwrap();
+    let main = open_monitor(&pool, &app.id, None).await.unwrap();
+    open_monitor(&pool, &app.id, Some("/worktrees/app/login"))
+        .await
+        .unwrap();
+
+    close(&pool, &main).await.unwrap();
+    let removed = close_in(&pool, Path::new("/worktrees/app/login"))
+        .await
+        .unwrap();
+    let listing = list(&pool, &[]).await.unwrap();
+
+    assert!(removed);
+    assert_eq!(ids(&listing.workspaces[0]), Vec::<&str>::new());
+}
+
+#[tokio::test]
+async fn rejects_monitors_in_unknown_workspaces() {
+    let pool = db::memory().await;
+
+    assert!(matches!(
+        open_monitor(&pool, "9", None).await,
+        Err(Error::Missing)
+    ));
 }

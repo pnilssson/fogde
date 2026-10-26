@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use protocol::terminals::Terminal;
-use protocol::workspaces::{NoteTile, Tile};
+use protocol::workspaces::{MonitorTile, NoteTile, Tile};
 use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::folders;
@@ -9,7 +9,7 @@ use crate::folders;
 mod tiles;
 
 pub use tiles::{
-    arrange, close_note, close_notes_in, follow, members, open_note, place, show_note,
+    arrange, close, close_in, follow, members, open_monitor, open_note, place, show_note,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -78,6 +78,11 @@ pub async fn list(pool: &SqlitePool, terminals: &[Terminal]) -> Result<Listing, 
                 id: row.tile,
                 checkout: row.checkout,
                 note: row.note,
+            }))
+        } else if row.kind == "monitor" {
+            Some(Tile::Monitor(MonitorTile {
+                id: row.tile,
+                checkout: row.checkout,
             }))
         } else {
             terminals

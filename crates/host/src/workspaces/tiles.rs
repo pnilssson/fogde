@@ -2,7 +2,8 @@ use std::path::Path;
 
 use protocol::rpc::Failure;
 use protocol::workspaces::{
-    CloseNote, MoveTile, MoveTileParams, OpenNote, OpenNoteParams, ShowNote, ShowNoteParams,
+    CloseTile, MoveTile, MoveTileParams, OpenMonitor, OpenMonitorParams, OpenNote, OpenNoteParams,
+    ShowNote, ShowNoteParams,
 };
 
 use super::{pool, store, watch};
@@ -13,11 +14,12 @@ pub fn register(router: &mut Router) {
     router.add::<MoveTile>();
     router.add::<OpenNote>();
     router.add::<ShowNote>();
-    router.add::<CloseNote>();
+    router.add::<OpenMonitor>();
+    router.add::<CloseTile>();
 }
 
-pub async fn close_notes_in(session: &Session, checkout: &Path) -> Result<(), Failure> {
-    let closed = store::close_notes_in(pool(session).await?, checkout)
+pub async fn close_in(session: &Session, checkout: &Path) -> Result<(), Failure> {
+    let closed = store::close_in(pool(session).await?, checkout)
         .await
         .map_err(failure)?;
     if closed {
@@ -82,11 +84,28 @@ impl Handler for ShowNote {
     }
 }
 
-impl Handler for CloseNote {
+impl Handler for OpenMonitor {
+    const ORDERED: bool = true;
+
+    async fn handle(session: &Session, params: OpenMonitorParams) -> Result<String, Failure> {
+        let tile = store::open_monitor(
+            pool(session).await?,
+            &params.workspace,
+            params.checkout.as_deref(),
+        )
+        .await
+        .map_err(failure)?;
+        watch::announce(&session.shared);
+
+        Ok(tile)
+    }
+}
+
+impl Handler for CloseTile {
     const ORDERED: bool = true;
 
     async fn handle(session: &Session, tile: String) -> Result<(), Failure> {
-        store::close_note(pool(session).await?, &tile)
+        store::close(pool(session).await?, &tile)
             .await
             .map_err(failure)?;
         watch::announce(&session.shared);

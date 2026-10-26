@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT tile FROM tiles WHERE kind = 'monitor' AND workspace = ? AND checkout IS ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "tile",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tiles",
+            "name": "tile"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "79298bc23fb9898cc28ef424bef9a3cc9915ab79a32a9d3e76e397a0381a5362"
+}

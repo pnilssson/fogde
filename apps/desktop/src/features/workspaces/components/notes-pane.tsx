@@ -4,7 +4,7 @@ import { useContext } from "react";
 
 import { TileBar } from "@/features/workspaces/components/tile-bar";
 import {
-  useCloseNote,
+  useCloseTile,
   useShowNote,
 } from "@/features/workspaces/hooks/use-workspaces";
 import { useTiles } from "@/features/workspaces/lib/layouts";
@@ -22,7 +22,7 @@ export function NotesPane({ api, params }: IDockviewPanelProps<Selection>) {
   const { groups } = useContext(WorkspaceContext);
   const active = useTiles((tiles) => tiles.focused === api.id);
   const show = useShowNote();
-  const closing = useCloseNote();
+  const closing = useCloseTile();
   const found = findNote(groups, params);
   if (!found) {
     return null;

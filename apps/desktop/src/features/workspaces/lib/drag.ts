@@ -15,7 +15,9 @@ import { dockview, place, tileId } from "@/features/workspaces/lib/tiles";
 
 export const dragType = "application/x-fogde-tile";
 
-const Listed = Selection.extend({ kind: z.enum(["terminal", "note"]) });
+const Listed = Selection.extend({
+  kind: z.enum(["terminal", "note", "monitor"]),
+});
 export type Listed = z.infer<typeof Listed>;
 const Placed = z.object({ tile: z.string(), view: View.optional() });
 const Dragged = z.union([Listed, Placed]);

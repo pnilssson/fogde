@@ -18,7 +18,7 @@ pub enum Machine {
     },
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum MachineId {
     Computer,

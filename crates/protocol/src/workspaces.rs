@@ -19,6 +19,7 @@ pub struct Workspace {
 pub enum Tile {
     Terminal(Terminal),
     Note(NoteTile),
+    Monitor(MonitorTile),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
@@ -26,6 +27,12 @@ pub struct NoteTile {
     pub id: String,
     pub checkout: Option<String>,
     pub note: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct MonitorTile {
+    pub id: String,
+    pub checkout: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
@@ -53,6 +60,12 @@ pub struct OpenNoteParams {
     pub workspace: String,
     pub checkout: Option<String>,
     pub note: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct OpenMonitorParams {
+    pub workspace: String,
+    pub checkout: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
@@ -117,10 +130,18 @@ impl Method for ShowNote {
     type Result = ();
 }
 
-pub struct CloseNote;
+pub struct OpenMonitor;
 
-impl Method for CloseNote {
-    const NAME: &'static str = "workspaces.closeNote";
+impl Method for OpenMonitor {
+    const NAME: &'static str = "workspaces.openMonitor";
+    type Params = OpenMonitorParams;
+    type Result = String;
+}
+
+pub struct CloseTile;
+
+impl Method for CloseTile {
+    const NAME: &'static str = "workspaces.closeTile";
     type Params = String;
     type Result = ();
 }

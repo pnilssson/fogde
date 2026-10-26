@@ -21,6 +21,7 @@ pub fn id(tile: &Tile) -> &str {
     match tile {
         Tile::Terminal(terminal) => &terminal.id,
         Tile::Note(note) => &note.id,
+        Tile::Monitor(monitor) => &monitor.id,
     }
 }
 
@@ -28,6 +29,7 @@ pub fn checkout(tile: &Tile) -> Option<&str> {
     match tile {
         Tile::Terminal(terminal) => terminal.checkout.as_deref(),
         Tile::Note(note) => note.checkout.as_deref(),
+        Tile::Monitor(monitor) => monitor.checkout.as_deref(),
     }
 }
 
@@ -41,7 +43,7 @@ pub fn terminals(workspace: &Workspace) -> Vec<&Terminal> {
         .iter()
         .filter_map(|tile| match tile {
             Tile::Terminal(terminal) => Some(terminal),
-            Tile::Note(_) => None,
+            Tile::Note(_) | Tile::Monitor(_) => None,
         })
         .collect()
 }
@@ -52,7 +54,7 @@ pub fn notes(workspace: &Workspace) -> Vec<Option<&str>> {
         .iter()
         .filter_map(|tile| match tile {
             Tile::Note(note) => Some(note.note.as_deref()),
-            Tile::Terminal(_) => None,
+            Tile::Terminal(_) | Tile::Monitor(_) => None,
         })
         .collect()
 }

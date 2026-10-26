@@ -10,6 +10,7 @@ import {
 } from "dockview-react";
 import { useContext, useEffect, useState } from "react";
 
+import { MonitorPane } from "@/features/workspaces/components/monitor-pane";
 import { NotesPane } from "@/features/workspaces/components/notes-pane";
 import { StartPage } from "@/features/workspaces/components/start-page";
 import { TerminalPane } from "@/features/workspaces/components/terminal-pane";
@@ -45,7 +46,9 @@ import {
   useStartFocus,
 } from "@/features/workspaces/lib/start-focus";
 import {
+  MonitorSlot,
   NotesSlot,
+  type RenderMonitor,
   type RenderNotes,
   TerminalSlot,
   type RenderTerminal,
@@ -140,6 +143,7 @@ const components = {
   terminal: TerminalTile,
   start: StartTile,
   notes: NotesPane,
+  monitor: MonitorPane,
   [holdId]: Hold,
 };
 
@@ -170,9 +174,10 @@ function paste(machine: Machine, terminal: Selection, path: string) {
 interface Props {
   terminal: RenderTerminal;
   notes: RenderNotes;
+  monitor: RenderMonitor;
 }
 
-export function TerminalTiles({ terminal, notes }: Props) {
+export function TerminalTiles({ terminal, notes, monitor }: Props) {
   const { groups, workspace } = useContext(WorkspaceContext);
   const [api, setApi] = useState<DockviewApi>();
   const place = usePlaceTerminal();
@@ -252,23 +257,25 @@ export function TerminalTiles({ terminal, notes }: Props) {
   return (
     <TerminalSlot value={terminal}>
       <NotesSlot value={notes}>
-        <div className="relative min-h-0 flex-1">
-          <DockviewReact
-            className="isolate"
-            theme={theme}
-            components={components}
-            watermarkComponent={Watermark}
-            disableFloatingGroups
-            dndEdges={edges}
-            onReady={(event) => {
-              accept(event);
-              restore(event.api);
-              setApi(event.api);
-            }}
-            onDidDrop={dropped}
-          />
-          {group && <Trash machine={group.machine} />}
-        </div>
+        <MonitorSlot value={monitor}>
+          <div className="relative min-h-0 flex-1">
+            <DockviewReact
+              className="isolate"
+              theme={theme}
+              components={components}
+              watermarkComponent={Watermark}
+              disableFloatingGroups
+              dndEdges={edges}
+              onReady={(event) => {
+                accept(event);
+                restore(event.api);
+                setApi(event.api);
+              }}
+              onDidDrop={dropped}
+            />
+            {group && <Trash machine={group.machine} />}
+          </div>
+        </MonitorSlot>
       </NotesSlot>
     </TerminalSlot>
   );

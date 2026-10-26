@@ -57,8 +57,8 @@ impl Handler for RemoveWorktree {
         let path = folders::absolute(&params.path).map_err(failure)?;
 
         let branch = git::remove_worktree(&repo, &path).await.map_err(failure)?;
-        if let Err(error) = crate::workspaces::close_notes_in(session, &path).await {
-            tracing::warn!(error = %error.message, "could not close the notes in a removed worktree");
+        if let Err(error) = crate::workspaces::close_in(session, &path).await {
+            tracing::warn!(error = %error.message, "could not close the tiles in a removed worktree");
         }
         let Some(branch) = branch.filter(|branch| branch.starts_with(PREFIX)) else {
             return Ok(());

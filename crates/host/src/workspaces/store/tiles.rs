@@ -92,18 +92,59 @@ pub async fn show_note(pool: &SqlitePool, tile: &str, note: Option<&str>) -> Res
     Ok(())
 }
 
-pub async fn close_note(pool: &SqlitePool, tile: &str) -> Result<(), Error> {
-    sqlx::query!("DELETE FROM tiles WHERE tile = ? AND kind = 'note'", tile)
-        .execute(pool)
-        .await?;
+pub async fn open_monitor(
+    pool: &SqlitePool,
+    workspace: &str,
+    checkout: Option<&str>,
+) -> Result<String, Error> {
+    let id: i64 = workspace.parse().map_err(|_| Error::Missing)?;
+    let mut tx = pool.begin().await?;
+    let open = sqlx::query_scalar!(
+        "SELECT tile FROM tiles WHERE kind = 'monitor' AND workspace = ? AND checkout IS ?",
+        id,
+        checkout
+    )
+    .fetch_optional(&mut *tx)
+    .await?;
+    if let Some(tile) = open {
+        return Ok(tile);
+    }
+
+    let tile = sqlx::query_scalar!(
+        "INSERT INTO tiles (tile, kind, workspace, checkout, position)
+         VALUES ('monitor-' || lower(hex(randomblob(8))), 'monitor', ?, ?, (
+             SELECT COALESCE(MAX(position), 0) + 1 FROM tiles
+             WHERE workspace = ? AND checkout IS ?
+         ))
+         RETURNING tile",
+        id,
+        checkout,
+        id,
+        checkout
+    )
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(missing)?;
+    tx.commit().await?;
+
+    Ok(tile)
+}
+
+pub async fn close(pool: &SqlitePool, tile: &str) -> Result<(), Error> {
+    sqlx::query!(
+        "DELETE FROM tiles WHERE tile = ? AND kind != 'terminal'",
+        tile
+    )
+    .execute(pool)
+    .await?;
 
     Ok(())
 }
 
-pub async fn close_notes_in(pool: &SqlitePool, checkout: &Path) -> Result<bool, Error> {
+pub async fn close_in(pool: &SqlitePool, checkout: &Path) -> Result<bool, Error> {
     let mut tx = pool.begin().await?;
     let notes = sqlx::query!(
-        "SELECT tile, checkout FROM tiles WHERE kind = 'note' AND checkout IS NOT NULL"
+        "SELECT tile, checkout FROM tiles WHERE kind != 'terminal' AND checkout IS NOT NULL"
     )
     .fetch_all(&mut *tx)
     .await?;

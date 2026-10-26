@@ -94,13 +94,13 @@ export function WorkspaceItem({
               />
             }
           >
+            <FolderSimpleIcon className="group-hover/menu-button:hidden group-focus-visible/menu-button:hidden" />
             <CaretRightIcon
               className={cn(
-                "transition-transform ease-out motion-reduce:transition-none",
+                "hidden transition-transform ease-out group-hover/menu-button:block group-focus-visible/menu-button:block motion-reduce:transition-none",
                 open && "rotate-90",
               )}
             />
-            <FolderSimpleIcon />
             <span
               className={cn(
                 "min-w-0 flex-1 truncate",

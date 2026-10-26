@@ -9,8 +9,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCloseTerminal } from "@/features/workspaces/hooks/use-terminals";
+import { activity } from "@/features/workspaces/lib/status";
 import type { Terminal } from "@/generated/protocol";
-import { agentName } from "@/lib/agents";
+import { agents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -21,11 +22,9 @@ interface Props {
 }
 
 function warning({ agent, status }: Terminal) {
-  const who = agent ? agentName[agent] : "The terminal";
+  const who = agent ? agents[agent].name : "The terminal";
 
-  return status === "blocked"
-    ? `${who} is waiting for your input. Closing stops it.`
-    : `${who} is still working. Closing stops it.`;
+  return `${who} ${activity(status)}. Closing stops it.`;
 }
 
 export function CloseTerminal({

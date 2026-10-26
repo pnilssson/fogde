@@ -5,27 +5,22 @@ import openaiBlack from "@/assets/brands/openai-blossom-black.svg";
 import openaiWhite from "@/assets/brands/openai-blossom-white.svg";
 import type { Agent } from "@/generated/protocol";
 
+const icons: Record<Agent, { light: string; dark?: string }> = {
+  claude: { light: claude },
+  codex: { light: openaiBlack, dark: openaiWhite },
+  copilot: { light: copilotBlack, dark: copilotWhite },
+};
+
 interface Props {
   agent: Agent;
 }
 
 export function AgentIcon({ agent }: Props) {
-  switch (agent) {
-    case "claude":
-      return <img src={claude} alt="" className="size-4 shrink-0" />;
-    case "codex":
-      return <Themed light={openaiBlack} dark={openaiWhite} />;
-    case "copilot":
-      return <Themed light={copilotBlack} dark={copilotWhite} />;
+  const { light, dark } = icons[agent];
+  if (!dark) {
+    return <img src={light} alt="" className="size-4 shrink-0" />;
   }
-}
 
-interface ThemedProps {
-  light: string;
-  dark: string;
-}
-
-function Themed({ light, dark }: ThemedProps) {
   return (
     <>
       <img src={light} alt="" className="size-4 shrink-0 dark:hidden" />

@@ -3,9 +3,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useRef, useState } from "react";
 
 import { toast } from "@/components/ui/toast";
-import { accountName } from "@/features/agents/lib/account-name";
 import type { Agent, AgentPrompt } from "@/generated/protocol";
-import { agentsQuery, signInDomains } from "@/lib/agents";
+import { agents, agentsQuery } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 import { trusted, UntrustedLink } from "@/lib/sign-in";
 
@@ -38,7 +37,7 @@ export function useAgentSignIn(machine: Machine) {
     if (current(id)) {
       toast.add({
         type: "error",
-        title: `Could not connect ${accountName[agent]}`,
+        title: `Could not connect ${agents[agent].account}`,
         description: error instanceof Error ? error.message : String(error),
       });
     }
@@ -77,7 +76,7 @@ export function useAgentSignIn(machine: Machine) {
     }
     if (
       prompt.kind !== "browser" &&
-      !trusted(prompt.url, signInDomains[agent])
+      !trusted(prompt.url, agents[agent].domains)
     ) {
       void machine.client
         .call("agents.cancelSignIn", agent)
@@ -117,7 +116,7 @@ export function useAgentSignIn(machine: Machine) {
         .catch((error: unknown) => {
           toast.add({
             type: "error",
-            title: `Could not cancel signing in to ${accountName[active.agent]}`,
+            title: `Could not cancel signing in to ${agents[active.agent].account}`,
             description: error instanceof Error ? error.message : String(error),
           });
         })

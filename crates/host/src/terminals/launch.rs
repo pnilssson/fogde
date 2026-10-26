@@ -42,13 +42,12 @@ impl Launches {
 
 pub fn start(client: Client, launch: Launch, outgoing: mpsc::UnboundedSender<Message>) {
     let Launch { pane, agent } = launch;
-    let kind = kind(agent);
-    let name = format!("{kind}-{}", pane.workspace.to_lowercase());
+    let name = format!("{}-{}", agent.spec().command, pane.workspace.to_lowercase());
     let id = pane.workspace;
     let pane = pane.id;
 
     tokio::spawn(async move {
-        let Err(error) = client.start_agent(&name, kind, &pane).await else {
+        let Err(error) = client.start_agent(&name, agent.spec().command, &pane).await else {
             return;
         };
 
@@ -68,32 +67,19 @@ pub fn start(client: Client, launch: Launch, outgoing: mpsc::UnboundedSender<Mes
 }
 
 pub fn launched(label: &str) -> Option<Agent> {
-    [Agent::Claude, Agent::Codex, Agent::Copilot]
+    Agent::ALL
         .into_iter()
-        .find(|&agent| self::label(Some(agent)) == label)
+        .find(|agent| agent.spec().short == label)
 }
 
 pub fn label(agent: Option<Agent>) -> &'static str {
-    match agent {
-        None => "Terminal",
-        Some(Agent::Claude) => "Claude",
-        Some(Agent::Codex) => "Codex",
-        Some(Agent::Copilot) => "GitHub Copilot",
-    }
+    agent.map_or("Terminal", |agent| agent.spec().short)
 }
 
-pub fn agent(kind: &str) -> Option<Agent> {
-    [Agent::Claude, Agent::Codex, Agent::Copilot]
+pub fn agent(command: &str) -> Option<Agent> {
+    Agent::ALL
         .into_iter()
-        .find(|&agent| self::kind(agent) == kind)
-}
-
-fn kind(agent: Agent) -> &'static str {
-    match agent {
-        Agent::Claude => "claude",
-        Agent::Codex => "codex",
-        Agent::Copilot => "copilot",
-    }
+        .find(|agent| agent.spec().command == command)
 }
 
 pub fn path_with(program: &Path) -> String {

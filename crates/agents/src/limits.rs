@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
+use crate::agent::parentless;
 use crate::{Agent, Error};
 
 mod claude;
@@ -29,8 +30,7 @@ pub(super) async fn ask(
     requests: &str,
     reply: fn(&str) -> Answer,
 ) -> Result<Vec<Limit>, Error> {
-    let mut child = agent
-        .parentless(args)
+    let mut child = parentless(agent, args)
         .await?
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

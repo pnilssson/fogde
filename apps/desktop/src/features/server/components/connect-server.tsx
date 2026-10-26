@@ -30,6 +30,39 @@ const labels: Record<Phase, string> = {
 
 type Problem = Exclude<ServerCheck, { state: "ready" }> & { target: string };
 
+interface HelpProps {
+  problem: Problem;
+  pending: string | undefined;
+  onConnect: (trust: string | null) => void;
+}
+
+function ProblemHelp({ problem, pending, onConnect }: HelpProps) {
+  switch (problem.state) {
+    case "untrusted":
+      return (
+        <TrustServer
+          target={problem.target}
+          fingerprint={problem.fingerprint}
+          pending={pending}
+          onTrust={() => {
+            onConnect(problem.fingerprint);
+          }}
+        />
+      );
+    case "keyRejected":
+      return (
+        <KeyHelp
+          target={problem.target}
+          keys={problem.keys}
+          pending={pending}
+          onRetry={() => {
+            onConnect(null);
+          }}
+        />
+      );
+  }
+}
+
 interface Props {
   onBack: () => void;
   onContinue: (machine: string) => Promise<void>;
@@ -153,20 +186,11 @@ export function ConnectServer({ onBack, onContinue }: Props) {
             </Field>
           )}
         </form.Field>
-        {problem?.state === "untrusted" && (
-          <TrustServer
-            target={problem.target}
-            fingerprint={problem.fingerprint}
+        {problem && (
+          <ProblemHelp
+            problem={problem}
             pending={phase && labels[phase]}
-            onTrust={() => void connect(problem.target, problem.fingerprint)}
-          />
-        )}
-        {problem?.state === "keyRejected" && (
-          <KeyHelp
-            target={problem.target}
-            keys={problem.keys}
-            pending={phase && labels[phase]}
-            onRetry={() => void connect(problem.target, null)}
+            onConnect={(trust) => void connect(problem.target, trust)}
           />
         )}
         <div className="flex gap-2">

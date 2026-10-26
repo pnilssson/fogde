@@ -19,12 +19,38 @@ const Placed = z.object({ tile: z.string(), view: View.optional() });
 const Dragged = z.union([Selection, Placed]);
 export type Dragged = z.infer<typeof Dragged>;
 
-const drags = createStore<{ item: Dragged | undefined }>()(() => ({
+export type Edge = "above" | "below";
+
+interface Over {
+  id: string;
+  edge: Edge;
+}
+
+const drags = createStore<{
+  item: Dragged | undefined;
+  over: Over | undefined;
+}>()(() => ({
   item: undefined,
+  over: undefined,
 }));
 
 export function useDragging() {
   return useStore(drags, ({ item }) => item);
+}
+
+export function useOver(id: string) {
+  return useStore(drags, ({ over }) =>
+    over?.id === id ? over.edge : undefined,
+  );
+}
+
+export function hover(over: Over | undefined) {
+  const current = drags.getState().over;
+  if (current?.id === over?.id && current?.edge === over?.edge) {
+    return;
+  }
+
+  drags.setState({ over });
 }
 
 export function isTerminal(item: Dragged): item is Selection {
@@ -52,7 +78,7 @@ export function startDrag(item: Dragged) {
 }
 
 export function endDrag() {
-  drags.setState({ item: undefined });
+  drags.setState({ item: undefined, over: undefined });
 }
 
 export function dragged(event: DragEvent) {

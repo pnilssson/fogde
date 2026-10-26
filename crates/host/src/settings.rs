@@ -155,6 +155,9 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
+
+    use protocol::agents::Agent;
 
     #[tokio::test]
     async fn remembers_what_was_saved() {
@@ -190,11 +193,8 @@ mod tests {
             screen_reader: true,
         };
         settings.set_accessibility(reader).await.unwrap();
-        let quiet_codex = Shown {
-            codex: false,
-            ..Shown::default()
-        };
-        settings.set_shown(quiet_codex).await.unwrap();
+        let quiet_codex = Shown(BTreeMap::from([(Agent::Codex, false)]));
+        settings.set_shown(quiet_codex.clone()).await.unwrap();
         settings.set_shell(Some("zsh".into())).await.unwrap();
 
         let reopened = Settings::new(&app);

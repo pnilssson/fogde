@@ -1,4 +1,5 @@
 mod changes;
+mod herdr;
 mod images;
 mod launch;
 mod stream;
@@ -10,10 +11,9 @@ use std::future;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use futures_util::future::join_all;
-use protocol::agents::Agent;
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::terminals::{
-    CloseTerminal, CreateTerminal, CreateTerminalParams, Key, PasteImage, PasteImageParams,
+    CloseTerminal, CreateTerminal, CreateTerminalParams, PasteImage, PasteImageParams,
     ResizeTerminal, ScrollTerminal, ScrollTerminalParams, SeekTerminal, Status, Terminal,
     TerminalInput, TerminalInputParams, TerminalKey, TerminalKeyParams, UnwatchTerminal,
     ViewTerminal, WatchTerminal, WatchTerminalParams,
@@ -130,7 +130,7 @@ impl Handler for CreateTerminal {
         let folder = folders::absolute(&params.folder).map_err(failure)?;
         let name = label(params.agent);
         let mut env = herdr.pane_env().clone();
-        if params.agent == Some(Agent::Copilot) {
+        if params.agent.is_some_and(|agent| agent.spec().github) {
             env.insert("PATH".to_owned(), path_with(session.gh().await?.program()));
         }
 
@@ -219,11 +219,11 @@ impl Handler for TerminalKey {
         session: &Session,
         params: TerminalKeyParams,
     ) -> impl Future<Output = Result<(), Failure>> + Send {
-        let key = match params.key {
-            Key::ShiftEnter => herdr_client::Key::ShiftEnter,
-        };
-
-        future::ready(session.terminals.send(&params.id, Control::Key(key)))
+        future::ready(
+            session
+                .terminals
+                .send(&params.id, Control::Key(herdr::key(params.key))),
+        )
     }
 }
 

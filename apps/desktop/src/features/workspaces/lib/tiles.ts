@@ -92,9 +92,6 @@ function load(api: DockviewApi) {
 
 export function selectWorkspace(next: View) {
   setOpen({ machine: next.machine, id: next.id }, true);
-  if (next.checkout) {
-    setOpen(next, true);
-  }
 
   if (sameView(next, store.getState().workspace)) {
     return;

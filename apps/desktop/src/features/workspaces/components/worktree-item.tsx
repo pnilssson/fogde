@@ -1,11 +1,5 @@
-import {
-  CaretRightIcon,
-  DotsThreeIcon,
-  GitBranchIcon,
-} from "@phosphor-icons/react";
-import { cn } from "cn";
+import { DotsThreeIcon, GitBranchIcon } from "@phosphor-icons/react";
 
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -22,21 +16,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   SidebarMenuAction,
-  SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { StateIcon } from "@/features/workspaces/components/state-icon";
 import {
   type RowsProps,
   ViewRows,
 } from "@/features/workspaces/components/view-rows";
-import { useShown } from "@/features/workspaces/hooks/use-shown";
 import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
 import { checkoutName } from "@/features/workspaces/lib/checkouts";
-import { setOpen, useOpen } from "@/features/workspaces/lib/layouts";
-import { inView, type View } from "@/features/workspaces/lib/selection";
-import { attention } from "@/features/workspaces/lib/status";
+import type { View } from "@/features/workspaces/lib/selection";
 import type { Checkout } from "@/generated/protocol";
 
 interface Props extends RowsProps {
@@ -53,8 +42,6 @@ export function WorktreeItem({ checkout, current, down, ...props }: Props) {
     checkout: checkout.path,
   };
   const selected = current?.checkout === checkout.path;
-  const open = useOpen(own);
-  const shown = useShown(workspace, own);
   const name = checkoutName(checkout);
   const removal = useRemoveWorktree(machine, workspace);
 
@@ -67,46 +54,24 @@ export function WorktreeItem({ checkout, current, down, ...props }: Props) {
   };
 
   return (
-    <SidebarMenuSubItem>
-      <Collapsible open={open}>
+    <>
+      <SidebarMenuSubItem>
         <ContextMenu disabled={down}>
           <ContextMenuTrigger
             render={
               <SidebarMenuSubButton
                 size="sm"
                 isActive={selected}
-                aria-expanded={open}
                 render={<button type="button" />}
+                className="text-muted-foreground [&>svg]:text-muted-foreground"
                 onClick={() => {
-                  if (selected) {
-                    setOpen(own, !open);
-
-                    return;
-                  }
-
                   onSelect(own);
                 }}
               />
             }
           >
-            <CaretRightIcon
-              className={cn(
-                "transition-transform ease-out motion-reduce:transition-none",
-                open && "rotate-90",
-              )}
-            />
             <GitBranchIcon />
             <span className="min-w-0 flex-1 truncate">{name}</span>
-            {!open && !down && (
-              <StateIcon
-                status={attention(
-                  workspace.terminals.filter((terminal) =>
-                    inView(own, terminal),
-                  ),
-                )}
-                className="group-focus-within/menu-sub-item:invisible group-hover/menu-sub-item:invisible"
-              />
-            )}
           </ContextMenuTrigger>
           <ContextMenuContent>
             <ContextMenuItem onClick={start}>New tile</ContextMenuItem>
@@ -137,14 +102,8 @@ export function WorktreeItem({ checkout, current, down, ...props }: Props) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        {shown && (
-          <CollapsibleContent>
-            <SidebarMenuSub>
-              <ViewRows {...props} view={own} />
-            </SidebarMenuSub>
-          </CollapsibleContent>
-        )}
-      </Collapsible>
-    </SidebarMenuSubItem>
+      </SidebarMenuSubItem>
+      <ViewRows {...props} view={own} />
+    </>
   );
 }

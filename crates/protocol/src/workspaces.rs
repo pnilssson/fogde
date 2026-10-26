@@ -28,6 +28,12 @@ pub struct PlaceTerminalParams {
     pub checkout: Option<String>,
 }
 
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct MoveTerminalParams {
+    pub terminal: String,
+    pub before: Option<String>,
+}
+
 pub struct ListWorkspaces;
 
 impl Method for ListWorkspaces {
@@ -57,6 +63,14 @@ pub struct PlaceTerminal;
 impl Method for PlaceTerminal {
     const NAME: &'static str = "workspaces.place";
     type Params = PlaceTerminalParams;
+    type Result = ();
+}
+
+pub struct MoveTerminal;
+
+impl Method for MoveTerminal {
+    const NAME: &'static str = "workspaces.move";
+    type Params = MoveTerminalParams;
     type Result = ();
 }
 

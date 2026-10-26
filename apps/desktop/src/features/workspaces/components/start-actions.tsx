@@ -13,7 +13,7 @@ import {
   startFocused,
   useStartFocus,
 } from "@/features/workspaces/lib/start-focus";
-import { agentName } from "@/lib/agents";
+import { agents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -39,7 +39,7 @@ export function StartActions({ machine, workspace, folder }: Props) {
     <div className="flex flex-wrap justify-center gap-2">
       {choices.map((agent) => {
         const opening = create.isPending && create.variables.agent === agent;
-        const name = agent ? agentName[agent] : "Terminal";
+        const name = agent ? agents[agent].name : "Terminal";
 
         return (
           <Button

@@ -3,7 +3,7 @@ import { useEffect } from "react";
 
 import { toast } from "@/components/ui/toast";
 import { workspacesQuery } from "@/features/workspaces/api/workspaces";
-import { agentName } from "@/lib/agents";
+import { agents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 
 export function useFailures(machines: Machine[]) {
@@ -15,7 +15,7 @@ export function useFailures(machines: Machine[]) {
         void queries.invalidateQueries(workspacesQuery(machine));
         toast.add({
           type: "error",
-          title: `Could not start ${agentName[failed.agent]}`,
+          title: `Could not start ${agents[failed.agent].name}`,
           description: failed.error,
         });
       }),

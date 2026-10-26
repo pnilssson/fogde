@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { accountsQuery } from "@/features/github/api/accounts";
 import { EnterpriseForm } from "@/features/github/components/enterprise-form";
 import { useSignIn } from "@/features/github/hooks/use-sign-in";
+import { statusOf } from "@/lib/connection";
 import type { Machine } from "@/lib/machines";
 import { expand, swap } from "@/lib/motion";
 
@@ -53,13 +54,7 @@ export function ConnectGitHub({ machine, onBack, onContinue }: Props) {
           <div className="flex w-full flex-col gap-2">
             <Connection
               name="GitHub"
-              status={
-                hasGitHub
-                  ? "connected"
-                  : starting === github
-                    ? "connecting"
-                    : "disconnected"
-              }
+              status={statusOf(hasGitHub, starting === github)}
               onConnect={() => {
                 if (!starting) {
                   begin(github);
@@ -68,13 +63,7 @@ export function ConnectGitHub({ machine, onBack, onContinue }: Props) {
             />
             <Connection
               name="GitHub Enterprise"
-              status={
-                hasEnterprise
-                  ? "connected"
-                  : startingEnterprise
-                    ? "connecting"
-                    : "disconnected"
-              }
+              status={statusOf(hasEnterprise, startingEnterprise)}
               onConnect={() => {
                 setEnterprise(true);
               }}

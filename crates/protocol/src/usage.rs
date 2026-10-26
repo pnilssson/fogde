@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -28,20 +30,12 @@ pub struct Usage {
     pub at: i64,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
-pub struct Shown {
-    pub claude: bool,
-    pub codex: bool,
-    pub copilot: bool,
-}
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
+pub struct Shown(pub BTreeMap<Agent, bool>);
 
-impl Default for Shown {
-    fn default() -> Self {
-        Self {
-            claude: true,
-            codex: true,
-            copilot: true,
-        }
+impl Shown {
+    pub fn shows(&self, agent: Agent) -> bool {
+        self.0.get(&agent).copied().unwrap_or(true)
     }
 }
 

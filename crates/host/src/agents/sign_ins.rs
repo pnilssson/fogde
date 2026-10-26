@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use agents::{Agent, SignIn};
+use agents::SignIn;
+use protocol::agents::Agent;
 use tokio::sync::oneshot;
 
 #[derive(Default)]

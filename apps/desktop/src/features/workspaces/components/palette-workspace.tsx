@@ -26,7 +26,7 @@ import { viewFolder, type View } from "@/features/workspaces/lib/selection";
 import { openNotes, openStart } from "@/features/workspaces/lib/opening";
 import type { Workspace } from "@/generated/protocol";
 import { useConnection } from "@/hooks/use-connection";
-import { agentName } from "@/lib/agents";
+import { agents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 import { shortcuts } from "@/lib/shortcuts";
 
@@ -88,7 +88,7 @@ export function PaletteWorkspace({
           Open notes
         </CommandItem>
         {choices.map((agent) => {
-          const name = agent ? agentName[agent] : "terminal";
+          const name = agent ? agents[agent].name : "terminal";
 
           return (
             <CommandItem

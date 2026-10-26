@@ -85,6 +85,7 @@ pub struct TerminalInputParams {
 #[serde(rename_all = "camelCase")]
 pub enum Key {
     ShiftEnter,
+    CtrlEnter,
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]

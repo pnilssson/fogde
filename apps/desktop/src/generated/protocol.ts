@@ -8,6 +8,8 @@ export type Agent = "claude" | "codex" | "copilot";
 
 export type AgentPrompt = { "kind": "done" } | { "kind": "browser" } | { "kind": "code", code: string, url: string, } | { "kind": "paste", url: string, };
 
+export type AgentSpec = { name: string, short: string, account: string, command: string, domains: Array<string>, github: boolean, };
+
 export type AgentState = "missing" | "signedOut" | "signedIn";
 
 export type AgentStatus = { agent: Agent, state: AgentState, };
@@ -38,13 +40,15 @@ export type Frame = { platform: Platform, translucent: boolean, };
 
 export type Image = "png" | "jpeg" | "gif" | "webp";
 
-export type Key = "shiftEnter";
+export type Key = "shiftEnter" | "ctrlEnter";
 
 export type Machine = { "kind": "computer", name: string, connected: boolean, } | { "kind": "server", id: string, name: string, target: string, connected: boolean, };
 
 export type MachineId = { "kind": "computer" } | { "kind": "server", id: string, };
 
 export type Material = "translucent" | "solid";
+
+export type MoveTerminalParams = { terminal: string, before: string | null, };
 
 export type Note = { name: string, path: string, folder: string, modified: number, created: number, };
 
@@ -84,7 +88,7 @@ export type Shell = { program: string | null, };
 
 export type ShellOption = { name: string, program: string, };
 
-export type Shown = { claude: boolean, codex: boolean, copilot: boolean, };
+export type Shown = { [key in Agent]?: boolean };
 
 export type SignInCode = { code: string, url: string, };
 
@@ -198,6 +202,7 @@ export type Methods = {
   "workspaces.create": { params: string; result: Workspace };
   "workspaces.delete": { params: string; result: null };
   "workspaces.list": { params: null; result: Array<Workspace> };
+  "workspaces.move": { params: MoveTerminalParams; result: null };
   "workspaces.place": { params: PlaceTerminalParams; result: null };
   "worktrees.create": { params: CreateWorktreeParams; result: string };
   "worktrees.remove": { params: RemoveWorktreeParams; result: null };
@@ -217,3 +222,7 @@ export type Events = {
 export const offline = -32001;
 
 export const imageLimit = 10485760;
+
+export const allAgents: Agent[] = ["claude","codex","copilot"];
+
+export const agents: Record<Agent, AgentSpec> = {"claude":{"name":"Claude Code","short":"Claude","account":"Claude","command":"claude","domains":["claude.com","claude.ai","anthropic.com"],"github":false},"codex":{"name":"Codex","short":"Codex","account":"ChatGPT","command":"codex","domains":["openai.com","chatgpt.com"],"github":false},"copilot":{"name":"GitHub Copilot","short":"GitHub Copilot","account":"GitHub Copilot","command":"copilot","domains":["github.com","ghe.com"],"github":true}};

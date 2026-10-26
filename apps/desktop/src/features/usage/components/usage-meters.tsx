@@ -11,16 +11,11 @@ import {
 } from "@/components/ui/tooltip";
 import { useUsage } from "@/features/usage/hooks/use-usage";
 import type { Agent, Span, Window } from "@/generated/protocol";
+import { agents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 
 const TICK = 30_000;
 const SESSION = 5 * 60 * 60_000;
-
-const names: Record<Agent, string> = {
-  claude: "Claude",
-  codex: "Codex",
-  copilot: "GitHub Copilot",
-};
 
 const spans: Record<Span, string> = {
   session: "5-hour",
@@ -76,7 +71,7 @@ function Meter({ agent, windows, shown, now }: MeterProps) {
             variant="ghost"
             size="sm"
             className="text-muted-foreground"
-            aria-label={`${names[agent]}: ${lines.join(", ")}`}
+            aria-label={`${agents[agent].short}: ${lines.join(", ")}`}
           />
         }
       >

@@ -30,16 +30,16 @@ impl Handler for ListAgents {
         let states = agents::states().await.map_err(failure)?;
         let github = !states
             .iter()
-            .any(|(agent, state)| agent.uses_github() && *state == agents::State::SignedIn)
+            .any(|(agent, state)| agent.spec().github && *state == agents::State::SignedIn)
             || github(session).await?;
 
         Ok(states
             .into_iter()
             .map(|(agent, state)| AgentStatus {
-                agent: to_protocol(agent),
+                agent,
                 state: match state {
                     agents::State::Missing => AgentState::Missing,
-                    agents::State::SignedIn if github || !agent.uses_github() => {
+                    agents::State::SignedIn if github || !agent.spec().github => {
                         AgentState::SignedIn
                     }
                     agents::State::SignedIn | agents::State::SignedOut => AgentState::SignedOut,
@@ -51,8 +51,7 @@ impl Handler for ListAgents {
 
 impl Handler for StartAgentSignIn {
     async fn handle(session: &Session, agent: Agent) -> Result<AgentPrompt, Failure> {
-        let agent = from_protocol(agent);
-        if agent.uses_github() && !github(session).await? {
+        if agent.spec().github && !github(session).await? {
             return Err(Failure::new(
                 SERVER_ERROR,
                 format!("{agent} signs in through GitHub, so set up GitHub first"),
@@ -99,7 +98,7 @@ impl Handler for StartAgentSignIn {
 
 impl Handler for FinishAgentSignIn {
     async fn handle(session: &Session, params: FinishAgentSignInParams) -> Result<(), Failure> {
-        let agent = from_protocol(params.agent);
+        let agent = params.agent;
         let Some((id, signin, stop)) = session.agents.sign_ins.lock().await.resume(agent) else {
             return Err(Failure::new(SERVER_ERROR, "no sign-in is in progress"));
         };
@@ -117,12 +116,7 @@ impl Handler for FinishAgentSignIn {
 
 impl Handler for CancelAgentSignIn {
     async fn handle(session: &Session, agent: Agent) -> Result<(), Failure> {
-        session
-            .agents
-            .sign_ins
-            .lock()
-            .await
-            .cancel(from_protocol(agent));
+        session.agents.sign_ins.lock().await.cancel(agent);
 
         Ok(())
     }
@@ -130,7 +124,7 @@ impl Handler for CancelAgentSignIn {
 
 impl Handler for InstallAgent {
     async fn handle(_: &Session, agent: Agent) -> Result<(), Failure> {
-        from_protocol(agent).install().await.map_err(failure)
+        agents::install(agent).await.map_err(failure)
     }
 }
 
@@ -138,20 +132,4 @@ async fn github(session: &Session) -> Result<bool, Failure> {
     let accounts = session.gh().await?.accounts().await.map_err(failure)?;
 
     Ok(!accounts.is_empty())
-}
-
-fn to_protocol(agent: agents::Agent) -> Agent {
-    match agent {
-        agents::Agent::Claude => Agent::Claude,
-        agents::Agent::Codex => Agent::Codex,
-        agents::Agent::Copilot => Agent::Copilot,
-    }
-}
-
-fn from_protocol(agent: Agent) -> agents::Agent {
-    match agent {
-        Agent::Claude => agents::Agent::Claude,
-        Agent::Codex => agents::Agent::Codex,
-        Agent::Copilot => agents::Agent::Copilot,
-    }
 }

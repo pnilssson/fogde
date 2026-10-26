@@ -3,9 +3,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Connection } from "@/components/connection";
 import { toast } from "@/components/ui/toast";
-import { accountName } from "@/features/agents/lib/account-name";
 import type { Agent, AgentState } from "@/generated/protocol";
-import { agentsQuery } from "@/lib/agents";
+import { agents, agentsQuery } from "@/lib/agents";
+import { statusOf } from "@/lib/connection";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -17,6 +17,13 @@ interface Props {
   onCancel?: () => void;
 }
 
+interface Mode {
+  action: string;
+  pending: string;
+  busy: boolean;
+  run: () => void;
+}
+
 export function AgentSignIn({
   machine,
   agent,
@@ -25,7 +32,7 @@ export function AgentSignIn({
   onSignIn,
   onCancel,
 }: Props) {
-  const name = accountName[agent];
+  const name = agents[agent].account;
   const queries = useQueryClient();
   const install = useMutation({
     mutationFn: () => machine.client.call("agents.install", agent),
@@ -39,29 +46,32 @@ export function AgentSignIn({
     },
   });
 
-  const missing = state === "missing";
-  const busy = missing ? install.isPending : signingIn;
+  const modes: Record<"install" | "connect", Mode> = {
+    install: {
+      action: "Install",
+      pending: "Installing…",
+      busy: install.isPending,
+      run: () => {
+        install.mutate();
+      },
+    },
+    connect: {
+      action: "Connect",
+      pending: "Connecting…",
+      busy: signingIn,
+      run: onSignIn,
+    },
+  };
+  const mode = modes[state === "missing" ? "install" : "connect"];
 
   return (
     <Connection
       name={name}
       icon={<AgentIcon agent={agent} />}
-      action={missing ? "Install" : "Connect"}
-      pending={missing ? "Installing…" : "Connecting…"}
-      status={
-        state === "signedIn"
-          ? "connected"
-          : busy
-            ? "connecting"
-            : "disconnected"
-      }
-      onConnect={() => {
-        if (missing) {
-          install.mutate();
-        } else {
-          onSignIn();
-        }
-      }}
+      action={mode.action}
+      pending={mode.pending}
+      status={statusOf(state === "signedIn", mode.busy)}
+      onConnect={mode.run}
       onCancel={onCancel}
     />
   );

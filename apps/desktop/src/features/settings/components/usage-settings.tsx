@@ -7,14 +7,9 @@ import {
 } from "@/features/settings/components/settings-section";
 import { useSaveSetting } from "@/features/settings/hooks/use-save-setting";
 import type { Shown } from "@/generated/protocol";
+import { agents, allAgents } from "@/lib/agents";
 import { callOwn } from "@/lib/host";
-import { shownQuery } from "@/lib/usage";
-
-const rows: { key: keyof Shown; label: string }[] = [
-  { key: "claude", label: "Claude usage left" },
-  { key: "codex", label: "Codex usage left" },
-  { key: "copilot", label: "GitHub Copilot usage left" },
-];
+import { shownQuery, shows } from "@/lib/usage";
 
 export function UsageSettings() {
   const { data } = useQuery(shownQuery);
@@ -26,14 +21,18 @@ export function UsageSettings() {
 
   return (
     <SettingsSection id="status-bar-heading" title="Status bar">
-      {rows.map(({ key, label }) => (
-        <SettingsRow key={key} label={label} labelled>
+      {allAgents.map((agent) => (
+        <SettingsRow
+          key={agent}
+          label={`${agents[agent].short} usage left`}
+          labelled
+        >
           <Switch
-            checked={data?.[key] ?? false}
+            checked={data !== undefined && shows(data, agent)}
             disabled={!data}
             onCheckedChange={(checked) => {
               if (data) {
-                save.mutate({ ...data, [key]: checked });
+                save.mutate({ ...data, [agent]: checked });
               }
             }}
           />

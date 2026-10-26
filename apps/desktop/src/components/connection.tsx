@@ -3,8 +3,7 @@ import type { ReactNode } from "react";
 import { DoneBadge } from "@/components/done-badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-
-type Status = "connected" | "connecting" | "disconnected";
+import type { Status } from "@/lib/connection";
 
 interface Props {
   name: string;
@@ -25,6 +24,8 @@ export function Connection({
   onConnect,
   onCancel,
 }: Props) {
+  const busy = status === "connecting";
+
   return (
     <div className="flex h-9 w-full items-center justify-between">
       <span className="flex items-center gap-2 type-body">
@@ -35,7 +36,7 @@ export function Connection({
         <DoneBadge>Connected</DoneBadge>
       ) : (
         <div className="flex items-center gap-2">
-          {status === "connecting" && onCancel && (
+          {busy && onCancel && (
             <Button variant="ghost" size="sm" onClick={onCancel}>
               Cancel
             </Button>
@@ -44,17 +45,15 @@ export function Connection({
             variant="secondary"
             size="sm"
             aria-label={`${action} ${name}`}
-            aria-busy={status === "connecting"}
+            aria-busy={busy}
             onClick={() => {
-              if (status === "disconnected") {
+              if (!busy) {
                 onConnect();
               }
             }}
           >
-            {status === "connecting" && (
-              <Spinner aria-hidden data-icon="inline-start" />
-            )}
-            {status === "connecting" ? pending : action}
+            {busy && <Spinner aria-hidden data-icon="inline-start" />}
+            {busy ? pending : action}
           </Button>
         </div>
       )}

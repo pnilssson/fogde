@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
+use protocol::agents::{Agent, AgentSpec};
 use protocol::notes::NotesEvent;
 use protocol::terminals::{EndedEvent, FailedEvent, FrameEvent, ScrolledEvent, StateEvent};
 use protocol::usage::UsageEvent;
@@ -61,6 +62,7 @@ fn export_protocol() {
     };
     types.visit::<Connection>();
     types.visit::<Frame>();
+    types.visit::<AgentSpec>();
 
     let mut methods = String::new();
     for (name, route) in &ROUTER.routes {
@@ -85,11 +87,17 @@ fn export_protocol() {
     for decl in types.declared.values() {
         writeln!(file, "export {decl}\n").unwrap();
     }
+    let specs: BTreeMap<Agent, &AgentSpec> = Agent::ALL
+        .into_iter()
+        .map(|agent| (agent, agent.spec()))
+        .collect();
     write!(
         file,
-        "export type Methods = {{\n{methods}}};\n\nexport type Events = {{\n{events}}};\n\nexport const offline = {};\n\nexport const imageLimit = {};\n",
+        "export type Methods = {{\n{methods}}};\n\nexport type Events = {{\n{events}}};\n\nexport const offline = {};\n\nexport const imageLimit = {};\n\nexport const allAgents: Agent[] = {};\n\nexport const agents: Record<Agent, AgentSpec> = {};\n",
         protocol::rpc::OFFLINE,
-        protocol::terminals::IMAGE_LIMIT
+        protocol::terminals::IMAGE_LIMIT,
+        serde_json::to_string(&Agent::ALL).unwrap(),
+        serde_json::to_string(&specs).unwrap()
     )
     .unwrap();
 

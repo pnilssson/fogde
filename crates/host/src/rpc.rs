@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod export;
-
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::pin::Pin;
@@ -52,8 +49,6 @@ type Reply<'a> = Pin<Box<dyn Future<Output = Result<Value, Failure>> + Send + 'a
 struct Route {
     call: for<'a> fn(&'a Session, Value) -> Reply<'a>,
     ordered: bool,
-    #[cfg(test)]
-    export: fn(&mut export::Types) -> export::Entry,
 }
 
 #[derive(Default)]
@@ -66,8 +61,6 @@ impl Router {
         let route = Route {
             call: call::<M>,
             ordered: M::ORDERED,
-            #[cfg(test)]
-            export: export::entry::<M>,
         };
         let replaced = self.routes.insert(M::NAME, route);
         debug_assert!(replaced.is_none(), "{} is registered twice", M::NAME);

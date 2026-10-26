@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT workspace, checkout FROM members WHERE terminal = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "workspace",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "workspace"
+          }
+        }
+      },
+      {
+        "name": "checkout",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "checkout"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "c99437d8d1a67f41f5d43011ad7351392e099b31cb47a8f2343f733aee89c36e"
+}

@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::terminals::Terminal;
 use crate::{Event, Method};
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Workspace {
     pub id: String,
     pub name: String,
@@ -14,18 +13,24 @@ pub struct Workspace {
     pub terminals: Vec<Terminal>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Checkout {
     pub path: String,
     pub branch: Option<String>,
     pub main: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PlaceTerminalParams {
     pub terminal: String,
     pub workspace: String,
     pub checkout: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct MoveTerminalParams {
+    pub terminal: String,
+    pub before: Option<String>,
 }
 
 pub struct ListWorkspaces;
@@ -57,6 +62,14 @@ pub struct PlaceTerminal;
 impl Method for PlaceTerminal {
     const NAME: &'static str = "workspaces.place";
     type Params = PlaceTerminalParams;
+    type Result = ();
+}
+
+pub struct MoveTerminal;
+
+impl Method for MoveTerminal {
+    const NAME: &'static str = "workspaces.move";
+    type Params = MoveTerminalParams;
     type Result = ();
 }
 

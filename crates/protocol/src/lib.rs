@@ -2,7 +2,6 @@ pub mod accessibility;
 pub mod agents;
 mod connection;
 pub mod folders;
-mod frame;
 pub mod github;
 pub mod health;
 pub mod machines;
@@ -22,5 +21,4 @@ pub mod workspaces;
 pub mod worktrees;
 
 pub use connection::Connection;
-pub use frame::{Frame, Platform};
 pub use method::{Event, Method};

@@ -1,25 +1,23 @@
-# Frontend
+# Desktop app
 
 ## Code
 
-- Name files in kebab-case.
-- Parse data we don't own (storage, drag data, form input) with zod schemas, and keep client state shared outside React in zustand stores.
-- Use installed shadcn/ui components, installing any that are missing.
+- Use GPUI Kit components, building a custom one only when Kit lacks it.
+- Import GPUI only through `gpui_kit::*`, never `gpui-pre` directly.
+- Never await Tokio IO on GPUI's executor: an entity receives data over a bounded `tokio::sync::mpsc` channel drained by a `cx.spawn` task kept on the entity, with one `cx.notify()` per batch.
 
 ## UI
 
-- Show loading with a spinner or skeleton, whichever fits the content.
+- Show loading with a spinner, never a skeleton.
 - Show each state in one place; never repeat it across the sidebar, main area and status bar.
 - Show validation errors under their input and every other error as a toast.
 - Never use a middle dot (·) as a separator; write the relation in words ("app on Hetzner VPS") or separate with layout.
 - Use tooltips only for icon-only controls or information not visible elsewhere; never repeat visible text.
 - Keep the window chrome transparent; raise surfaces with the `surface-*` background and shadow tokens.
-- App-owned spacing uses Tailwind values divisible by four, or `2`; app-owned text uses only the `type-*` roles; app-owned colours use theme tokens as they are (`bg-hover`, `text-muted-foreground`, `text-success`), never opacity modifiers like `/70` or arbitrary values. shadcn/ui and third-party styles are exempt.
+- App-owned spacing uses multiples of 4 px, or 2 px; app-owned text uses only the type roles; app-owned colours use theme tokens as they are, never with changed opacity or literal values. GPUI Kit's own styles are exempt.
 - Meet WCAG 2.2 AA: every action works by keyboard with a visible focus state, and icon-only controls have accessible labels.
 
 ## Motion
 
-- Animate only a change of state or place. Never animate keyboard-triggered actions or anything used many times a day; hover changes colour only.
-- Animate only `transform` and `opacity`: ease-out to enter and leave, ease-in-out to move, never ease-in. Use the shared ease-out token and shadcn/ui's transitions as published.
-- Stay under 300 ms: tooltips 125–200 ms, menus 150–250 ms, dialogs at most 300 ms, exits faster than entries. Enter from `scale-95` and `opacity-0`, never `scale-0`; popovers grow from their trigger.
-- Prefer CSS transitions; use `motion/react` only for layout, presence and gestures. With reduced motion, keep fades and drop movement.
+- Animate only a change of state or place, never a keyboard-triggered action or anything used many times a day.
+- Keep every animation under 300 ms. With reduced motion, keep fades and drop movement.

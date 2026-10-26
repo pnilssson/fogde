@@ -71,53 +71,58 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            args: ""
-          - os: macos-latest
-            args: --target universal-apple-darwin
-          - os: ubuntu-22.04
-            args: ""
+        os: [windows-latest, macos-latest, ubuntu-22.04]
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - shell: bash
-        env:
+      - env:
           VERSION: ${{ needs.draft.outputs.version }}
         run: perl -pi -e 's/^version = ".*"$/version = "$ENV{VERSION}"/' Cargo.toml
       - if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf xdg-utils
+          sudo apt-get install -y gcc g++ clang libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libvulkan1 libasound2-dev
       - run: rustup toolchain install
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - if: runner.os == 'macOS'
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: lts/*
-      - run: npm ci --prefix apps/desktop
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: hosts
           path: target
-      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          projectPath: apps/desktop
-          releaseId: ${{ needs.draft.outputs.id }}
-          uploadUpdaterJson: false
-          args: >-
-            --config src-tauri/tauri.release.conf.json
-            --config '{"bundle":{"createUpdaterArtifacts":true}}'
-            ${{ matrix.args }}
+      - run: cargo install cargo-packager --git https://github.com/crabnebula-dev/cargo-packager --rev d3a520ef0e3ddc4325cefa982ed5fd7322484354 --locked
+      - if: runner.os != 'macOS'
+        run: cargo build -p fogde --release
+      - if: runner.os == 'macOS'
+        run: |
+          cargo build -p fogde --release --target aarch64-apple-darwin
+          cargo build -p fogde --release --target x86_64-apple-darwin
+          mkdir -p target/universal-apple-darwin/release
+          lipo -create -output target/universal-apple-darwin/release/fogde target/aarch64-apple-darwin/release/fogde target/x86_64-apple-darwin/release/fogde
+      - env:
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TARGET: ${{ runner.os == 'macOS' && '--target universal-apple-darwin' || '' }}
+        run: cargo packager -p fogde --release $TARGET --out-dir target/packages
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ needs.draft.outputs.version }}
+        run: |
+          shopt -s nullglob
+          files=(target/packages/*-setup.exe target/packages/*-setup.exe.sig target/packages/*.dmg target/packages/*.app.tar.gz target/packages/*.app.tar.gz.sig target/packages/*.AppImage target/packages/*.AppImage.sig target/packages/*.deb target/packages/*.deb.sig)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no packages were built" >&2
+            exit 1
+          fi
+          gh release upload "v$VERSION" "${files[@]}" --repo "$REPO"
 
   publish:
     needs: [draft, build]
@@ -138,14 +143,15 @@ jobs:
             name=$(jq -er --arg suffix "$1" 'map(select(.name | endswith($suffix))) | .[0].name' <<<"$assets")
             id=$(jq -er --arg sig "$name.sig" 'map(select(.name == $sig)) | .[0].id' <<<"$assets")
             signature=$(gh api -H "Accept: application/octet-stream" "repos/$REPO/releases/assets/$id")
-            jq -n --arg url "https://github.com/$REPO/releases/download/v$VERSION/$name" --arg signature "$signature" '{url: $url, signature: $signature}'
+            jq -n --arg url "https://github.com/$REPO/releases/download/v$VERSION/$name" --arg signature "$signature" --arg format "$2" '{url: $url, signature: $signature, format: $format}'
           }
-          windows=$(entry -setup.exe)
-          mac=$(entry .app.tar.gz)
-          linux=$(entry .AppImage)
+          windows=$(entry -setup.exe nsis)
+          mac=$(entry .app.tar.gz app)
+          linux=$(entry .AppImage appimage)
+          deb=$(entry .deb appimage)
           jq -n --arg version "$VERSION" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --argjson windows "$windows" --argjson mac "$mac" --argjson linux "$linux" \
-            '{version: $version, pub_date: $date, platforms: {"windows-x86_64": $windows, "darwin-aarch64": $mac, "darwin-x86_64": $mac, "linux-x86_64": $linux}}' > latest.json
+            --argjson windows "$windows" --argjson mac "$mac" --argjson linux "$linux" --argjson deb "$deb" \
+            '{version: $version, pub_date: $date, platforms: {"windows-x86_64": $windows, "darwin-aarch64": $mac, "darwin-x86_64": $mac, "macos-aarch64": $mac, "macos-x86_64": $mac, "linux-x86_64": $linux, "linux-x86_64-deb": $deb}}' > latest.json
           gh api -X POST "https://uploads.github.com/repos/$REPO/releases/$ID/assets?name=latest.json" \
             -H "Content-Type: application/json" --input latest.json > /dev/null
           gh api -X PATCH "repos/$REPO/releases/$ID" -F draft=false -f make_latest=true > /dev/null

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT terminal FROM members WHERE workspace = ? AND checkout IS ? ORDER BY position, id",
+  "describe": {
+    "columns": [
+      {
+        "name": "terminal",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "terminal"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "dbda6ce5661ace39d26958f6d189044594a6915202a498fb324e694ab719aedd"
+}

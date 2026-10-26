@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::Method;
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Machine {
     Computer {
@@ -18,14 +17,14 @@ pub enum Machine {
     },
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum MachineId {
     Computer,
     Server { id: String },
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RenameMachineParams {
     pub machine: MachineId,
     pub name: String,

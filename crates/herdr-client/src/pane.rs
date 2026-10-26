@@ -40,6 +40,8 @@ pub struct Scrollback {
 pub enum Key {
     #[serde(rename = "shift+enter")]
     ShiftEnter,
+    #[serde(rename = "ctrl+enter")]
+    CtrlEnter,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
@@ -188,13 +190,13 @@ mod tests {
     fn writes_send_keys() {
         let keys = serde_json::to_value(Keys {
             pane_id: "w3:p1",
-            keys: &[Key::ShiftEnter],
+            keys: &[Key::ShiftEnter, Key::CtrlEnter],
         })
         .unwrap();
 
         assert_eq!(
             keys,
-            serde_json::json!({"pane_id": "w3:p1", "keys": ["shift+enter"]})
+            serde_json::json!({"pane_id": "w3:p1", "keys": ["shift+enter", "ctrl+enter"]})
         );
     }
 

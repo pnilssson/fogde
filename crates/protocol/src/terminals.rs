@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::agents::Agent;
 use crate::{Event, Method};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Terminal {
     pub id: String,
     pub name: String,
@@ -16,7 +15,7 @@ pub struct Terminal {
     pub checkout: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Status {
     Idle,
@@ -25,7 +24,7 @@ pub enum Status {
     Done,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct TerminalState {
     pub id: String,
     pub name: String,
@@ -36,7 +35,7 @@ pub struct TerminalState {
     pub changes: Option<Changes>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Changes {
     pub added: u32,
     pub removed: u32,
@@ -44,63 +43,64 @@ pub struct Changes {
     pub upstream: Option<Divergence>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Base {
     pub name: String,
     pub behind: u32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Divergence {
     pub ahead: u32,
     pub behind: u32,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CreateTerminalParams {
     pub workspace: String,
     pub folder: String,
     pub agent: Option<Agent>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Size {
     pub cols: u16,
     pub rows: u16,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WatchTerminalParams {
     pub id: String,
     pub size: Size,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TerminalInputParams {
     pub id: String,
     pub data: String,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Key {
     ShiftEnter,
+    CtrlEnter,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TerminalKeyParams {
     pub id: String,
     pub key: Key,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Scroll {
     Up,
     Down,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ScrollTerminalParams {
     pub id: String,
     pub direction: Scroll,
@@ -109,7 +109,7 @@ pub struct ScrollTerminalParams {
     pub row: u16,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SeekTerminalParams {
     pub id: String,
     pub offset: u32,
@@ -117,7 +117,7 @@ pub struct SeekTerminalParams {
 
 pub const IMAGE_LIMIT: usize = 10 * 1024 * 1024;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Image {
     Png,
@@ -126,14 +126,14 @@ pub enum Image {
     Webp,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PasteImageParams {
     pub id: String,
     pub image: Image,
     pub data: String,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TerminalFrame {
     pub id: String,
     pub cols: u16,
@@ -142,7 +142,7 @@ pub struct TerminalFrame {
     pub data: String,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TerminalScrolled {
     pub id: String,
     pub offset: u32,
@@ -150,13 +150,13 @@ pub struct TerminalScrolled {
     pub rows: u32,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TerminalEnded {
     pub id: String,
     pub error: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TerminalFailed {
     pub id: String,
     pub agent: Agent,

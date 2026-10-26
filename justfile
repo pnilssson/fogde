@@ -5,40 +5,30 @@ default:
 
 [env("FOGDE_HOME", home_directory() / "Fogde-dev")]
 dev: server
-    npm run --prefix apps/desktop tauri dev -- --config src-tauri/tauri.dev.conf.json
+    cargo run -p fogde
 
-# The host for 64-bit Linux servers, which the app installs over SSH. Zig cross-compiles its C parts.
+# The host for 64-bit Linux servers, which the app embeds and installs over SSH. Zig cross-compiles its C parts.
 server:
     cargo zigbuild -p host --bin fogde-host --release --target x86_64-unknown-linux-musl
     cargo zigbuild -p host --bin fogde-host --release --target aarch64-unknown-linux-musl
 
 build: server
-    npm run --prefix apps/desktop tauri build -- --config src-tauri/tauri.release.conf.json
+    cargo build -p fogde --release
+    cargo packager -p fogde --release --out-dir target/packages
 
 # The app icons, from a full-bleed tile and a macOS tile with the margin macOS expects around it.
 icons:
-    npm run --prefix apps/desktop tauri icon -- app-icon.svg --output ../../target/icons
-    npm run --prefix apps/desktop tauri icon -- app-icon-macos.svg --output ../../target/icons-macos
-    cp target/icons/32x32.png apps/desktop/src-tauri/icons/32x32.png
-    cp target/icons/128x128.png apps/desktop/src-tauri/icons/128x128.png
-    cp target/icons/128x128@2x.png apps/desktop/src-tauri/icons/128x128@2x.png
-    cp target/icons/icon.ico apps/desktop/src-tauri/icons/icon.ico
-    cp target/icons-macos/icon.icns apps/desktop/src-tauri/icons/icon.icns
+    cargo run -p icons -- apps/desktop/app-icon.svg apps/desktop/app-icon-macos.svg apps/desktop/icons
 
 fmt:
     cargo fmt --all
-    npm run --prefix apps/desktop format
 
 lint:
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
-    npm run --prefix apps/desktop format:check
-    npm run --prefix apps/desktop lint
-    npm run --prefix apps/desktop typecheck
 
 test:
     cargo nextest run --workspace
-    npm run --prefix apps/desktop test
 
 # The scratch database that the SQL queries are checked against.
 db := "sqlite:target/sqlx.db"
@@ -64,31 +54,29 @@ typos:
 zizmor:
     zizmor .
 
-knip:
-    npm run --prefix apps/desktop knip
+limit := "300"
 
-[script("node")]
+[script("sh")]
+[unix]
 lines:
-    const { execFileSync } = require("node:child_process");
-    const { existsSync, readFileSync } = require("node:fs");
+    long=$(git ls-files --cached --others --exclude-standard -- '*.rs' | while IFS= read -r file; do
+      [ -f "$file" ] && awk -v file="$file" -v limit={{limit}} 'NF { last = FNR } END { if (last > limit) print file ": " last " lines, limit is " limit }' "$file"
+    done)
+    [ -z "$long" ] || { echo "$long" >&2; exit 1; }
 
-    const limit = 300;
-    const sources = /\.(rs|ts|tsx|js|mjs|css)$/;
-
-    const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" })
-      .split("\n")
-      .filter((file) => sources.test(file) && existsSync(file) && !file.startsWith("apps/desktop/src/components/ui/"));
-
-    const long = files
-      .map((file) => ({ file, count: readFileSync(file, "utf8").trimEnd().split("\n").length }))
-      .filter(({ count }) => count > limit);
-
-    for (const { file, count } of long) {
-      console.error(`${file}: ${count} lines, limit is ${limit}`);
+[extension(".ps1")]
+[script("powershell.exe", "-NoLogo", "-NoProfile", "-File")]
+[windows]
+lines:
+    $long = git ls-files --cached --others --exclude-standard -- '*.rs' |
+      Where-Object { Test-Path $_ } |
+      ForEach-Object {
+        $count = ((Get-Content -Raw $_).TrimEnd() -split "`n").Count
+        if ($count -gt {{limit}}) { "${_}: $count lines, limit is {{limit}}" }
+      }
+    if ($long) {
+      $long | ForEach-Object { [Console]::Error.WriteLine($_) }
+      exit 1
     }
 
-    if (long.length > 0) {
-      process.exit(1);
-    }
-
-check: lint lines test sqlx-check deny shear typos zizmor knip
+check: lint lines test sqlx-check deny shear typos zizmor

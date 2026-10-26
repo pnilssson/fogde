@@ -22,7 +22,7 @@ pub struct Binaries {
 
 enum Source {
     Built(PathBuf),
-    Bundled(PathBuf),
+    Embedded(&'static [(&'static str, &'static [u8])]),
 }
 
 impl Binaries {
@@ -30,8 +30,8 @@ impl Binaries {
         Self::new(Source::Built(target))
     }
 
-    pub fn bundled(dir: PathBuf) -> Self {
-        Self::new(Source::Bundled(dir))
+    pub fn embedded(binaries: &'static [(&'static str, &'static [u8])]) -> Self {
+        Self::new(Source::Embedded(binaries))
     }
 
     fn new(source: Source) -> Self {
@@ -41,17 +41,19 @@ impl Binaries {
         }
     }
 
-    fn path(&self, triple: &str) -> PathBuf {
-        match &self.source {
-            Source::Built(target) => target.join(triple).join("release").join("fogde-host"),
-            Source::Bundled(dir) => dir.join(triple).join("fogde-host"),
-        }
-    }
-
     async fn read(&self, triple: &str) -> Result<Vec<u8>, Error> {
-        fs::read(self.path(triple))
-            .await
-            .map_err(|_| Error::Binary(triple.to_owned()))
+        match &self.source {
+            Source::Built(target) => {
+                fs::read(target.join(triple).join("release").join("fogde-host"))
+                    .await
+                    .map_err(|_| Error::Binary(triple.to_owned()))
+            }
+            Source::Embedded(binaries) => binaries
+                .iter()
+                .find(|(known, _)| *known == triple)
+                .map(|(_, bytes)| bytes.to_vec())
+                .ok_or_else(|| Error::Binary(triple.to_owned())),
+        }
     }
 
     async fn build(&self, triple: &str) -> Result<String, Error> {

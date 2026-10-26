@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::Method;
 
@@ -11,19 +10,19 @@ impl Method for ListSshHosts {
     type Result = Vec<String>;
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ServerCheckParams {
     pub target: String,
     pub trust: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SshKey {
     pub name: String,
     pub fingerprint: String,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "state", rename_all = "camelCase")]
 pub enum ServerCheck {
     Ready,

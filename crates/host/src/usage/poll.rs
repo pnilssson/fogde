@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use agents::limits;
+use futures_util::future::join_all;
 use protocol::agents::Agent;
 use protocol::usage::{Shown, Span, Window};
 use tokio::time::{Instant, MissedTickBehavior};
@@ -23,70 +24,49 @@ pub async fn run(shared: Arc<Shared>) {
             continue;
         }
         let shown = shared.settings.shown().await.unwrap_or_default();
-        if polled.is_some_and(|(at, last)| last == shown && at.elapsed() < POLL) {
+        if polled
+            .as_ref()
+            .is_some_and(|(at, last)| *last == shown && at.elapsed() < POLL)
+        {
             continue;
         }
 
+        let readings = join_all(Agent::ALL.map(|agent| read(agent, &shown, &shared))).await;
         polled = Some((Instant::now(), shown));
-        let (claude, codex, copilot) = tokio::join!(
-            async {
-                if shown.claude {
-                    claude().await
-                } else {
-                    Vec::new()
-                }
-            },
-            async {
-                if shown.codex {
-                    codex().await
-                } else {
-                    Vec::new()
-                }
-            },
-            async {
-                if shown.copilot {
-                    copilot(&shared).await
-                } else {
-                    Vec::new()
-                }
-            },
-        );
         let at = seconds(SystemTime::now());
-        shared.usage.set(Agent::Claude, claude, at);
-        shared.usage.set(Agent::Codex, codex, at);
-        shared.usage.set(Agent::Copilot, copilot, at);
-    }
-}
-
-async fn claude() -> Vec<Window> {
-    match limits::claude().await {
-        Ok(limits) => windows(limits),
-        Err(error) => {
-            tracing::debug!(%error, "could not read the Claude limits");
-            Vec::new()
+        for (agent, windows) in Agent::ALL.into_iter().zip(readings) {
+            shared.usage.set(agent, windows, at);
         }
     }
 }
 
-async fn codex() -> Vec<Window> {
-    match limits::codex().await {
-        Ok(limits) => windows(limits),
-        Err(error) => {
-            tracing::debug!(%error, "could not read the Codex limits");
-            Vec::new()
-        }
+async fn read(agent: Agent, shown: &Shown, shared: &Shared) -> Vec<Window> {
+    if !shown.shows(agent) {
+        return Vec::new();
+    }
+
+    match agent {
+        Agent::Claude => limited(agent, limits::claude().await),
+        Agent::Codex => limited(agent, limits::codex().await),
+        Agent::Copilot => copilot(shared).await,
     }
 }
 
-fn windows(limits: Vec<limits::Limit>) -> Vec<Window> {
-    limits
-        .into_iter()
-        .map(|limit| window(span(limit.minutes), 100.0 - limit.used, limit.resets))
-        .collect()
+fn limited(agent: Agent, limits: Result<Vec<limits::Limit>, agents::Error>) -> Vec<Window> {
+    match limits {
+        Ok(limits) => limits
+            .into_iter()
+            .map(|limit| window(span(limit.minutes), 100.0 - limit.used, limit.resets))
+            .collect(),
+        Err(error) => {
+            tracing::debug!(%error, "could not read the {agent} limits");
+            Vec::new()
+        }
+    }
 }
 
 async fn copilot(shared: &Shared) -> Vec<Window> {
-    match agents::Agent::Copilot.state().await {
+    match agents::state(Agent::Copilot).await {
         Ok(agents::State::SignedIn) => {}
         Ok(_) => return Vec::new(),
         Err(error) => {

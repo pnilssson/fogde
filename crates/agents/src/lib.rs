@@ -5,18 +5,15 @@ pub mod limits;
 mod signin;
 mod status;
 
-pub use agent::{Agent, State};
+use futures_util::future::try_join_all;
+use protocol::agents::Agent;
+
+pub use agent::{State, install, state};
 pub use error::Error;
 pub use signin::{Prompt, SignIn};
 
-const ALL: [Agent; 3] = [Agent::Claude, Agent::Codex, Agent::Copilot];
-
 pub async fn states() -> Result<Vec<(Agent, State)>, Error> {
-    let (claude, codex, copilot) = tokio::join!(
-        Agent::Claude.state(),
-        Agent::Codex.state(),
-        Agent::Copilot.state()
-    );
+    let states = try_join_all(Agent::ALL.map(state)).await?;
 
-    Ok(ALL.into_iter().zip([claude?, codex?, copilot?]).collect())
+    Ok(Agent::ALL.into_iter().zip(states).collect())
 }

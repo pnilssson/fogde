@@ -56,7 +56,7 @@ pub enum Message {
     Notification(Notification),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Failure {
     pub code: i32,
     pub message: String,

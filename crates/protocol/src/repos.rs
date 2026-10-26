@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::Method;
 
@@ -27,14 +26,14 @@ impl Method for SetReposFolder {
     type Result = ();
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Repo {
     pub host: String,
     pub owner: String,
     pub name: String,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RemoteRepo {
     pub host: String,
     pub owner: String,

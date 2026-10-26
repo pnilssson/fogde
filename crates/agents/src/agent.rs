@@ -1,17 +1,11 @@
-use std::fmt;
 use std::path::PathBuf;
 use std::process::{Output, Stdio};
 
+use protocol::agents::Agent;
 use tokio::process::Command;
 
-use crate::{Error, install, status};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Agent {
-    Claude,
-    Codex,
-    Copilot,
-}
+use crate::install::{self, Install};
+use crate::{Error, status};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
@@ -20,139 +14,164 @@ pub enum State {
     SignedIn,
 }
 
-impl Agent {
-    pub async fn state(self) -> Result<State, Error> {
-        if !self.installed().await {
-            return Ok(State::Missing);
-        }
-        let Some(args) = self.status() else {
-            return Ok(State::SignedIn);
-        };
-        let output = match self.run(args).await {
-            Ok(output) => output,
-            Err(Error::Missing(_)) => return Ok(State::Missing),
-            Err(error) => return Err(error),
-        };
+struct Cli {
+    status: Option<Status>,
+    login: Option<Login>,
+    paste: bool,
+    install: Install,
+}
 
-        let signed_in = match self {
-            Self::Claude => status::claude(&output.stdout),
-            Self::Codex => status::codex(output.status.success(), &output.stderr),
-            Self::Copilot => None,
-        }
-        .ok_or_else(|| self.failure(&output))?;
+struct Status {
+    args: &'static [&'static str],
+    signed_in: fn(&Output) -> Option<bool>,
+}
 
-        Ok(if signed_in {
-            State::SignedIn
-        } else {
-            State::SignedOut
-        })
-    }
+struct Login {
+    local: &'static [&'static str],
+    remote: &'static [&'static str],
+}
 
-    pub async fn install(self) -> Result<(), Error> {
-        let output = install::installer(self)
-            .stdin(Stdio::null())
-            .output()
-            .await
-            .map_err(|error| Error::Io(self, error))?;
-        if !output.status.success() {
-            return Err(self.failure(&output));
-        }
-        if !self.installed().await {
-            return Err(Error::Failed(
-                self,
-                "the installer finished, but the command was not found".to_owned(),
-            ));
-        }
+const CLAUDE: Cli = Cli {
+    status: Some(Status {
+        args: &["auth", "status", "--json"],
+        signed_in: |output| status::claude(&output.stdout),
+    }),
+    login: Some(Login {
+        local: &["auth", "login"],
+        remote: &["auth", "login"],
+    }),
+    paste: true,
+    install: install::CLAUDE,
+};
 
-        Ok(())
-    }
+const CODEX: Cli = Cli {
+    status: Some(Status {
+        args: &["login", "status"],
+        signed_in: |output| status::codex(output.status.success(), &output.stderr),
+    }),
+    login: Some(Login {
+        local: &["login"],
+        remote: &["login", "--device-auth"],
+    }),
+    paste: false,
+    install: install::CODEX,
+};
 
-    pub fn uses_github(self) -> bool {
-        self == Self::Copilot
-    }
+const COPILOT: Cli = Cli {
+    status: None,
+    login: None,
+    paste: false,
+    install: install::COPILOT,
+};
 
-    pub(crate) async fn installed(self) -> bool {
-        self.locate().await.is_some()
-    }
-
-    async fn locate(self) -> Option<PathBuf> {
-        tokio::task::spawn_blocking(move || {
-            process::find(self.binary())
-                .or_else(|| process::find_in(install::dirs(self), self.binary()))
-        })
-        .await
-        .ok()
-        .flatten()
-    }
-
-    fn binary(self) -> &'static str {
-        match self {
-            Self::Claude => "claude",
-            Self::Codex => "codex",
-            Self::Copilot => "copilot",
-        }
-    }
-
-    fn status(self) -> Option<&'static [&'static str]> {
-        match self {
-            Self::Claude => Some(&["auth", "status", "--json"]),
-            Self::Codex => Some(&["login", "status"]),
-            Self::Copilot => None,
-        }
-    }
-
-    pub(crate) fn login(self, remote: bool) -> Option<&'static [&'static str]> {
-        match self {
-            Self::Claude => Some(&["auth", "login"]),
-            Self::Codex if remote => Some(&["login", "--device-auth"]),
-            Self::Codex => Some(&["login"]),
-            Self::Copilot => None,
-        }
-    }
-
-    pub(crate) async fn command(self) -> Result<Command, Error> {
-        let program = self.locate().await.ok_or(Error::Missing(self))?;
-        let mut command = process::command(program);
-        command.env("NO_COLOR", "1");
-
-        Ok(command)
-    }
-
-    pub(crate) async fn parentless(self, args: &[&str]) -> Result<Command, Error> {
-        let program = self.locate().await.ok_or(Error::Missing(self))?;
-        let mut command = process::parentless(program, args);
-        command.env("NO_COLOR", "1");
-
-        Ok(command)
-    }
-
-    async fn run(self, args: &[&str]) -> Result<Output, Error> {
-        self.command()
-            .await?
-            .args(args)
-            .stdin(Stdio::null())
-            .output()
-            .await
-            .map_err(|error| Error::Io(self, error))
-    }
-
-    fn failure(self, output: &Output) -> Error {
-        let message = if output.stderr.trim_ascii().is_empty() {
-            &output.stdout
-        } else {
-            &output.stderr
-        };
-
-        Error::Failed(self, String::from_utf8_lossy(message).trim().to_owned())
+const fn cli(agent: Agent) -> &'static Cli {
+    match agent {
+        Agent::Claude => &CLAUDE,
+        Agent::Codex => &CODEX,
+        Agent::Copilot => &COPILOT,
     }
 }
 
-impl fmt::Display for Agent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::Claude => "Claude Code",
-            Self::Codex => "Codex",
-            Self::Copilot => "GitHub Copilot",
-        })
+pub async fn state(agent: Agent) -> Result<State, Error> {
+    if !installed(agent).await {
+        return Ok(State::Missing);
     }
+    let Some(status) = &cli(agent).status else {
+        return Ok(State::SignedIn);
+    };
+    let output = match run(agent, status.args).await {
+        Ok(output) => output,
+        Err(Error::Missing(_)) => return Ok(State::Missing),
+        Err(error) => return Err(error),
+    };
+
+    let signed_in = (status.signed_in)(&output).ok_or_else(|| failure(agent, &output))?;
+
+    Ok(if signed_in {
+        State::SignedIn
+    } else {
+        State::SignedOut
+    })
+}
+
+pub async fn install(agent: Agent) -> Result<(), Error> {
+    let output = (cli(agent).install.command)()
+        .stdin(Stdio::null())
+        .output()
+        .await
+        .map_err(|error| Error::Io(agent, error))?;
+    if !output.status.success() {
+        return Err(failure(agent, &output));
+    }
+    if !installed(agent).await {
+        return Err(Error::Failed(
+            agent,
+            "the installer finished, but the command was not found".to_owned(),
+        ));
+    }
+
+    Ok(())
+}
+
+pub(crate) fn login(agent: Agent, remote: bool) -> Option<&'static [&'static str]> {
+    cli(agent)
+        .login
+        .as_ref()
+        .map(|login| if remote { login.remote } else { login.local })
+}
+
+pub(crate) fn pastes(agent: Agent) -> bool {
+    cli(agent).paste
+}
+
+pub(crate) async fn installed(agent: Agent) -> bool {
+    locate(agent).await.is_some()
+}
+
+async fn locate(agent: Agent) -> Option<PathBuf> {
+    let binary = agent.spec().command;
+    let dirs = cli(agent).install.dirs;
+
+    tokio::task::spawn_blocking(move || {
+        process::find(binary).or_else(|| process::find_in(dirs(), binary))
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
+pub(crate) async fn command(agent: Agent) -> Result<Command, Error> {
+    let program = locate(agent).await.ok_or(Error::Missing(agent))?;
+    let mut command = process::command(program);
+    command.env("NO_COLOR", "1");
+
+    Ok(command)
+}
+
+pub(crate) async fn parentless(agent: Agent, args: &[&str]) -> Result<Command, Error> {
+    let program = locate(agent).await.ok_or(Error::Missing(agent))?;
+    let mut command = process::parentless(program, args);
+    command.env("NO_COLOR", "1");
+
+    Ok(command)
+}
+
+async fn run(agent: Agent, args: &[&str]) -> Result<Output, Error> {
+    command(agent)
+        .await?
+        .args(args)
+        .stdin(Stdio::null())
+        .output()
+        .await
+        .map_err(|error| Error::Io(agent, error))
+}
+
+fn failure(agent: Agent, output: &Output) -> Error {
+    let message = if output.stderr.trim_ascii().is_empty() {
+        &output.stdout
+    } else {
+        &output.stderr
+    };
+
+    Error::Failed(agent, String::from_utf8_lossy(message).trim().to_owned())
 }

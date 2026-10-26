@@ -11,6 +11,8 @@ pub enum Error {
     Sqlx(#[from] sqlx::Error),
     #[error("that workspace no longer exists")]
     Missing,
+    #[error("that terminal is not in a workspace")]
+    Unplaced,
 }
 
 #[derive(Clone, Debug)]
@@ -42,9 +44,10 @@ pub async fn list(pool: &SqlitePool, terminals: &[Terminal]) -> Result<Listing, 
     }
 
     let mut workspaces = stored(&mut tx).await?;
-    let members = sqlx::query!("SELECT workspace, terminal, checkout FROM members ORDER BY id")
-        .fetch_all(&mut *tx)
-        .await?;
+    let members =
+        sqlx::query!("SELECT workspace, terminal, checkout FROM members ORDER BY position, id")
+            .fetch_all(&mut *tx)
+            .await?;
     tx.commit().await?;
 
     let loose = terminals
@@ -164,10 +167,23 @@ pub async fn place(
 ) -> Result<(), Error> {
     let id: i64 = workspace.parse().map_err(|_| Error::Missing)?;
     let placed = sqlx::query!(
-        "INSERT INTO members (terminal, workspace, checkout) VALUES (?, ?, ?)
+        "INSERT INTO members (terminal, workspace, checkout, position)
+         VALUES (?, ?, ?, (
+             SELECT COALESCE(MAX(position), 0) + 1 FROM members
+             WHERE workspace = ? AND checkout IS ?
+         ))
          ON CONFLICT (terminal) DO UPDATE
-         SET workspace = excluded.workspace, checkout = excluded.checkout",
+         SET workspace = excluded.workspace,
+             checkout = excluded.checkout,
+             position = CASE
+                 WHEN members.workspace = excluded.workspace
+                     AND members.checkout IS excluded.checkout
+                 THEN members.position
+                 ELSE excluded.position
+             END",
         terminal,
+        id,
+        checkout,
         id,
         checkout
     )
@@ -181,6 +197,43 @@ pub async fn place(
         }
         Err(error) => Err(error.into()),
     }
+}
+
+pub async fn arrange(pool: &SqlitePool, terminal: &str, before: Option<&str>) -> Result<(), Error> {
+    let mut tx = pool.begin().await?;
+    let member = sqlx::query!(
+        "SELECT workspace, checkout FROM members WHERE terminal = ?",
+        terminal
+    )
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or(Error::Unplaced)?;
+
+    let mut order = sqlx::query_scalar!(
+        "SELECT terminal FROM members WHERE workspace = ? AND checkout IS ? ORDER BY position, id",
+        member.workspace,
+        member.checkout
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    order.retain(|id| id != terminal);
+    let at = before
+        .and_then(|before| order.iter().position(|id| id == before))
+        .unwrap_or(order.len());
+    order.insert(at, terminal.to_owned());
+
+    for (position, id) in (0_i64..).zip(&order) {
+        sqlx::query!(
+            "UPDATE members SET position = ? WHERE terminal = ?",
+            position,
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+
+    Ok(())
 }
 
 async fn stored(db: &mut SqliteConnection) -> Result<Vec<(i64, Workspace)>, Error> {

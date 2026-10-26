@@ -1,15 +1,14 @@
-use serde::Deserialize;
-use ts_rs::TS;
+use serde::{Deserialize, Serialize};
 
 use crate::Method;
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CreateWorktreeParams {
     pub repo: String,
     pub name: String,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RemoveWorktreeParams {
     pub repo: String,
     pub path: String,

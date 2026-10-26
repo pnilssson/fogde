@@ -1,48 +1,45 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::folders::CreateFolderParams;
 use crate::{Event, Method};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct NoteList {
     pub root: String,
     pub folders: Vec<String>,
     pub notes: Vec<Note>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Note {
     pub name: String,
     pub path: String,
     pub folder: String,
-    #[ts(type = "number")]
     pub modified: i64,
-    #[ts(type = "number")]
     pub created: i64,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct NoteText {
     pub text: String,
     pub version: String,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WriteNoteParams {
     pub path: String,
     pub text: String,
     pub version: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Written {
     Saved { version: String },
     Changed,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RenameNoteParams {
     pub path: String,
     pub name: String,

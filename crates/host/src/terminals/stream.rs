@@ -6,7 +6,7 @@ use base64::engine::general_purpose::STANDARD;
 use herdr_client::{Client, Key};
 use protocol::rpc::{Failure, Message, SERVER_ERROR};
 use protocol::terminals::{
-    EndedEvent, FrameEvent, Scroll, ScrollTerminalParams, Size, TerminalEnded, TerminalFrame,
+    EndedEvent, FrameEvent, ScrollTerminalParams, Size, TerminalEnded, TerminalFrame,
     WatchTerminalParams,
 };
 use tokio::sync::mpsc::{self, OwnedPermit, error::SendError};
@@ -15,7 +15,7 @@ use tokio::sync::oneshot;
 use crate::rpc::{cancelled, failure, notification};
 use crate::session::Session;
 
-use super::launch;
+use super::{herdr, launch};
 
 mod scroll;
 
@@ -155,11 +155,7 @@ async fn watch(
                     }
                     Some(Control::Resize(size)) => stream.resize(size.cols, size.rows).await,
                     Some(Control::Scroll(scroll)) => {
-                        let direction = match scroll.direction {
-                            Scroll::Up => herdr_client::Scroll::Up,
-                            Scroll::Down => herdr_client::Scroll::Down,
-                        };
-                        stream.scroll(direction, scroll.lines, scroll.column, scroll.row).await
+                        stream.scroll(herdr::scroll(scroll.direction), scroll.lines, scroll.column, scroll.row).await
                     }
                     None => return,
                 };

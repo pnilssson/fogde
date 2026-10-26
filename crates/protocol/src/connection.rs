@@ -1,7 +1,6 @@
-use serde::Serialize;
-use ts_rs::TS;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Connection {
     pub url: String,
     pub token: String,

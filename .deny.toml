@@ -4,13 +4,14 @@ all-features = true
 [advisories]
 yanked = "deny"
 ignore = [
-    { id = "RUSTSEC-2024-0370", reason = "unmaintained build-time macro pulled in by Tauri's Linux GTK3 stack" },
-    { id = "RUSTSEC-2026-0370", reason = "zvariant merged into zbus 6; tauri-plugin-opener still uses zbus 5" },
-    { id = "RUSTSEC-2026-0371", reason = "zbus_names merged into zbus 6; tauri-plugin-opener still uses zbus 5" },
-    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive merged into zbus 6; tauri-plugin-opener still uses zbus 5" },
-    { id = "RUSTSEC-2026-0367", reason = "zip in tauri-plugin-updater only unpacks signed Windows updates, and ours are not zipped" },
-    { id = "RUSTSEC-2026-0368", reason = "zip in tauri-plugin-updater only unpacks signed Windows updates, and ours are not zipped" },
-    { id = "RUSTSEC-2026-0369", reason = "zip in tauri-plugin-updater only unpacks signed Windows updates, and ours are not zipped" },
+    { id = "RUSTSEC-2024-0384", reason = "instant is unmaintained; pulled in by GPUI Kit" },
+    { id = "RUSTSEC-2024-0436", reason = "paste is unmaintained; pulled in by GPUI Kit and gpui-pre" },
+    { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile is unmaintained; pulled in by GPUI Kit's asset fetcher" },
+    { id = "RUSTSEC-2026-0206", reason = "rustybuzz is unmaintained; pulled in by resvg in gpui-pre and GPUI Kit" },
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser is unmaintained; pulled in by resvg in gpui-pre and GPUI Kit" },
+    { id = "RUSTSEC-2026-0370", reason = "zvariant merged into zbus 6; gpui-pre, AccessKit and notify-rust still use zbus 5" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names merged into zbus 6; gpui-pre, AccessKit and notify-rust still use zbus 5" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive merged into zbus 6; gpui-pre, AccessKit and notify-rust still use zbus 5" },
 ]
 
 [licenses]
@@ -18,9 +19,9 @@ allow = [
     "0BSD",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
     "BSD-3-Clause",
     "CC0-1.0",
-    "CDLA-Permissive-2.0",
     "ISC",
     "MIT",
     "MPL-2.0",

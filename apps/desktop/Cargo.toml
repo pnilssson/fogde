@@ -1,0 +1,58 @@
+[package]
+name = "fogde"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+base64.workspace = true
+cargo-packager-updater.workspace = true
+chrono.workspace = true
+client.workspace = true
+futures-util.workspace = true
+getrandom.workspace = true
+gpui-kit.workspace = true
+host.workspace = true
+if-addrs.workspace = true
+markdown.workspace = true
+notify-rust.workspace = true
+protocol.workspace = true
+rfd.workspace = true
+rodio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+terminal.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time"] }
+tracing.workspace = true
+unicode-segmentation.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-version.workspace = true
+
+[build-dependencies]
+winresource.workspace = true
+
+[lints]
+workspace = true
+
+[package.metadata.packager]
+product-name = "Fogde"
+identifier = "dev.fogde.app"
+publisher = "fogde"
+description = "A minimal desktop workspace for developers who build with coding agents."
+category = "DeveloperTool"
+out-dir = "../../target/packages"
+formats = ["nsis", "app", "dmg", "appimage", "deb"]
+icons = ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+
+[package.metadata.packager.macos]
+signing-identity = "-"
+
+[package.metadata.packager.nsis]
+install-mode = "currentUser"
+
+[package.metadata.packager.deb]
+depends = ["libasound2", "libfontconfig1", "libvulkan1", "libwayland-client0", "libx11-xcb1", "libxkbcommon-x11-0", "libxkbcommon0"]

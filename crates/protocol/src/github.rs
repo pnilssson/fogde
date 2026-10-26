@@ -1,15 +1,14 @@
-use serde::Serialize;
-use ts_rs::TS;
+use serde::{Deserialize, Serialize};
 
 use crate::Method;
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Account {
     pub host: String,
     pub login: String,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SignInCode {
     pub code: String,
     pub url: String,

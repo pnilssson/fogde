@@ -1,22 +1,21 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::Method;
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Folder {
     pub name: String,
     pub path: String,
 }
 
-#[derive(Clone, Debug, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Folders {
     pub path: String,
     pub parent: Option<String>,
     pub folders: Vec<Folder>,
 }
 
-#[derive(Clone, Debug, Deserialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CreateFolderParams {
     pub parent: String,
     pub name: String,

@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::Method;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Accessibility {
     pub screen_reader: bool,

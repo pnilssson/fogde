@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::Method;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Notifications {
     pub enabled: bool,
     pub sound: bool,

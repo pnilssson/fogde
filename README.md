@@ -13,18 +13,32 @@ Early development and moving fast. Every push to `main` ships a release, so thin
 
 ## Development
 
-You need [rustup](https://rustup.rs), [just](https://just.systems), [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), [Zig](https://ziglang.org/download/), [Node.js](https://nodejs.org) LTS and the [Tauri system prerequisites](https://tauri.app/start/prerequisites/). The pinned Rust toolchain installs itself on first use.
+You need [rustup](https://rustup.rs), [just](https://just.systems), [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) and [Zig](https://ziglang.org/download/). The pinned Rust toolchain installs itself on first use. The desktop app is built on [GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui) through [GPUI Kit](https://github.com/longbridge/gpui-kit), which also needs:
+
+- **macOS:** macOS 15 or later and the Xcode Command Line Tools (`xcode-select --install`).
+- **Windows:** Visual Studio 2022 Build Tools with the *Desktop development with C++* workload, and CMake on `PATH`.
+- **Linux:** a Wayland or X11 session with a working Vulkan driver, and on Ubuntu 24.04:
+
+  ```sh
+  sudo apt install gcc g++ clang libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libvulkan1 libasound2-dev
+  ```
 
 ```sh
-# Once: check tools and frontend dependencies
+# Once: check tools, and cargo-packager at the commit with the AppImage fix CI uses
 cargo binstall cargo-deny cargo-shear cargo-nextest typos-cli zizmor cargo-zigbuild sqlx-cli
-npm ci --prefix apps/desktop
+cargo install cargo-packager --git https://github.com/crabnebula-dev/cargo-packager --rev d3a520ef0e3ddc4325cefa982ed5fd7322484354 --locked
 
-# Run the app, with its data in ~/Fogde-dev, apart from an installed Fogde in ~/Fogde
+# Run the app against a separate ~/Fogde-dev home
 just dev
 
-# Before every commit: formatting, Clippy, ESLint, TypeScript, tests,
-# the file length limit, cargo-deny, cargo-shear, typos, zizmor and Knip
+# Package the app for this OS into target/packages
+just build
+
+# Regenerate the app icons from app-icon.svg and app-icon-macos.svg
+just icons
+
+# Before every commit: formatting, Clippy, tests, the file length limit,
+# the checked SQL, cargo-deny, cargo-shear, typos and zizmor
 just check
 ```
 

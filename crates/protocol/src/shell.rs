@@ -1,14 +1,13 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::Method;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Shell {
     pub program: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ShellOption {
     pub name: String,
     pub program: String,

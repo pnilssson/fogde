@@ -6,6 +6,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 use tokio::time::Instant;
 
+use crate::agent::{command, installed, login, pastes};
 use crate::{Agent, Error};
 
 const PASTE: &str = "Paste code here if prompted >";
@@ -29,16 +30,15 @@ pub struct SignIn {
 
 impl SignIn {
     pub async fn start(agent: Agent, remote: bool) -> Result<Option<Self>, Error> {
-        let Some(args) = agent.login(remote) else {
-            return if agent.installed().await {
+        let Some(args) = login(agent, remote) else {
+            return if installed(agent).await {
                 Ok(None)
             } else {
                 Err(Error::Missing(agent))
             };
         };
-        let paste = remote && agent == Agent::Claude;
-        let mut child = agent
-            .command()
+        let paste = remote && pastes(agent);
+        let mut child = command(agent)
             .await?
             .args(args)
             .stdin(if paste { Stdio::piped() } else { Stdio::null() })

@@ -35,6 +35,10 @@ pub fn changes(shared: &Arc<Shared>) -> broadcast::Receiver<()> {
     shared.watch.changes.subscribe()
 }
 
+pub fn announce(shared: &Shared) {
+    let _ = shared.watch.changes.send(());
+}
+
 async fn run(shared: Arc<Shared>) {
     let mut ticks = tokio::time::interval(EVERY);
     ticks.set_missed_tick_behavior(MissedTickBehavior::Delay);

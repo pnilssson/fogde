@@ -1,3 +1,4 @@
+import { terminalsOf } from "@/features/workspaces/lib/tile-kinds";
 import type { Checkout, Workspace } from "@/generated/protocol";
 import { folderName, inside } from "@/lib/folders";
 
@@ -14,7 +15,7 @@ export function mainCheckout(workspace: Workspace) {
 }
 
 export function busy(workspace: Workspace, checkout: string) {
-  return workspace.terminals.some(
+  return terminalsOf(workspace).some(
     (terminal) =>
       terminal.checkout === checkout || inside(terminal.folder, checkout),
   );

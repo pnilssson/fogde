@@ -124,6 +124,9 @@ impl Handler for RenameNote {
         let renamed = files::rename(&root, &path, &params.name)
             .await
             .map_err(failure)?;
+        if let Err(error) = crate::workspaces::follow(session, &path, &renamed).await {
+            tracing::warn!(error = %error.message, "could not move the tiles showing a renamed note");
+        }
 
         Ok(renamed.display().to_string())
     }

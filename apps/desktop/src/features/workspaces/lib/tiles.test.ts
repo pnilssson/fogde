@@ -16,11 +16,10 @@ import {
   selectWorkspace,
   sync,
 } from "@/features/workspaces/lib/tiles";
-import { announce } from "@/lib/note-renames";
 
-const a = { machine: "m1", id: "a" };
-const b = { machine: "m1", id: "b" };
-const c = { machine: "m1", id: "c" };
+const a = { kind: "terminal" as const, machine: "m1", id: "a" };
+const b = { kind: "terminal" as const, machine: "m1", id: "b" };
+const c = { kind: "terminal" as const, machine: "m1", id: "c" };
 
 let detach: (() => void) | undefined;
 
@@ -122,7 +121,7 @@ test("a dragged tile drops only where it would move", () => {
   expect(canDrop(groupOf(api, "m1:b"), "center")).toBe(false);
   expect(canDrop(groupOf(api, "m1:b"), "left")).toBe(true);
 
-  startDrag({ machine: "m2", id: "d" });
+  startDrag({ kind: "terminal", machine: "m2", id: "d" });
   expect(canDrop(groupOf(api, "m1:b"), "left")).toBe(false);
   endDrag();
 });
@@ -144,7 +143,7 @@ test("activating a tile by pointer keeps its content attached", () => {
   changes.disconnect();
 
   expect(removed).toEqual([]);
-  expect(store.getState().active).toEqual(a);
+  expect(store.getState().active).toEqual({ machine: "m1", id: "a" });
 });
 
 test("opening a workspace focuses only its first terminal", () => {
@@ -156,7 +155,7 @@ test("opening a workspace focuses only its first terminal", () => {
   stop();
 
   expect(focused.filter((id) => id !== undefined)).toEqual(["a"]);
-  expect(store.getState().active).toEqual(a);
+  expect(store.getState().active).toEqual({ machine: "m1", id: "a" });
 });
 
 function addOther(api: DockviewApi, id: string) {
@@ -223,30 +222,27 @@ test("closing a tile in another workspace removes it from its saved layout", () 
   expect(tiles(api)).toEqual([["m1:a"], ["m1:b"]]);
 });
 
-test("notes tiles and saved layouts follow a renamed folder", () => {
+test("notes tiles come and go with the workspace tiles", () => {
   const api = dockview();
-  const workspace = { machine: "m1", id: "w1" };
-  const other = { machine: "m1", id: "w2" };
-  const plan = { machine: "m1", note: "/notes/app/plan.md" };
-  const elsewhere = { machine: "m2", note: "/notes/app/plan.md" };
-  const followed = { machine: "m1", note: "/notes/web/plan.md" };
-  api.addPanel({ id: "notes:1", component: "notes", params: plan });
+  const plan = { kind: "note" as const, machine: "m1", id: "note-1" };
+
+  sync([a, plan], () => false);
+  expect(tiles(api)).toEqual([["m1:a"], ["m1:note-1"]]);
+  expect(api.getPanel("m1:note-1")?.view.contentComponent).toBe("notes");
+
+  sync([a], () => false);
+  expect(tiles(api)).toEqual([["m1:a"]]);
+});
+
+test("notes tiles the host no longer lists are closed", () => {
+  const api = dockview();
   api.addPanel({
-    id: "notes:2",
+    id: "notes:1",
     component: "notes",
-    params: elsewhere,
-    position: { direction: "right" },
+    params: { machine: "m1", note: "/notes/plan.md" },
   });
-  store.setState({ workspace, layouts: { [layoutKey(other)]: api.toJSON() } });
 
-  announce({ machine: "m1", from: "/notes/app", to: "/notes/web" });
+  sync([a], () => false);
 
-  expect(api.getPanel("notes:1")?.params).toEqual(followed);
-  expect(api.getPanel("notes:2")?.params).toEqual(elsewhere);
-  const { layouts } = store.getState();
-  for (const view of [workspace, other]) {
-    const panels = layouts[layoutKey(view)]?.panels;
-    expect(panels?.["notes:1"]?.params).toEqual(followed);
-    expect(panels?.["notes:2"]?.params).toEqual(elsewhere);
-  }
+  expect(tiles(api)).toEqual([["m1:a"]]);
 });

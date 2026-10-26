@@ -7,9 +7,8 @@ import type {
 } from "dockview-react";
 import { positionToDirection } from "dockview-react";
 
+import type { Listed } from "@/features/workspaces/lib/drag";
 import {
-  followedNote,
-  followNotes,
   holdId,
   layoutKey,
   setOpen,
@@ -21,7 +20,6 @@ import {
   Selection,
   type View,
 } from "@/features/workspaces/lib/selection";
-import { onRename } from "@/lib/note-renames";
 
 let current: DockviewApi | undefined;
 let pending: Selection | undefined;
@@ -35,8 +33,20 @@ export function tileId({ machine, id }: Selection) {
   return `${machine}:${id}`;
 }
 
+const components = { terminal: "terminal", note: "notes" } as const;
+
+function listedOf(panel: IDockviewPanel) {
+  const kind = Object.entries(components).find(
+    ([, component]) => component === panel.view.contentComponent,
+  )?.[0];
+
+  return kind === undefined
+    ? undefined
+    : { kind, selection: Selection.safeParse(panel.params).data };
+}
+
 function selectionOf(panel: IDockviewPanel | undefined) {
-  if (panel?.view.contentComponent !== "terminal") {
+  if (panel?.view.contentComponent !== components.terminal) {
     return undefined;
   }
 
@@ -115,9 +125,19 @@ export function leaveWorkspace(gone: Selection) {
   }
 }
 
+export function tilePanel({ kind, machine, id }: Listed) {
+  const selection = { machine, id };
+
+  return {
+    id: tileId(selection),
+    component: components[kind],
+    params: selection,
+  };
+}
+
 export function place(
   api: DockviewApi,
-  selection: Selection,
+  tile: Listed,
   position: Position,
   group: DockviewGroupPanel | undefined,
   inactive = false,
@@ -126,9 +146,7 @@ export function place(
     position === "center" ? "right" : positionToDirection(position);
 
   api.addPanel({
-    id: tileId(selection),
-    component: "terminal",
-    params: selection,
+    ...tilePanel(tile),
     position: group ? { referenceGroup: group, direction } : { direction },
     inactive,
   });
@@ -149,11 +167,6 @@ export function reveal(workspace: View, terminal: Selection) {
   show(terminal);
 }
 
-export function revealTile(view: View, id: string) {
-  selectWorkspace(view);
-  current?.getPanel(id)?.focus();
-}
-
 export function revealNext(groups: Parameters<typeof nextWaiting>[0]) {
   const next = nextWaiting(groups, store.getState().active);
   if (next) {
@@ -169,27 +182,32 @@ export function isShown(selection: Selection) {
   return current?.getPanel(tileId(selection)) !== undefined;
 }
 
-export function sync(
-  terminals: Selection[],
-  keep: (selection: Selection) => boolean,
-) {
+export function sync(tiles: Listed[], keep: (selection: Selection) => boolean) {
   if (!current) {
     return;
   }
 
-  const ids = new Set(terminals.map(tileId));
+  const ids = new Set(tiles.map(tileId));
   for (const panel of [...current.panels]) {
-    const selection = selectionOf(panel);
-    if (selection && !ids.has(panel.id) && !keep(selection)) {
+    const listed = listedOf(panel);
+    if (!listed || ids.has(panel.id)) {
+      continue;
+    }
+
+    const kept =
+      listed.kind === "terminal" &&
+      listed.selection !== undefined &&
+      keep(listed.selection);
+    if (!kept) {
       panel.api.close();
     }
   }
 
-  for (const terminal of terminals) {
-    if (!current.getPanel(tileId(terminal))) {
+  for (const tile of tiles) {
+    if (!current.getPanel(tileId(tile))) {
       place(
         current,
-        terminal,
+        tile,
         "right",
         undefined,
         current.activePanel !== undefined,
@@ -217,12 +235,6 @@ function save(api: DockviewApi) {
   }
 }
 
-export function saveLayout() {
-  if (current) {
-    save(current);
-  }
-}
-
 export function attach(api: DockviewApi) {
   current = api;
   const added = api.onDidAddGroup(hideHeader);
@@ -232,19 +244,6 @@ export function attach(api: DockviewApi) {
   const laidOut = api.onDidLayoutChange(() => {
     save(api);
   });
-  const renamed = onRename((rename) => {
-    followNotes(rename);
-    for (const panel of api.panels) {
-      const params =
-        panel.view.contentComponent === "notes"
-          ? followedNote(panel.params, rename)
-          : undefined;
-      if (params) {
-        panel.api.updateParameters(params);
-      }
-    }
-    save(api);
-  });
 
   focus(api.activePanel);
 
@@ -252,7 +251,6 @@ export function attach(api: DockviewApi) {
     added.dispose();
     changed.dispose();
     laidOut.dispose();
-    renamed();
     current = undefined;
     focus(undefined);
   };

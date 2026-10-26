@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT tile, note FROM tiles WHERE note IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "tile",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tiles",
+            "name": "tile"
+          }
+        }
+      },
+      {
+        "name": "note",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tiles",
+            "name": "note"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "24a9a5f61c66d3dc09950ba8de0d311b1b32e8a16f3f639faf9b5b4ebac029ef"
+}

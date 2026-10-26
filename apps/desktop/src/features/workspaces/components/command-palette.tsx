@@ -20,7 +20,8 @@ import { NewWorktree } from "@/features/workspaces/components/new-worktree";
 import { PaletteTiles } from "@/features/workspaces/components/palette-tiles";
 import { PaletteWorkspace } from "@/features/workspaces/components/palette-workspace";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
-import { openNotes } from "@/features/workspaces/lib/opening";
+import { useOpenNote } from "@/features/workspaces/hooks/use-workspaces";
+import { terminalsOf } from "@/features/workspaces/lib/tile-kinds";
 import {
   findWorkspace,
   viewOf,
@@ -105,6 +106,7 @@ export function CommandPalette({ notes }: { notes: RenderPaletteNotes }) {
 function Commands({ run, notes, onNewWorktree }: CommandsProps) {
   const { groups, workspace } = useContext(WorkspaceContext);
   const found = findWorkspace(groups, workspace);
+  const openNote = useOpenNote();
   const needs = waiting(groups);
   const shown = new Set(needs.map(({ terminal }) => key(terminal)));
   const several = groups.length > 1;
@@ -163,14 +165,21 @@ function Commands({ run, notes, onNewWorktree }: CommandsProps) {
           machine: found.group.machine,
           onOpen: (note) => {
             run(() => {
-              openNotes(found.group.machine.id, note);
+              openNote.mutate({
+                machine: found.group.machine,
+                view: workspace ?? {
+                  machine: found.group.machine.id,
+                  id: found.workspace.id,
+                },
+                note,
+              });
             });
           },
         })}
       <CommandGroup heading="Terminals">
         {groups.flatMap(({ machine, workspaces }) =>
           (workspaces.data ?? []).flatMap((current) =>
-            current.terminals
+            terminalsOf(current)
               .filter(({ id }) => !shown.has(key({ machine: machine.id, id })))
               .map((terminal) => {
                 const selection = { machine: machine.id, id: terminal.id };

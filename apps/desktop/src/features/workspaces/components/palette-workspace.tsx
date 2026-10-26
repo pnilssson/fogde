@@ -17,6 +17,7 @@ import {
   useChoices,
   useCreateTerminal,
 } from "@/features/workspaces/hooks/use-terminals";
+import { useOpenNote } from "@/features/workspaces/hooks/use-workspaces";
 import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
 import {
   checkoutName,
@@ -24,7 +25,7 @@ import {
   mainCheckout,
 } from "@/features/workspaces/lib/checkouts";
 import { viewFolder, type View } from "@/features/workspaces/lib/selection";
-import { openNotes, openStart } from "@/features/workspaces/lib/opening";
+import { openStart } from "@/features/workspaces/lib/opening";
 import type { Workspace } from "@/generated/protocol";
 import { useConnection } from "@/hooks/use-connection";
 import { agents, allAgents } from "@/lib/agents";
@@ -55,6 +56,7 @@ export function PaletteWorkspace({
   const choices = useChoices(machine);
   const create = useCreateTerminal();
   const remove = useRemoveWorktree(machine, workspace);
+  const openNote = useOpenNote();
   if (connection.state !== "connected") {
     return null;
   }
@@ -86,7 +88,10 @@ export function PaletteWorkspace({
           keywords={["view", "show", "tile"]}
           onSelect={() => {
             run(() => {
-              openNotes(machine.id);
+              openNote.mutate({
+                machine,
+                view: view ?? { machine: machine.id, id: workspace.id },
+              });
             });
           }}
         >

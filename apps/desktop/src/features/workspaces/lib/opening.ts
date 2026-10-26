@@ -1,11 +1,6 @@
-import type { DockviewApi, DockviewPanelApi } from "dockview-react";
+import type { DockviewApi, DockviewGroupPanel, Position } from "dockview-react";
 
-import {
-  dropTile,
-  type NotesParams,
-  startId,
-  store,
-} from "@/features/workspaces/lib/layouts";
+import { dropTile, startId, store } from "@/features/workspaces/lib/layouts";
 import {
   sameView,
   type Selection,
@@ -14,9 +9,10 @@ import {
 import { requestStartFocus } from "@/features/workspaces/lib/start-focus";
 import {
   dockview,
-  saveLayout,
+  place,
   show,
   tileId,
+  tilePanel,
 } from "@/features/workspaces/lib/tiles";
 
 function beside(api: DockviewApi) {
@@ -90,33 +86,37 @@ export function opened(selection: Selection) {
   start.api.close();
 }
 
-export function notesPanel(machine: string, note?: string) {
-  const params: NotesParams = note ? { machine, note } : { machine };
-
-  return { id: `notes:${crypto.randomUUID()}`, component: "notes", params };
+export interface Spot {
+  position: Position;
+  group: DockviewGroupPanel | undefined;
 }
 
-export function openNotes(machine: string, note?: string) {
+export function placeNote(view: View, id: string, spot?: Spot) {
   const api = dockview();
-  if (!api) {
+  const tile = { kind: "note" as const, machine: view.machine, id };
+  if (
+    !api ||
+    !sameView(view, store.getState().workspace) ||
+    api.getPanel(tileId(tile))
+  ) {
     return;
   }
 
-  const notes = notesPanel(machine, note);
+  if (spot) {
+    const group = api.groups.find((current) => current === spot.group);
+    place(api, tile, spot.position, group);
+    return;
+  }
+
   const start = api.getPanel(startId);
   if (!start) {
-    api.addPanel({ ...notes, position: beside(api) });
+    api.addPanel({ ...tilePanel(tile), position: beside(api) });
     return;
   }
 
   api.addPanel({
-    ...notes,
+    ...tilePanel(tile),
     position: { referenceGroup: start.group, direction: "within" },
   });
   start.api.close();
-}
-
-export function showNote(panel: DockviewPanelApi, params: NotesParams) {
-  panel.updateParameters(params);
-  saveLayout();
 }

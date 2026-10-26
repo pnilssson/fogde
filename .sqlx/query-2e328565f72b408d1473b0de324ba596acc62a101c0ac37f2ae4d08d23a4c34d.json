@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM tiles WHERE tile = ? AND kind = 'note'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "2e328565f72b408d1473b0de324ba596acc62a101c0ac37f2ae4d08d23a4c34d"
+}

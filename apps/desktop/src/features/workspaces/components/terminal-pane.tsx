@@ -46,7 +46,7 @@ export function TerminalPane({ panel, machine, workspace, terminal }: Props) {
       }}
     >
       <TileBar
-        item={{ machine: machine.id, id: terminal.id }}
+        item={{ kind: "terminal", machine: machine.id, id: terminal.id }}
         active={active}
         icon={<TerminalIcon agent={terminal.agent} />}
         title={terminal.name}

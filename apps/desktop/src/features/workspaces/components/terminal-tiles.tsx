@@ -16,7 +16,9 @@ import { TerminalPane } from "@/features/workspaces/components/terminal-pane";
 import { TileBar } from "@/features/workspaces/components/tile-bar";
 import {
   isPlacing,
+  useOpenNote,
   usePlaceTerminal,
+  useShowNote,
 } from "@/features/workspaces/hooks/use-workspaces";
 import { Trash } from "@/features/workspaces/components/trash";
 import {
@@ -174,6 +176,8 @@ export function TerminalTiles({ terminal, notes }: Props) {
   const { groups, workspace } = useContext(WorkspaceContext);
   const [api, setApi] = useState<DockviewApi>();
   const place = usePlaceTerminal();
+  const open = useOpenNote();
+  const show = useShowNote();
 
   useEffect(() => (api ? attach(api) : undefined), [api]);
 
@@ -188,9 +192,9 @@ export function TerminalTiles({ terminal, notes }: Props) {
     }
 
     sync(
-      found.workspace.terminals
-        .filter((terminal) => inView(workspace, terminal))
-        .map(({ id }) => ({ machine: workspace.machine, id })),
+      found.workspace.tiles
+        .filter((tile) => inView(workspace, tile))
+        .map(({ kind, id }) => ({ kind, machine: workspace.machine, id })),
       ({ machine, id }) => isPlacing(machine, id),
     );
   }, [api, groups, workspace]);
@@ -204,10 +208,26 @@ export function TerminalTiles({ terminal, notes }: Props) {
 
     const note = draggingNote();
     if (note && event.nativeEvent.dataTransfer?.types.includes(noteDragType)) {
-      dropNote(note, event.position, event.group, (target) => {
-        if (group) {
-          paste(group.machine, target, note.path);
-        }
+      if (!group || !workspace) {
+        return;
+      }
+
+      const { machine } = group;
+      dropNote(event.position, event.group, {
+        paste: (target) => {
+          paste(machine, target, note.path);
+        },
+        show: (tile) => {
+          show.mutate({ machine, tile: tile.id, note: note.path });
+        },
+        open: (spot) => {
+          open.mutate({
+            machine,
+            view: workspace,
+            note: note.path,
+            spot,
+          });
+        },
       });
       return;
     }

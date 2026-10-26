@@ -52,11 +52,14 @@ async fn listed(repo: &Path, path: &Path) -> Option<String> {
 }
 
 impl Handler for RemoveWorktree {
-    async fn handle(_: &Session, params: RemoveWorktreeParams) -> Result<(), Failure> {
+    async fn handle(session: &Session, params: RemoveWorktreeParams) -> Result<(), Failure> {
         let repo = folders::absolute(&params.repo).map_err(failure)?;
         let path = folders::absolute(&params.path).map_err(failure)?;
 
         let branch = git::remove_worktree(&repo, &path).await.map_err(failure)?;
+        if let Err(error) = crate::workspaces::close_notes_in(session, &path).await {
+            tracing::warn!(error = %error.message, "could not close the notes in a removed worktree");
+        }
         let Some(branch) = branch.filter(|branch| branch.starts_with(PREFIX)) else {
             return Ok(());
         };

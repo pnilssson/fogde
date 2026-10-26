@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO tiles (tile, kind, note, workspace, checkout, position)\n         VALUES ('note-' || lower(hex(randomblob(8))), 'note', ?, ?, ?, (\n             SELECT COALESCE(MAX(position), 0) + 1 FROM tiles\n             WHERE workspace = ? AND checkout IS ?\n         ))\n         RETURNING tile",
+  "describe": {
+    "columns": [
+      {
+        "name": "tile",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tiles",
+            "name": "tile"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "88a416cf86fe6401a66a67f3204927b5cc55bcbadf5c13a82ac1c0e737d1b9d7"
+}

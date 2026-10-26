@@ -1,16 +1,16 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT terminal FROM members WHERE workspace = ?",
+  "query": "SELECT tile FROM tiles WHERE workspace = ? AND kind = 'terminal'",
   "describe": {
     "columns": [
       {
-        "name": "terminal",
+        "name": "tile",
         "ordinal": 0,
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "members",
-            "name": "terminal"
+            "table": "tiles",
+            "name": "tile"
           }
         }
       }
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "2777cc668bfa944c4d0cf659618f01e4751d53c9ca9e952ad00497ff7d54e769"
+  "hash": "9b931fbe0d00ab02f594995dc85c1ef365b7f259ac3d0004522d267f995de773"
 }

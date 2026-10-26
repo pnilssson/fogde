@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT tile, checkout FROM tiles WHERE kind = 'note' AND checkout IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "tile",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tiles",
+            "name": "tile"
+          }
+        }
+      },
+      {
+        "name": "checkout",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tiles",
+            "name": "checkout"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "dd0a4c27e4b6bfb10b6456a1517291ba857c02514c38ae4bd7cc221f5673fe50"
+}

@@ -7,7 +7,7 @@ import {
   removeTerminal,
   workspacesQuery,
 } from "@/features/workspaces/api/workspaces";
-import type { Terminal, Workspace } from "@/generated/protocol";
+import type { Terminal, Tile, Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 const claude: Terminal = {
@@ -21,6 +21,10 @@ const claude: Terminal = {
   checkout: null,
 };
 
+function tile(terminal: Terminal): Tile {
+  return { kind: "terminal", ...terminal };
+}
+
 function workspace(terminals: Terminal[]): Workspace {
   return {
     id: "2",
@@ -28,7 +32,7 @@ function workspace(terminals: Terminal[]): Workspace {
     folder: "/repos/app",
     missing: false,
     checkouts: [],
-    terminals,
+    tiles: terminals.map(tile),
   };
 }
 
@@ -61,11 +65,11 @@ async function race(
     expect(queries.isFetching()).toBe(0);
   });
 
-  const terminals = queries.getQueryData(query.queryKey)?.[0]?.terminals;
+  const tiles = queries.getQueryData(query.queryKey)?.[0]?.tiles;
   stop();
   queries.clear();
 
-  return terminals;
+  return tiles;
 }
 
 test("keeps a new terminal when an older list arrives after it", async () => {
@@ -77,7 +81,7 @@ test("keeps a new terminal when an older list arrives after it", async () => {
     [claude],
   );
 
-  expect(terminals).toEqual([claude]);
+  expect(terminals).toEqual([tile(claude)]);
 });
 
 test("adds a terminal the list already shows only once", () => {
@@ -91,7 +95,7 @@ test("adds a terminal the list already shows only once", () => {
 
   addTerminal(queries, machine, "2", claude);
 
-  expect(queries.getQueryData(queryKey)?.[0]?.terminals).toEqual([claude]);
+  expect(queries.getQueryData(queryKey)?.[0]?.tiles).toEqual([tile(claude)]);
   queries.clear();
 });
 
@@ -126,8 +130,8 @@ test("applies a state change, with its folder and branch, to the terminal it nam
 
   expect(applied?.before.status).toBe("idle");
   expect(applied?.workspace.name).toBe("app");
-  expect(queries.getQueryData(queryKey)?.[0]?.terminals[0]).toEqual({
-    ...claude,
+  expect(queries.getQueryData(queryKey)?.[0]?.tiles[0]).toEqual({
+    ...tile(claude),
     name: "Fix the login",
     status: "blocked",
     folder: "/repos/app/src",
@@ -157,8 +161,8 @@ test("reloads the workspaces for a terminal it doesn't know", async () => {
 
   expect(applied).toBeUndefined();
   await vi.waitFor(() => {
-    expect(queries.getQueryData(query.queryKey)?.[0]?.terminals).toEqual([
-      claude,
+    expect(queries.getQueryData(query.queryKey)?.[0]?.tiles).toEqual([
+      tile(claude),
     ]);
   });
   stop();

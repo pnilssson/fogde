@@ -1,8 +1,10 @@
 mod identity;
 mod store;
+mod tiles;
 mod watch;
 
 pub use identity::Searches;
+pub use tiles::{close_notes_in, follow};
 pub use watch::{Watch, changes};
 
 use std::path::{Path, PathBuf};
@@ -11,8 +13,8 @@ use futures_util::future::join_all;
 use protocol::rpc::Failure;
 use protocol::terminals::Terminal;
 use protocol::workspaces::{
-    Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, MoveTerminal, MoveTerminalParams,
-    PlaceTerminal, PlaceTerminalParams, Workspace,
+    Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, NoteTile, PlaceTerminal,
+    PlaceTerminalParams, Tile, Workspace,
 };
 use sqlx::SqlitePool;
 
@@ -25,7 +27,7 @@ pub fn register(router: &mut Router) {
     router.add::<CreateWorkspace>();
     router.add::<DeleteWorkspace>();
     router.add::<PlaceTerminal>();
-    router.add::<MoveTerminal>();
+    tiles::register(router);
 }
 
 pub async fn place(
@@ -116,20 +118,6 @@ impl Handler for PlaceTerminal {
     }
 }
 
-impl Handler for MoveTerminal {
-    const ORDERED: bool = true;
-
-    async fn handle(session: &Session, params: MoveTerminalParams) -> Result<(), Failure> {
-        store::arrange(
-            pool(session).await?,
-            &params.terminal,
-            params.before.as_deref(),
-        )
-        .await
-        .map_err(failure)
-    }
-}
-
 pub async fn create(session: &Session, folder: &Path) -> Result<Workspace, Failure> {
     let identity = identity::of(folder).await;
     let stored = store::create(
@@ -199,12 +187,18 @@ async fn compose(workspace: store::Workspace, missing: bool) -> Workspace {
     } else {
         checkouts(&folder).await
     };
-    let terminals = workspace
-        .terminals
+    let tiles = workspace
+        .tiles
         .into_iter()
-        .map(|terminal| Terminal {
-            checkout: terminal.checkout.and_then(|path| listed(&path, &checkouts)),
-            ..terminal
+        .map(|tile| match tile {
+            Tile::Terminal(terminal) => Tile::Terminal(Terminal {
+                checkout: terminal.checkout.and_then(|path| listed(&path, &checkouts)),
+                ..terminal
+            }),
+            Tile::Note(note) => Tile::Note(NoteTile {
+                checkout: note.checkout.and_then(|path| listed(&path, &checkouts)),
+                ..note
+            }),
         })
         .collect();
 
@@ -220,7 +214,7 @@ async fn compose(workspace: store::Workspace, missing: bool) -> Workspace {
             ),
         missing,
         checkouts,
-        terminals,
+        tiles,
     }
 }
 

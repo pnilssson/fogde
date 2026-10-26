@@ -8,7 +8,8 @@ import {
   useChoices,
   useCreateTerminal,
 } from "@/features/workspaces/hooks/use-terminals";
-import { openNotes } from "@/features/workspaces/lib/opening";
+import { useOpenNote } from "@/features/workspaces/hooks/use-workspaces";
+import { useTiles } from "@/features/workspaces/lib/layouts";
 import {
   startFocused,
   useStartFocus,
@@ -25,6 +26,8 @@ interface Props {
 export function StartActions({ machine, workspace, folder }: Props) {
   const choices = useChoices(machine);
   const create = useCreateTerminal();
+  const open = useOpenNote();
+  const view = useTiles((tiles) => tiles.workspace);
   const focus = useStartFocus();
   const first = useRef<HTMLButtonElement>(null);
   const wanted = useRef(false);
@@ -82,9 +85,11 @@ export function StartActions({ machine, workspace, folder }: Props) {
       <Button
         variant="secondary"
         size="sm"
-        disabled={create.isPending}
+        disabled={create.isPending || open.isPending || !view}
         onClick={() => {
-          openNotes(machine.id);
+          if (view) {
+            open.mutate({ machine, view });
+          }
         }}
       >
         <NotebookIcon data-icon="inline-start" />

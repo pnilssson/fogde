@@ -15,8 +15,10 @@ import { dockview, place, tileId } from "@/features/workspaces/lib/tiles";
 
 export const dragType = "application/x-fogde-tile";
 
+const Listed = Selection.extend({ kind: z.enum(["terminal", "note"]) });
+export type Listed = z.infer<typeof Listed>;
 const Placed = z.object({ tile: z.string(), view: View.optional() });
-const Dragged = z.union([Selection, Placed]);
+const Dragged = z.union([Listed, Placed]);
 export type Dragged = z.infer<typeof Dragged>;
 
 export type Edge = "above" | "below";
@@ -53,12 +55,16 @@ export function hover(over: Over | undefined) {
   drags.setState({ over });
 }
 
-export function isTerminal(item: Dragged): item is Selection {
+export function isListed(item: Dragged): item is Listed {
   return "id" in item;
 }
 
+export function isTerminal(item: Dragged): item is Listed {
+  return isListed(item) && item.kind === "terminal";
+}
+
 function panelId(item: Dragged) {
-  return isTerminal(item) ? tileId(item) : item.tile;
+  return isListed(item) ? tileId(item) : item.tile;
 }
 
 export function dragProps(item: Dragged) {

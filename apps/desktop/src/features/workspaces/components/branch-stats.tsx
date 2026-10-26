@@ -110,11 +110,9 @@ export function BranchStats({ changes }: Props) {
           </span>
         ))}
       </TooltipTrigger>
-      <TooltipContent>
+      <TooltipContent className="max-w-none flex-col items-start">
         {parts.map(({ key, sentence }) => (
-          <span key={key} className="block">
-            {sentence}
-          </span>
+          <span key={key}>{sentence}</span>
         ))}
       </TooltipContent>
     </Tooltip>

@@ -46,7 +46,7 @@ export function PaletteWorkspace({
   onNewWorktree,
 }: Props) {
   const connection = useConnection(machine);
-  const choices = useChoices(machine);
+  const choices = useChoices(machine) ?? [null];
   const create = useCreateTerminal();
   const remove = useRemoveWorktree(machine, workspace);
   if (connection.state !== "connected") {

@@ -27,13 +27,28 @@ export function StartActions({ machine, workspace, folder }: Props) {
   const create = useCreateTerminal();
   const focus = useStartFocus();
   const first = useRef<HTMLButtonElement>(null);
+  const wanted = useRef(false);
+  const loaded = choices !== undefined;
 
   useEffect(() => {
-    if (focus && first.current) {
+    if (focus) {
+      wanted.current = true;
+    }
+
+    if (wanted.current && first.current) {
       first.current.focus();
+      wanted.current = false;
       startFocused();
     }
-  }, [focus]);
+  }, [focus, loaded]);
+
+  if (!choices) {
+    return (
+      <div className="flex h-8 items-center">
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap justify-center gap-2">

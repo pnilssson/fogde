@@ -8,4 +8,5 @@ export const agentsQuery = (machine: Machine) =>
   queryOptions({
     queryKey: [machine.id, "agents.list"],
     queryFn: () => machine.client.call("agents.list"),
+    gcTime: Infinity,
   });

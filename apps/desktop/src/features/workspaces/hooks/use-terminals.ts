@@ -83,8 +83,11 @@ export function useStatus(
   };
 }
 
-export function useChoices(machine: Machine): (Agent | null)[] {
-  const { data: agents = [] } = useQuery(agentsQuery(machine));
+export function useChoices(machine: Machine): (Agent | null)[] | undefined {
+  const { data: agents = [], isPending } = useQuery(agentsQuery(machine));
+  if (isPending) {
+    return undefined;
+  }
 
   return [
     null,

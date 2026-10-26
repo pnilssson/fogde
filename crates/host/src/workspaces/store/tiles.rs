@@ -141,31 +141,22 @@ pub async fn close(pool: &SqlitePool, tile: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn close_in(pool: &SqlitePool, checkout: &Path) -> Result<bool, Error> {
-    let mut tx = pool.begin().await?;
-    let notes = sqlx::query!(
-        "SELECT tile, checkout FROM tiles WHERE kind != 'terminal' AND checkout IS NOT NULL"
+pub async fn terminals_in(pool: &SqlitePool, checkout: &Path) -> Result<Vec<String>, Error> {
+    let rows = sqlx::query!(
+        "SELECT tile, checkout FROM tiles WHERE kind = 'terminal' AND checkout IS NOT NULL"
     )
-    .fetch_all(&mut *tx)
+    .fetch_all(pool)
     .await?;
 
-    let mut closed = false;
-    for row in notes {
-        if !row
-            .checkout
-            .is_some_and(|path| folders::same(Path::new(&path), checkout))
-        {
-            continue;
-        }
-
-        sqlx::query!("DELETE FROM tiles WHERE tile = ?", row.tile)
-            .execute(&mut *tx)
-            .await?;
-        closed = true;
-    }
-    tx.commit().await?;
-
-    Ok(closed)
+    Ok(rows
+        .into_iter()
+        .filter(|row| {
+            row.checkout
+                .as_deref()
+                .is_some_and(|path| folders::same(Path::new(path), checkout))
+        })
+        .map(|row| row.tile)
+        .collect())
 }
 
 pub async fn follow(pool: &SqlitePool, from: &Path, to: &Path) -> Result<bool, Error> {

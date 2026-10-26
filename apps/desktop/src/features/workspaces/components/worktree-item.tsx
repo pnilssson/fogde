@@ -27,7 +27,8 @@ import {
   type RowsProps,
   ViewRows,
 } from "@/features/workspaces/components/view-rows";
-import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
+import { RemoveWorktree } from "@/features/workspaces/components/remove-worktree";
+import { useRemoval } from "@/features/workspaces/hooks/use-worktrees";
 import { checkoutName } from "@/features/workspaces/lib/checkouts";
 import type { View } from "@/features/workspaces/lib/selection";
 import type { Checkout } from "@/generated/protocol";
@@ -48,14 +49,14 @@ export function WorktreeItem({ checkout, current, down, ...props }: Props) {
   };
   const selected = current?.checkout === checkout.path;
   const name = checkoutName(checkout);
-  const removal = useRemoveWorktree(machine, workspace);
+  const removal = useRemoval(machine, workspace, checkout.path);
 
   const start = () => {
     onStart(own, checkout.path);
   };
 
   const remove = () => {
-    removal.mutate(checkout.path);
+    removal.request();
   };
 
   return (
@@ -119,6 +120,13 @@ export function WorktreeItem({ checkout, current, down, ...props }: Props) {
       <SidebarMenuSub className="border-l-0 empty:hidden">
         <ViewRows {...props} view={own} />
       </SidebarMenuSub>
+      <RemoveWorktree
+        machine={machine}
+        workspace={workspace}
+        checkout={checkout}
+        open={removal.confirming}
+        onOpenChange={removal.setConfirming}
+      />
     </SidebarMenuSubItem>
   );
 }

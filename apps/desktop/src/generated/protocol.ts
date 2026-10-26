@@ -24,6 +24,8 @@ export type Changes = { added: number, removed: number, base: Base | null, upstr
 
 export type Checkout = { path: string, branch: string | null, main: boolean, };
 
+export type ClickTerminalParams = { id: string, column: number, row: number, };
+
 export type Connection = { url: string, token: string, };
 
 export type CreateFolderParams = { parent: string, name: string, };
@@ -215,6 +217,7 @@ export type Methods = {
   "shell.set": { params: Shell; result: null };
   "stats.get": { params: null; result: Stats };
   "stats.set": { params: Stats; result: null };
+  "terminals.click": { params: ClickTerminalParams; result: null };
   "terminals.close": { params: string; result: null };
   "terminals.create": { params: CreateTerminalParams; result: Terminal };
   "terminals.input": { params: TerminalInputParams; result: null };

@@ -1,6 +1,6 @@
 import { GearSixIcon } from "@phosphor-icons/react";
-import { useState } from "react";
 
+import { Keys } from "@/components/keys";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import {
   Dialog,
@@ -24,15 +24,20 @@ import { StatsSettings } from "@/features/settings/components/stats-settings";
 import { TranslucentSwitch } from "@/features/settings/components/translucent-switch";
 import { StatusBarSettings } from "@/features/settings/components/status-bar-settings";
 import { frame } from "@/lib/frame";
+import { setSettingsOpen, useSettingsOpen } from "@/lib/settings-open";
+import { shortcuts } from "@/lib/shortcuts";
 
 export function SettingsDialog() {
-  const [open, setOpen] = useState(false);
+  const open = useSettingsOpen();
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<SidebarMenuButton />}>
+    <Dialog open={open} onOpenChange={setSettingsOpen}>
+      <DialogTrigger
+        render={<SidebarMenuButton className="text-muted-foreground" />}
+      >
         <GearSixIcon />
-        <span>Settings</span>
+        <span className="min-w-0 flex-1 truncate">Settings</span>
+        <Keys letter={shortcuts.settings} />
       </DialogTrigger>
       <DialogContent className="flex max-h-[calc(100%-2rem)] flex-col">
         <DialogHeader>
@@ -58,7 +63,7 @@ export function SettingsDialog() {
             <AccessibilitySettings />
             <MachineSettings
               onAdd={() => {
-                setOpen(false);
+                setSettingsOpen(false);
               }}
             />
           </div>

@@ -1,5 +1,4 @@
-import { cn } from "cn";
-
+import { Kbd } from "@/components/ui/kbd";
 import { keys } from "@/lib/shortcuts";
 
 export function Keys({
@@ -11,14 +10,5 @@ export function Keys({
   alt?: boolean;
   className?: string;
 }) {
-  return (
-    <kbd
-      className={cn(
-        "font-sans type-caption tracking-normal whitespace-nowrap",
-        className,
-      )}
-    >
-      {keys(letter, alt)}
-    </kbd>
-  );
+  return <Kbd className={className}>{keys(letter, alt)}</Kbd>;
 }

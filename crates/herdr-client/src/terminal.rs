@@ -125,6 +125,19 @@ impl Terminal {
         .await
     }
 
+    pub async fn click(&mut self, column: u16, row: u16) -> Result<(), Error> {
+        for action in [Press::Down, Press::Up] {
+            self.send(&Control::Mouse {
+                action,
+                column,
+                row,
+            })
+            .await?;
+        }
+
+        Ok(())
+    }
+
     async fn send(&mut self, control: &Control) -> Result<(), Error> {
         let mut line = serde_json::to_vec(control)?;
         line.push(b'\n');
@@ -175,6 +188,19 @@ enum Control {
         column: u16,
         row: u16,
     },
+    #[serde(rename = "terminal.mouse")]
+    Mouse {
+        action: Press,
+        column: u16,
+        row: u16,
+    },
+}
+
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum Press {
+    Down,
+    Up,
 }
 
 #[cfg(test)]
@@ -231,6 +257,11 @@ mod tests {
                 column: 4,
                 row: 5,
             },
+            Control::Mouse {
+                action: Press::Down,
+                column: 6,
+                row: 7,
+            },
         ]
         .map(|control| serde_json::to_value(control).unwrap());
 
@@ -240,6 +271,7 @@ mod tests {
                 json!({"type": "terminal.input", "bytes": "aGk="}),
                 json!({"type": "terminal.resize", "cols": 120, "rows": 40}),
                 json!({"type": "terminal.scroll", "direction": "up", "lines": 3, "column": 4, "row": 5}),
+                json!({"type": "terminal.mouse", "action": "down", "column": 6, "row": 7}),
             ]
         );
     }

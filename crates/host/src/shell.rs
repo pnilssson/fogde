@@ -47,7 +47,7 @@ impl Handler for SetShell {
         session
             .herdr()
             .await?
-            .set_shell(shell.program.as_deref())
+            .set_shell(&program(shell.program).await)
             .await
             .map_err(failure)
     }
@@ -57,46 +57,73 @@ async fn installed() -> Vec<ShellOption> {
     tokio::task::spawn_blocking(find).await.unwrap_or_default()
 }
 
-pub async fn name(program: Option<String>) -> String {
-    tokio::task::spawn_blocking(move || {
-        let program = program.unwrap_or_else(default);
-
-        named(&program, &find())
-    })
-    .await
-    .unwrap_or_else(|_| "Terminal".to_owned())
+pub async fn program(chosen: Option<String>) -> String {
+    match chosen {
+        Some(program) => program,
+        None => tokio::task::spawn_blocking(default)
+            .await
+            .unwrap_or_default(),
+    }
 }
 
-fn named(program: &str, options: &[ShellOption]) -> String {
-    let file = |program: &str| {
-        Path::new(program)
-            .file_name()
-            .map(|name| name.to_string_lossy().to_lowercase())
-    };
-    let wanted = file(program);
+pub fn name(program: &str) -> String {
+    let path = Path::new(program);
+    let file = path
+        .file_name()
+        .map(|file| file.to_string_lossy().into_owned())
+        .unwrap_or_default();
 
-    options
+    known(&file).map_or_else(
+        || {
+            path.file_stem().map_or_else(
+                || program.to_owned(),
+                |stem| stem.to_string_lossy().into_owned(),
+            )
+        },
+        str::to_owned,
+    )
+}
+
+#[cfg(windows)]
+const KNOWN: [(&str, &str); 4] = [
+    ("PowerShell", "pwsh.exe"),
+    ("Windows PowerShell", "powershell.exe"),
+    ("Command Prompt", "cmd.exe"),
+    ("Nushell", "nu.exe"),
+];
+
+#[cfg(windows)]
+const GIT_BASH: &str = "Git Bash";
+
+#[cfg(windows)]
+fn known(file: &str) -> Option<&'static str> {
+    if file.eq_ignore_ascii_case("bash.exe") {
+        return Some(GIT_BASH);
+    }
+
+    KNOWN
         .iter()
-        .find(|option| file(&option.program) == wanted)
-        .map_or_else(
-            || {
-                Path::new(program).file_stem().map_or_else(
-                    || program.to_owned(),
-                    |stem| stem.to_string_lossy().into_owned(),
-                )
-            },
-            |option| option.name.clone(),
-        )
+        .find(|(_, exe)| exe.eq_ignore_ascii_case(file))
+        .map(|&(name, _)| name)
+}
+
+#[cfg(unix)]
+fn known(_: &str) -> Option<&'static str> {
+    None
 }
 
 #[cfg(windows)]
 fn default() -> String {
     let path = std::env::var_os("PATH").unwrap_or_default();
-    let pwsh = std::env::split_paths(&path)
-        .filter(|dir| dir.is_absolute())
-        .any(|dir| dir.join("pwsh.exe").is_file());
 
-    if pwsh { "pwsh.exe" } else { "powershell.exe" }.to_owned()
+    std::env::split_paths(&path)
+        .filter(|dir| dir.is_absolute())
+        .map(|dir| dir.join("pwsh.exe"))
+        .find(|pwsh| pwsh.is_file())
+        .map_or_else(
+            || "powershell.exe".to_owned(),
+            |pwsh| pwsh.display().to_string(),
+        )
 }
 
 #[cfg(unix)]
@@ -111,13 +138,6 @@ fn default() -> String {
 #[cfg(windows)]
 fn find() -> Vec<ShellOption> {
     use std::path::PathBuf;
-
-    const KNOWN: [(&str, &str); 4] = [
-        ("PowerShell", "pwsh.exe"),
-        ("Windows PowerShell", "powershell.exe"),
-        ("Command Prompt", "cmd.exe"),
-        ("Nushell", "nu.exe"),
-    ];
 
     let path = std::env::var_os("PATH").unwrap_or_default();
     let dirs: Vec<PathBuf> = std::env::split_paths(&path).collect();
@@ -140,7 +160,7 @@ fn find() -> Vec<ShellOption> {
         })
         .chain(
             git.filter(|bash| bash.is_file())
-                .map(|bash| ("Git Bash", bash)),
+                .map(|bash| (GIT_BASH, bash)),
         )
         .map(|(name, program)| ShellOption {
             name: name.to_owned(),

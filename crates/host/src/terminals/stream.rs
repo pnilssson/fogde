@@ -6,8 +6,8 @@ use base64::engine::general_purpose::STANDARD;
 use herdr_client::{Client, Key};
 use protocol::rpc::{Failure, Message, SERVER_ERROR};
 use protocol::terminals::{
-    EndedEvent, FrameEvent, ScrollTerminalParams, Size, TerminalEnded, TerminalFrame,
-    WatchTerminalParams,
+    ClickTerminalParams, EndedEvent, FrameEvent, ScrollTerminalParams, Size, TerminalEnded,
+    TerminalFrame, WatchTerminalParams,
 };
 use tokio::sync::mpsc::{self, OwnedPermit, error::SendError};
 use tokio::sync::oneshot;
@@ -24,6 +24,7 @@ pub enum Control {
     Key(Key),
     Resize(Size),
     Scroll(ScrollTerminalParams),
+    Click(ClickTerminalParams),
 }
 
 type Slot = Pin<Box<dyn Future<Output = Result<OwnedPermit<Message>, SendError<()>>> + Send>>;
@@ -157,6 +158,7 @@ async fn watch(
                     Some(Control::Scroll(scroll)) => {
                         stream.scroll(herdr::scroll(scroll.direction), scroll.lines, scroll.column, scroll.row).await
                     }
+                    Some(Control::Click(click)) => stream.click(click.column, click.row).await,
                     None => return,
                 };
                 if let Err(error) = sent {

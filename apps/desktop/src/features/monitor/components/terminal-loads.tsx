@@ -36,66 +36,60 @@ export function TerminalLoads({ samples, workspaces }: Props) {
   const recent = samples.slice(-HISTORY);
 
   return (
-    <section aria-labelledby={heading}>
-      <table className="w-full type-body">
-        <thead>
-          <tr className="type-caption text-muted-foreground">
-            <th className="w-full pb-2 text-left font-normal">
-              <h2 id={heading} className="type-title text-foreground">
-                Terminals
-              </h2>
-            </th>
-            <th className="pb-2 pl-4 text-left font-normal">
-              <span className="sr-only">CPU history</span>
-            </th>
-            <th className="pb-2 pl-4 text-right font-normal whitespace-nowrap">
-              CPU
-            </th>
-            <th className="pb-2 pl-4 text-right font-normal whitespace-nowrap">
-              Memory
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ terminal, workspace, load }) => (
-            <tr key={terminal.id}>
-              <td className="py-1">
-                <div className="flex min-w-0 items-center gap-2">
-                  {terminal.agent ? (
-                    <AgentIcon agent={terminal.agent} />
-                  ) : (
-                    <TerminalWindowIcon className="size-4 shrink-0" />
-                  )}
-                  <span className="truncate">{terminal.name}</span>
-                  <span className="truncate text-muted-foreground">
-                    in {workspace}
-                  </span>
-                </div>
-              </td>
-              <td className="py-1 pl-4">
-                <span className="flex text-muted-foreground">
-                  <Bars
-                    values={recent.map(
-                      (reading) =>
-                        reading.terminals.find(({ id }) => id === terminal.id)
-                          ?.cpu ?? 0,
-                    )}
-                    width={96}
-                    height={16}
-                    domain={[0, 100]}
-                  />
-                </span>
-              </td>
-              <td className="py-1 pl-4 text-right font-mono whitespace-nowrap tabular-nums">
-                {percent(load.cpu)}
-              </td>
-              <td className="py-1 pl-4 text-right font-mono whitespace-nowrap tabular-nums">
-                {bytes(load.memory)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <section
+      className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-4 type-body @sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+      aria-labelledby={heading}
+    >
+      <div className="col-span-full grid grid-cols-subgrid items-baseline pb-2">
+        <h2 id={heading} className="type-title">
+          Terminals
+        </h2>
+        <span className="hidden @sm:block" />
+        <span className="text-right type-caption text-muted-foreground">
+          CPU
+        </span>
+        <span className="text-right type-caption text-muted-foreground">
+          Memory
+        </span>
+      </div>
+      <ul className="col-span-full grid grid-cols-subgrid">
+        {rows.map(({ terminal, workspace, load }) => (
+          <li
+            key={terminal.id}
+            className="col-span-full grid grid-cols-subgrid items-center py-1"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              {terminal.agent ? (
+                <AgentIcon agent={terminal.agent} />
+              ) : (
+                <TerminalWindowIcon className="size-4 shrink-0" />
+              )}
+              <span className="truncate">{terminal.name}</span>
+              <span className="truncate text-muted-foreground">
+                in {workspace}
+              </span>
+            </div>
+            <span className="hidden text-muted-foreground @sm:flex">
+              <Bars
+                values={recent.map(
+                  (reading) =>
+                    reading.terminals.find(({ id }) => id === terminal.id)
+                      ?.cpu ?? 0,
+                )}
+                width={96}
+                height={16}
+                domain={[0, 100]}
+              />
+            </span>
+            <span className="text-right font-mono tabular-nums">
+              {percent(load.cpu)}
+            </span>
+            <span className="text-right font-mono tabular-nums">
+              {bytes(load.memory)}
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

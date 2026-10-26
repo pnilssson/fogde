@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -19,14 +20,11 @@ version_check = false
 enabled = false
 ";
 
-fn config(shell: Option<&str>) -> String {
-    match shell {
-        Some(shell) => format!(
-            "{CONFIG}\n[terminal]\ndefault_shell = {}\n",
-            serde_json::Value::from(shell)
-        ),
-        None => CONFIG.to_owned(),
-    }
+fn config(shell: &str) -> String {
+    format!(
+        "{CONFIG}\n[terminal]\ndefault_shell = {}\n",
+        serde_json::Value::from(shell)
+    )
 }
 
 const PANE_ENV: [&str; 2] = ["XDG_CONFIG_HOME", "XDG_STATE_HOME"];
@@ -35,10 +33,11 @@ pub struct Herdr {
     program: PathBuf,
     home: PathBuf,
     env: BTreeMap<String, String>,
+    shell: Mutex<String>,
 }
 
 impl Herdr {
-    pub async fn start(tools: &Path, home: &Path, shell: Option<&str>) -> Result<Self, Error> {
+    pub async fn start(tools: &Path, home: &Path, shell: &str) -> Result<Self, Error> {
         let herdr = Self {
             program: install::locate(tools).await?,
             home: home.to_owned(),
@@ -46,6 +45,7 @@ impl Herdr {
                 .iter()
                 .map(|&name| (name.to_owned(), std::env::var(name).unwrap_or_default()))
                 .collect(),
+            shell: Mutex::new(shell.to_owned()),
         };
         let changed = herdr.configure(shell).await?;
 
@@ -90,10 +90,19 @@ impl Herdr {
         self.config().join("herdr").join("herdr.sock")
     }
 
-    pub async fn set_shell(&self, shell: Option<&str>) -> Result<(), Error> {
+    pub fn shell(&self) -> String {
+        self.shell
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    pub async fn set_shell(&self, shell: &str) -> Result<(), Error> {
         if self.configure(shell).await? {
             self.reload().await?;
         }
+
+        shell.clone_into(&mut self.shell.lock().unwrap_or_else(PoisonError::into_inner));
 
         Ok(())
     }
@@ -106,7 +115,7 @@ impl Herdr {
         self.home.join("config")
     }
 
-    async fn configure(&self, shell: Option<&str>) -> Result<bool, Error> {
+    async fn configure(&self, shell: &str) -> Result<bool, Error> {
         let dir = self.config().join("herdr");
         let path = dir.join("config.toml");
         let wanted = config(shell);
@@ -161,16 +170,11 @@ mod tests {
 
     #[test]
     fn writes_the_chosen_shell_as_an_escaped_string() {
-        let config = config(Some(r"C:\Users\O'Brien\Git\bin\bash.exe"));
+        let config = config(r"C:\Users\O'Brien\Git\bin\bash.exe");
 
         assert!(config.starts_with(CONFIG));
         assert!(config.ends_with(
             "[terminal]\ndefault_shell = \"C:\\\\Users\\\\O'Brien\\\\Git\\\\bin\\\\bash.exe\"\n"
         ));
-    }
-
-    #[test]
-    fn leaves_the_shell_out_when_none_is_chosen() {
-        assert_eq!(config(None), CONFIG);
     }
 }

@@ -1,10 +1,11 @@
 mod identity;
+mod prune;
 mod store;
 mod tiles;
 mod watch;
 
 pub use identity::Searches;
-pub use tiles::{close_in, follow};
+pub use tiles::{close_terminals_in, follow};
 pub use watch::{Watch, changes};
 
 use std::path::{Path, PathBuf};
@@ -79,7 +80,14 @@ impl Handler for ListWorkspaces {
         Ok(
             join_all(listing.workspaces.into_iter().map(|workspace| async {
                 let (workspace, missing) = locate(session, pool, workspace).await;
-                compose(workspace, missing).await
+                let checkouts = if missing {
+                    Vec::new()
+                } else {
+                    checkouts(Path::new(&workspace.folder)).await
+                };
+                let workspace = prune::prune(session, pool, workspace, &checkouts).await;
+
+                compose(workspace, missing, checkouts)
             }))
             .await,
         )
@@ -128,7 +136,7 @@ pub async fn create(session: &Session, folder: &Path) -> Result<Workspace, Failu
     .await
     .map_err(failure)?;
 
-    Ok(compose(stored, false).await)
+    Ok(compose(stored, false, checkouts(folder).await))
 }
 
 async fn locate(
@@ -180,13 +188,8 @@ async fn save(pool: &SqlitePool, workspace: &store::Workspace) {
     }
 }
 
-async fn compose(workspace: store::Workspace, missing: bool) -> Workspace {
+fn compose(workspace: store::Workspace, missing: bool, checkouts: Vec<Checkout>) -> Workspace {
     let folder = PathBuf::from(&workspace.folder);
-    let checkouts = if missing {
-        Vec::new()
-    } else {
-        checkouts(&folder).await
-    };
     let tiles = workspace
         .tiles
         .into_iter()

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
@@ -244,13 +243,7 @@ fn folder(home: &Path) -> Result<&str, Error> {
 }
 
 fn build(binary: &[u8]) -> String {
-    Sha256::digest(binary)
-        .iter()
-        .take(8)
-        .fold(String::new(), |mut hex, byte| {
-            let _ = write!(hex, "{byte:02x}");
-            hex
-        })
+    hex::encode(&Sha256::digest(binary)[..8])
 }
 
 #[cfg(test)]

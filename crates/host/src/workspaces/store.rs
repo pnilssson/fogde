@@ -9,7 +9,7 @@ use crate::folders;
 mod tiles;
 
 pub use tiles::{
-    arrange, close, close_in, follow, members, open_monitor, open_note, place, show_note,
+    arrange, close, follow, members, open_monitor, open_note, place, show_note, terminals_in,
 };
 
 #[derive(Debug, thiserror::Error)]

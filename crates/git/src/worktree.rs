@@ -78,6 +78,12 @@ pub async fn remove_worktree(repo: &Path, path: &Path) -> Result<Option<String>,
     Ok(branch)
 }
 
+pub async fn clean(path: &Path) -> Result<bool, Error> {
+    let status = git(path, ["status", "--porcelain", "--ignore-submodules=none"]).await?;
+
+    Ok(status.is_empty())
+}
+
 pub async fn remove_merged_branch(repo: &Path, branch: &str) -> Result<bool, Error> {
     let tip = format!("refs/heads/{branch}");
     let mut merged = false;

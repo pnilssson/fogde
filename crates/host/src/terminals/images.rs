@@ -1,4 +1,3 @@
-use std::fmt::Write;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
@@ -31,9 +30,35 @@ pub async fn save(dir: &Path, image: Image, data: String) -> io::Result<PathBuf>
     create(dir).await?;
     prune(dir).await;
     let path = dir.join(format!("{name}.{}", extension(image)));
-    fs::write(&path, bytes).await?;
+    if refresh(&path).await {
+        return Ok(path);
+    }
+
+    let mut suffix = [0u8; 8];
+    getrandom::fill(&mut suffix).map_err(io::Error::other)?;
+    let temp = dir.join(format!("{name}.{}.tmp", hex::encode(suffix)));
+    fs::write(&temp, bytes).await?;
+    if let Err(error) = fs::rename(&temp, &path).await {
+        let _ = fs::remove_file(&temp).await;
+        if !fs::try_exists(&path).await.unwrap_or(false) {
+            return Err(error);
+        }
+    }
 
     Ok(path)
+}
+
+async fn refresh(path: &Path) -> bool {
+    let path = path.to_owned();
+
+    tokio::task::spawn_blocking(move || {
+        std::fs::File::options()
+            .write(true)
+            .open(path)?
+            .set_modified(SystemTime::now())
+    })
+    .await
+    .is_ok_and(|touched| touched.is_ok())
 }
 
 pub fn paste(path: &Path) -> String {
@@ -77,12 +102,7 @@ pub async fn prune(dir: &Path) {
 }
 
 fn name(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)[..8]
-        .iter()
-        .fold(String::new(), |mut hex, byte| {
-            let _ = write!(hex, "{byte:02x}");
-            hex
-        })
+    hex::encode(&Sha256::digest(bytes)[..8])
 }
 
 fn extension(image: Image) -> &'static str {
@@ -141,6 +161,33 @@ mod tests {
         assert_eq!(first, second);
         assert_ne!(first, other);
         assert_eq!(std::fs::read_dir(&images).unwrap().count(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_repaste_keeps_the_file_and_refreshes_its_age() {
+        let dir = tempfile::tempdir().unwrap();
+        let images = dir.path().join("images");
+        let day = SystemTime::now() - Duration::from_hours(24);
+        let saved = save(&images, Image::Png, STANDARD.encode(b"png"))
+            .await
+            .unwrap();
+        std::fs::write(&saved, b"kept").unwrap();
+        File::options()
+            .write(true)
+            .open(&saved)
+            .unwrap()
+            .set_modified(day)
+            .unwrap();
+
+        let again = save(&images, Image::Png, STANDARD.encode(b"png"))
+            .await
+            .unwrap();
+        let modified = std::fs::metadata(&saved).unwrap().modified().unwrap();
+
+        assert_eq!(again, saved);
+        assert_eq!(std::fs::read(&saved).unwrap(), b"kept");
+        assert!(modified > day + Duration::from_hours(23));
+        assert_eq!(std::fs::read_dir(&images).unwrap().count(), 1);
     }
 
     #[tokio::test]

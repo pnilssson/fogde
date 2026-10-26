@@ -1,7 +1,6 @@
 mod files;
 mod watch;
 
-use std::fmt::Write as _;
 use std::fs::Metadata;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -241,12 +240,7 @@ async fn write(root: &Path, path: &Path, text: &str, expected: &str) -> io::Resu
 }
 
 fn version(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .fold(String::new(), |mut hex, byte| {
-            let _ = write!(hex, "{byte:02x}");
-            hex
-        })
+    hex::encode(Sha256::digest(bytes))
 }
 
 fn markdown(path: &Path) -> bool {

@@ -165,24 +165,25 @@ async fn rejects_notes_in_unknown_workspaces() {
 }
 
 #[tokio::test]
-async fn removing_a_worktree_closes_its_notes() {
+async fn finds_only_the_terminals_in_a_worktree() {
     let pool = db::memory().await;
     let app = create(&pool, "/repos/app", None).await.unwrap();
-    let login = Path::new("/worktrees/app/login");
+    place(&pool, "w1", &app.id, Some("/worktrees/app/login"))
+        .await
+        .unwrap();
+    place(&pool, "w2", &app.id, Some("/worktrees/app/login-old"))
+        .await
+        .unwrap();
+    place(&pool, "w3", &app.id, None).await.unwrap();
     open_note(&pool, &app.id, Some("/worktrees/app/login"), None)
         .await
         .unwrap();
-    open_note(&pool, &app.id, Some("/worktrees/app/login-old"), None)
+
+    let found = terminals_in(&pool, Path::new("/worktrees/app/login"))
         .await
         .unwrap();
-    let kept = open_note(&pool, &app.id, None, None).await.unwrap();
 
-    assert!(close_in(&pool, login).await.unwrap());
-    assert!(!close_in(&pool, login).await.unwrap());
-    let listing = list(&pool, &[]).await.unwrap();
-
-    assert_eq!(ids(&listing.workspaces[0]).len(), 2);
-    assert!(ids(&listing.workspaces[0]).contains(&kept.as_str()));
+    assert_eq!(found, ["w1"]);
 }
 
 #[tokio::test]
@@ -251,21 +252,14 @@ async fn opening_the_monitor_again_reuses_its_tile() {
 }
 
 #[tokio::test]
-async fn closing_and_removing_a_worktree_close_monitors() {
+async fn closing_a_monitor_removes_it() {
     let pool = db::memory().await;
     let app = create(&pool, "/repos/app", None).await.unwrap();
     let main = open_monitor(&pool, &app.id, None).await.unwrap();
-    open_monitor(&pool, &app.id, Some("/worktrees/app/login"))
-        .await
-        .unwrap();
 
     close(&pool, &main).await.unwrap();
-    let removed = close_in(&pool, Path::new("/worktrees/app/login"))
-        .await
-        .unwrap();
     let listing = list(&pool, &[]).await.unwrap();
 
-    assert!(removed);
     assert_eq!(ids(&listing.workspaces[0]), Vec::<&str>::new());
 }
 

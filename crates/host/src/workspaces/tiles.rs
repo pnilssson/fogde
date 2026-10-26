@@ -18,15 +18,12 @@ pub fn register(router: &mut Router) {
     router.add::<CloseTile>();
 }
 
-pub async fn close_in(session: &Session, checkout: &Path) -> Result<(), Failure> {
-    let closed = store::close_in(pool(session).await?, checkout)
+pub async fn close_terminals_in(session: &Session, checkout: &Path) -> Result<(), Failure> {
+    let terminals = store::terminals_in(pool(session).await?, checkout)
         .await
         .map_err(failure)?;
-    if closed {
-        watch::announce(&session.shared);
-    }
 
-    Ok(())
+    crate::terminals::close(session, &terminals).await
 }
 
 pub async fn follow(session: &Session, from: &Path, to: &Path) -> Result<(), Failure> {

@@ -5,6 +5,7 @@ export const shortcuts = {
   attention: "G",
   tile: "T",
   close: "W",
+  settings: ",",
 } as const;
 
 export const arrows = [
@@ -27,7 +28,11 @@ function held(event: KeyboardEvent, alt = false) {
 }
 
 export function pressed(event: KeyboardEvent, key: string) {
-  return held(event) && event.code === `Key${key}`;
+  return held(event) && event.code === code(key);
+}
+
+function code(key: string) {
+  return key === "," ? "Comma" : `Key${key}`;
 }
 
 export function tileNumber(event: KeyboardEvent) {

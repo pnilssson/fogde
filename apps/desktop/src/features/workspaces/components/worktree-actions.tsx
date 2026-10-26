@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { WorktreeForm } from "@/features/workspaces/components/new-worktree";
-import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
+import { RemoveWorktree } from "@/features/workspaces/components/remove-worktree";
+import { useRemoval } from "@/features/workspaces/hooks/use-worktrees";
 import { checkoutOf, mainCheckout } from "@/features/workspaces/lib/checkouts";
 import { closeStart } from "@/features/workspaces/lib/opening";
-import type { Workspace } from "@/generated/protocol";
+import type { Checkout, Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -34,35 +35,40 @@ export function WorktreeActions({ machine, workspace, folder }: Props) {
   }
 
   return (
-    <RemoveWorktree
-      machine={machine}
-      workspace={workspace}
-      path={checkout.path}
-    />
+    <Removal machine={machine} workspace={workspace} checkout={checkout} />
   );
 }
 
-interface RemoveProps {
+interface RemovalProps {
   machine: Machine;
   workspace: Workspace;
-  path: string;
+  checkout: Checkout;
 }
 
-function RemoveWorktree({ machine, workspace, path }: RemoveProps) {
-  const remove = useRemoveWorktree(machine, workspace);
+function Removal({ machine, workspace, checkout }: RemovalProps) {
+  const removal = useRemoval(machine, workspace, checkout.path);
 
   return (
-    <Button
-      variant="secondary"
-      size="sm"
-      disabled={remove.isPending}
-      aria-busy={remove.isPending}
-      onClick={() => {
-        remove.mutate(path);
-      }}
-    >
-      {remove.isPending && <Spinner aria-hidden data-icon="inline-start" />}
-      {remove.isPending ? "Removing…" : "Remove worktree"}
-    </Button>
+    <>
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={removal.pending}
+        aria-busy={removal.pending}
+        onClick={() => {
+          removal.request();
+        }}
+      >
+        {removal.pending && <Spinner aria-hidden data-icon="inline-start" />}
+        {removal.pending ? "Removing…" : "Remove worktree"}
+      </Button>
+      <RemoveWorktree
+        machine={machine}
+        workspace={workspace}
+        checkout={checkout}
+        open={removal.confirming}
+        onOpenChange={removal.setConfirming}
+      />
+    </>
   );
 }

@@ -46,20 +46,15 @@ export function UpdateItem() {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
+        className="text-muted-foreground"
         disabled={install.isPending}
         onClick={() => {
           install.mutate(update);
         }}
       >
-        {install.isPending ? (
-          <Spinner aria-hidden />
-        ) : (
-          <ArrowCircleUpIcon className="text-success" />
-        )}
+        {install.isPending ? <Spinner aria-hidden /> : <ArrowCircleUpIcon />}
         <span className="min-w-0 flex-1 truncate">Update ready</span>
-        <span className="type-caption text-muted-foreground tabular-nums">
-          {update.version}
-        </span>
+        <span className="type-caption tabular-nums">{update.version}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

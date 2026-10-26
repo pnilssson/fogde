@@ -21,6 +21,7 @@ getrandom = "0.4.3"
 git = { path = "crates/git" }
 github = { path = "crates/github" }
 herdr-client = { path = "crates/herdr-client" }
+hex = "0.4.3"
 host = { path = "crates/host" }
 interprocess = { version = "2.4.6", features = ["tokio"] }
 notify-debouncer-mini = "0.7.0"

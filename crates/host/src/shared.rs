@@ -13,6 +13,7 @@ use crate::db::Db;
 use crate::monitor::Monitor;
 use crate::notes::Notes;
 use crate::settings::Settings;
+use crate::shell;
 use crate::terminals::{self, Tracker};
 use crate::usage::Meter;
 use crate::workspaces::{Searches, Watch};
@@ -72,8 +73,8 @@ impl Shared {
 
         self.herdr
             .get_or_try_init(|| async move {
-                let shell = self.settings.shell().await.ok().flatten();
-                let herdr = Herdr::start(&self.tools, &home, shell.as_deref()).await?;
+                let shell = shell::program(self.settings.shell().await.ok().flatten()).await;
+                let herdr = Herdr::start(&self.tools, &home, &shell).await?;
                 tokio::spawn(Arc::clone(&self.tracker).run(herdr.client()));
                 tokio::spawn(terminals::count(Arc::clone(&self.tracker)));
 

@@ -15,6 +15,7 @@ import { useFlash } from "@/features/terminals/hooks/use-flash";
 import { useScrolled } from "@/features/terminals/hooks/use-scrolled";
 import { appearance } from "@/features/terminals/lib/appearance";
 import { handleClipboard } from "@/features/terminals/lib/clipboard";
+import { clickThrough } from "@/features/terminals/lib/click";
 import { showFrames } from "@/features/terminals/lib/frames";
 import { handleKeys } from "@/features/terminals/lib/keys";
 import { openLinks } from "@/features/terminals/lib/links";
@@ -24,7 +25,7 @@ import { measure, observeSize, same } from "@/features/terminals/lib/size";
 import { watchTerminal } from "@/features/terminals/lib/watch";
 import { scrollOnWheel } from "@/features/terminals/lib/wheel";
 import { accessibilityQuery } from "@/lib/accessibility";
-import { ConnectionError } from "@/lib/client";
+import { type Args, ConnectionError, type Method } from "@/lib/client";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -171,25 +172,23 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
         stopWatch(false);
       }
     });
-    function send(data: string) {
-      if (!watching) {
-        return;
+    function request<M extends Method>(
+      title: string,
+      method: M,
+      ...params: Args<M>
+    ) {
+      if (watching) {
+        attempt(client.call(method, ...params), title);
       }
+    }
 
-      attempt(
-        client.call("terminals.input", { id, data }),
-        "Could not send your input",
-      );
+    function send(data: string) {
+      request("Could not send your input", "terminals.input", { id, data });
     }
 
     const typing = terminal.onData(send);
     handleKeys(terminal, (key) => {
-      if (watching) {
-        attempt(
-          client.call("terminals.key", { id, key }),
-          "Could not send your input",
-        );
-      }
+      request("Could not send your input", "terminals.key", { id, key });
     });
     const stopClipboard = handleClipboard(element, {
       text: send,
@@ -205,21 +204,23 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       },
     });
     scrollOnWheel(terminal, element, (scroll) => {
-      if (watching) {
-        attempt(
-          client.call("terminals.scroll", { id, ...scroll }),
-          "Could not scroll the terminal",
-        );
-      }
+      request("Could not scroll the terminal", "terminals.scroll", {
+        id,
+        ...scroll,
+      });
     });
     seek.current = (offset) => {
-      if (watching) {
-        attempt(
-          client.call("terminals.seek", { id, offset }),
-          "Could not scroll the terminal",
-        );
-      }
+      request("Could not scroll the terminal", "terminals.seek", {
+        id,
+        offset,
+      });
     };
+    const stopClick = clickThrough(terminal, element, (position) => {
+      request("Could not send your click", "terminals.click", {
+        id,
+        ...position,
+      });
+    });
     const stopCopy = copyOnSelect(terminal, element, copy);
     const focusing = panel.onWillFocus(() => {
       terminal.focus();
@@ -256,6 +257,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       typing.dispose();
       stopClipboard();
       stopCopy();
+      stopClick();
       focusing.dispose();
       resizing();
       theming.disconnect();

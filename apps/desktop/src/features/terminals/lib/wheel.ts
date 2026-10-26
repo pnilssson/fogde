@@ -1,5 +1,6 @@
 import type { Terminal } from "@xterm/xterm";
 
+import { cell } from "@/features/terminals/lib/cell";
 import type { ScrollTerminalParams } from "@/generated/protocol";
 
 type Scroll = Omit<ScrollTerminalParams, "id">;
@@ -43,11 +44,4 @@ function pixels(event: WheelEvent, height: number, rows: number) {
   }
 
   return event.deltaY;
-}
-
-function cell(offset: number, extent: number, count: number) {
-  return Math.min(
-    count - 1,
-    Math.max(0, Math.floor((offset / extent) * count)),
-  );
 }

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use git::{add_worktree, heads, remove_merged_branch, remove_worktree, worktrees};
+use git::{add_worktree, clean, heads, remove_merged_branch, remove_worktree, worktrees};
 use tokio::fs;
 use tokio::process::Command;
 
@@ -126,6 +126,25 @@ async fn reuses_a_name_after_its_worktree_is_removed() {
         .unwrap();
 
     assert!(worktree.exists());
+}
+
+#[tokio::test]
+async fn a_worktree_git_refuses_to_remove_is_not_clean() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = repo(dir.path(), &[]).await.unwrap();
+    let worktree = dir.path().join("worktrees").join("login");
+    add_worktree(&repo, &worktree, "feature/login")
+        .await
+        .unwrap();
+
+    assert!(clean(&worktree).await.unwrap());
+
+    fs::write(worktree.join("draft.txt"), "draft")
+        .await
+        .unwrap();
+
+    assert!(!clean(&worktree).await.unwrap());
+    assert!(remove_worktree(&repo, &worktree).await.is_err());
 }
 
 #[tokio::test]

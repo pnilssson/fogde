@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "DELETE FROM members WHERE terminal = ?",
+  "query": "DELETE FROM tiles WHERE tile = ?",
   "describe": {
     "columns": [],
     "parameters": {
@@ -8,5 +8,5 @@
     },
     "nullable": []
   },
-  "hash": "bec89610d0848dd48a6b3a764ae959368a7c41faf73d7ce99200bc79cf4c0b3b"
+  "hash": "7c8b82930341b1b415f2199b23f96074bf6ac5ef849885e35638242a8af73e8a"
 }

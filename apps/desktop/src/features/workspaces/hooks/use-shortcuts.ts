@@ -13,6 +13,7 @@ import {
 import { focusTile } from "@/features/workspaces/lib/tile-focus";
 import { openStart } from "@/features/workspaces/lib/opening";
 import { revealNext } from "@/features/workspaces/lib/tiles";
+import { toggleSettings } from "@/lib/settings-open";
 import { arrowSide, pressed, shortcuts, tileNumber } from "@/lib/shortcuts";
 
 type Groups = ReturnType<typeof useGroups>;
@@ -60,6 +61,9 @@ export function useShortcuts(groups: Groups, workspace: View | undefined) {
 function actionFor(event: KeyboardEvent, { groups, workspace }: Context) {
   if (pressed(event, shortcuts.palette)) {
     return togglePalette;
+  }
+  if (pressed(event, shortcuts.settings)) {
+    return toggleSettings;
   }
   if (inDialog(event.target)) {
     return undefined;

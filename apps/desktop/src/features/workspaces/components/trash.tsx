@@ -4,11 +4,12 @@ import { type DragEvent, useContext, useState } from "react";
 
 import { CloseTerminal } from "@/features/workspaces/components/close-terminal";
 import { useCloseTerminal } from "@/features/workspaces/hooks/use-terminals";
+import { useCloseTile } from "@/features/workspaces/hooks/use-workspaces";
 import {
   type Dragged,
   dragged,
   endDrag,
-  isTerminal,
+  isListed,
   useDragging,
 } from "@/features/workspaces/lib/drag";
 import {
@@ -24,11 +25,12 @@ export function Trash({ machine }: { machine: Machine }) {
   const { groups } = useContext(WorkspaceContext);
   const item = useDragging();
   const close = useCloseTerminal(machine);
+  const closing = useCloseTile();
   const [over, setOver] = useState(false);
   const [target, setTarget] = useState<Terminal>();
   const [confirming, setConfirming] = useState(false);
   const accepts =
-    item !== undefined && (!isTerminal(item) || item.machine === machine.id);
+    item !== undefined && (!isListed(item) || item.machine === machine.id);
 
   const hover = (event: DragEvent) => {
     event.preventDefault();
@@ -37,8 +39,13 @@ export function Trash({ machine }: { machine: Machine }) {
   };
 
   const discard = (dropped: Dragged) => {
-    if (!isTerminal(dropped)) {
+    if (!isListed(dropped)) {
       closeTile(dropped.tile, dropped.view);
+      return;
+    }
+
+    if (dropped.kind !== "terminal") {
+      closing.mutate({ machine, tile: dropped.id });
       return;
     }
 

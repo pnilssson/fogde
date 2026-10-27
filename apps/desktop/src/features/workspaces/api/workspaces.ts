@@ -1,6 +1,12 @@
 import { type QueryClient, queryOptions } from "@tanstack/react-query";
 
-import type { Terminal, TerminalState } from "@/generated/protocol";
+import { terminalsOf } from "@/features/workspaces/lib/tile-kinds";
+import type {
+  Terminal,
+  TerminalState,
+  Tile,
+  Workspace,
+} from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 export const workspacesQuery = (machine: Machine) =>
@@ -9,20 +15,57 @@ export const workspacesQuery = (machine: Machine) =>
     queryFn: () => machine.client.call("workspaces.list"),
   });
 
+function update(
+  queries: QueryClient,
+  machine: Machine,
+  change: (workspace: Workspace) => Workspace,
+) {
+  queries.setQueryData(workspacesQuery(machine).queryKey, (current) =>
+    current?.map(change),
+  );
+}
+
+export function addTile(
+  queries: QueryClient,
+  machine: Machine,
+  workspace: string,
+  tile: Tile,
+) {
+  update(queries, machine, (entry) =>
+    entry.id === workspace && !entry.tiles.some(({ id }) => id === tile.id)
+      ? { ...entry, tiles: [...entry.tiles, tile] }
+      : entry,
+  );
+}
+
+export function changeTile(
+  queries: QueryClient,
+  machine: Machine,
+  id: string,
+  change: (tile: Tile) => Tile,
+) {
+  update(queries, machine, (workspace) => ({
+    ...workspace,
+    tiles: workspace.tiles.map((tile) =>
+      tile.id === id ? change(tile) : tile,
+    ),
+  }));
+}
+
+export function removeTile(queries: QueryClient, machine: Machine, id: string) {
+  update(queries, machine, (workspace) => ({
+    ...workspace,
+    tiles: workspace.tiles.filter((tile) => tile.id !== id),
+  }));
+}
+
 export function addTerminal(
   queries: QueryClient,
   machine: Machine,
   workspace: string,
   terminal: Terminal,
 ) {
-  queries.setQueryData(workspacesQuery(machine).queryKey, (current) =>
-    current?.map((entry) =>
-      entry.id === workspace &&
-      !entry.terminals.some(({ id }) => id === terminal.id)
-        ? { ...entry, terminals: [...entry.terminals, terminal] }
-        : entry,
-    ),
-  );
+  addTile(queries, machine, workspace, { kind: "terminal", ...terminal });
   void queries.invalidateQueries(workspacesQuery(machine));
 }
 
@@ -34,20 +77,17 @@ export function applyState(
   const { queryKey } = workspacesQuery(machine);
   const workspace = queries
     .getQueryData(queryKey)
-    ?.find(({ terminals }) => terminals.some(({ id }) => id === state.id));
-  const before = workspace?.terminals.find(({ id }) => id === state.id);
+    ?.find((entry) => terminalsOf(entry).some(({ id }) => id === state.id));
+  const before = workspace
+    ? terminalsOf(workspace).find(({ id }) => id === state.id)
+    : undefined;
   if (!workspace || !before) {
     void queries.invalidateQueries(workspacesQuery(machine));
     return undefined;
   }
 
-  queries.setQueryData(queryKey, (current) =>
-    current?.map((entry) => ({
-      ...entry,
-      terminals: entry.terminals.map((terminal) =>
-        terminal.id === state.id ? { ...terminal, ...state } : terminal,
-      ),
-    })),
+  changeTile(queries, machine, state.id, (tile) =>
+    tile.kind === "terminal" ? { ...tile, ...state } : tile,
   );
   if (state.folder !== before.folder) {
     void queries.invalidateQueries(workspacesQuery(machine));
@@ -61,11 +101,6 @@ export function removeTerminal(
   machine: Machine,
   terminal: Terminal,
 ) {
-  queries.setQueryData(workspacesQuery(machine).queryKey, (current) =>
-    current?.map((workspace) => ({
-      ...workspace,
-      terminals: workspace.terminals.filter(({ id }) => id !== terminal.id),
-    })),
-  );
+  removeTile(queries, machine, terminal.id);
   void queries.invalidateQueries(workspacesQuery(machine));
 }

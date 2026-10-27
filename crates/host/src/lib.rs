@@ -8,6 +8,7 @@ mod github;
 mod health;
 mod logs;
 mod machines;
+mod monitor;
 mod notes;
 mod notifications;
 mod onboarding;

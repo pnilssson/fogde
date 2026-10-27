@@ -1,14 +1,10 @@
-use std::fmt::Write as _;
 use std::io;
 
 pub fn generate() -> io::Result<String> {
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).map_err(io::Error::other)?;
 
-    Ok(bytes.iter().fold(String::new(), |mut hex, byte| {
-        let _ = write!(hex, "{byte:02x}");
-        hex
-    }))
+    Ok(hex::encode(bytes))
 }
 
 pub fn matches(given: &str, expected: &str) -> bool {

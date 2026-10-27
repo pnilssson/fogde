@@ -10,8 +10,10 @@ use tokio::fs;
 use tokio::sync::{Mutex, OnceCell};
 
 use crate::db::Db;
+use crate::monitor::Monitor;
 use crate::notes::Notes;
 use crate::settings::Settings;
+use crate::shell;
 use crate::terminals::codex::{self, Wrap};
 use crate::terminals::{self, Tracker};
 use crate::usage::Meter;
@@ -28,6 +30,7 @@ pub struct Shared {
     pub watch: Watch,
     pub notes: Notes,
     pub usage: Meter,
+    pub monitor: Monitor,
     fogde: PathBuf,
     launcher: Option<PathBuf>,
     codex: Mutex<()>,
@@ -41,7 +44,7 @@ impl Shared {
         let fogde = fogde()?;
         let app = fogde.join(".app");
 
-        Ok(Self {
+        let shared = Self {
             settings: Settings::new(&app),
             db: Db::new(app.join("fogde.db")),
             binaries,
@@ -52,13 +55,18 @@ impl Shared {
             watch: Watch::default(),
             notes: Notes::default(),
             usage: Meter::default(),
+            monitor: Monitor::default(),
             tools: app.join("tools"),
             fogde,
             launcher,
             codex: Mutex::default(),
             gh: OnceCell::new(),
             herdr: OnceCell::new(),
-        })
+        };
+        let images = shared.images();
+        tokio::spawn(async move { terminals::prune(&images).await });
+
+        Ok(shared)
     }
 
     pub async fn gh(&self) -> Result<&Gh, github::Error> {
@@ -70,8 +78,8 @@ impl Shared {
 
         self.herdr
             .get_or_try_init(|| async move {
-                let shell = self.settings.shell().await.ok().flatten();
-                let herdr = Herdr::start(&self.tools, &home, shell.as_deref()).await?;
+                let shell = shell::program(self.settings.shell().await.ok().flatten()).await;
+                let herdr = Herdr::start(&self.tools, &home, &shell).await?;
                 tokio::spawn(Arc::clone(&self.tracker).run(herdr.client()));
                 tokio::spawn(terminals::count(Arc::clone(&self.tracker)));
 
@@ -88,6 +96,10 @@ impl Shared {
             self.launcher.as_deref(),
         )
         .await
+    }
+
+    pub fn running_herdr(&self) -> Option<&Herdr> {
+        self.herdr.get()
     }
 
     pub async fn repos(&self) -> io::Result<PathBuf> {

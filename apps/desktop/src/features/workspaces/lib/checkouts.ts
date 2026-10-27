@@ -1,5 +1,7 @@
+import { busy } from "@/features/workspaces/lib/status";
+import { terminalsOf } from "@/features/workspaces/lib/tile-kinds";
 import type { Checkout, Workspace } from "@/generated/protocol";
-import { folderName, inside } from "@/lib/folders";
+import { folderName } from "@/lib/folders";
 
 export function checkoutName(checkout: Checkout) {
   return checkout.branch ?? folderName(checkout.path);
@@ -13,9 +15,8 @@ export function mainCheckout(workspace: Workspace) {
   return workspace.checkouts.find(({ main }) => main);
 }
 
-export function busy(workspace: Workspace, checkout: string) {
-  return workspace.terminals.some(
-    (terminal) =>
-      terminal.checkout === checkout || inside(terminal.folder, checkout),
+export function working(workspace: Workspace, checkout: string) {
+  return terminalsOf(workspace).filter(
+    (terminal) => terminal.checkout === checkout && busy(terminal.status),
   );
 }

@@ -52,9 +52,17 @@ async fn listed(repo: &Path, path: &Path) -> Option<String> {
 }
 
 impl Handler for RemoveWorktree {
-    async fn handle(_: &Session, params: RemoveWorktreeParams) -> Result<(), Failure> {
+    async fn handle(session: &Session, params: RemoveWorktreeParams) -> Result<(), Failure> {
         let repo = folders::absolute(&params.repo).map_err(failure)?;
         let path = folders::absolute(&params.path).map_err(failure)?;
+
+        if !git::clean(&path).await.map_err(failure)? {
+            return Err(Failure::new(
+                SERVER_ERROR,
+                "commit or discard its changes first",
+            ));
+        }
+        crate::workspaces::close_terminals_in(session, &path).await?;
 
         let branch = git::remove_worktree(&repo, &path).await.map_err(failure)?;
         let Some(branch) = branch.filter(|branch| branch.starts_with(PREFIX)) else {

@@ -5,8 +5,6 @@ import { persist } from "zustand/middleware";
 import { createStore } from "zustand/vanilla";
 
 import { type Selection, View } from "@/features/workspaces/lib/selection";
-import { folderName } from "@/lib/folders";
-import { moved, type Rename } from "@/lib/note-renames";
 
 export const startId = "start";
 export const holdId = "hold";
@@ -31,13 +29,6 @@ const saved = z.object({
 });
 
 const StartParams = z.object({ folder: z.string() });
-
-export const NotesParams = z.object({
-  machine: z.string(),
-  note: z.string().optional(),
-});
-
-export type NotesParams = z.infer<typeof NotesParams>;
 
 const initial: Tiles = {
   workspace: undefined,
@@ -165,57 +156,4 @@ export function useStart(view: View | undefined) {
   const layout = useTiles(({ layouts }) => view && layouts[layoutKey(view)]);
 
   return sharedStart(layout);
-}
-
-export function followedNote(params: unknown, rename: Rename) {
-  const parsed = NotesParams.safeParse(params).data;
-  const note =
-    parsed?.note && parsed.machine === rename.machine
-      ? moved(parsed.note, rename.from, rename.to)
-      : undefined;
-
-  return parsed && note ? { ...parsed, note } : undefined;
-}
-
-export function followNotes(rename: Rename) {
-  const { layouts } = store.getState();
-  const follow = (layout: SerializedDockview) => ({
-    ...layout,
-    panels: Object.fromEntries(
-      Object.entries(layout.panels).map(([id, panel]) => {
-        const params =
-          panel.contentComponent === "notes"
-            ? followedNote(panel.params, rename)
-            : undefined;
-
-        return [id, params ? { ...panel, params } : panel];
-      }),
-    ),
-  });
-
-  store.setState({
-    layouts: Object.fromEntries(
-      Object.entries(layouts).map(([key, layout]) => [key, follow(layout)]),
-    ),
-  });
-}
-
-export function noteTitle(note: string | undefined) {
-  return note ? folderName(note).replace(/\.md$/i, "") : "Notes";
-}
-
-function noteTiles(layout: SerializedDockview | undefined) {
-  return Object.values(layout?.panels ?? {}).flatMap((panel) => {
-    const params = NotesParams.safeParse(panel.params).data;
-
-    return panel.contentComponent === "notes" && params
-      ? [{ id: panel.id, title: noteTitle(params.note) }]
-      : [];
-  });
-}
-
-export function useNoteTiles(view: View) {
-  const layout = useTiles(({ layouts }) => layouts[layoutKey(view)]);
-
-  return noteTiles(layout);
 }

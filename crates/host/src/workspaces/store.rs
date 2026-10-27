@@ -1,9 +1,16 @@
 use std::path::Path;
 
 use protocol::terminals::Terminal;
+use protocol::workspaces::{MonitorTile, NoteTile, Tile};
 use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::folders;
+
+mod tiles;
+
+pub use tiles::{
+    arrange, close, follow, members, open_monitor, open_note, place, show_note, terminals_in,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -11,8 +18,8 @@ pub enum Error {
     Sqlx(#[from] sqlx::Error),
     #[error("that workspace no longer exists")]
     Missing,
-    #[error("that terminal is not in a workspace")]
-    Unplaced,
+    #[error("that tile is closed")]
+    Closed,
 }
 
 #[derive(Clone, Debug)]
@@ -20,7 +27,7 @@ pub struct Workspace {
     pub id: String,
     pub folder: String,
     pub identity: Option<String>,
-    pub terminals: Vec<Terminal>,
+    pub tiles: Vec<Tile>,
 }
 
 pub struct Listing {
@@ -31,42 +38,65 @@ pub struct Listing {
 pub async fn list(pool: &SqlitePool, terminals: &[Terminal]) -> Result<Listing, Error> {
     let mut tx = pool.begin().await?;
 
-    let known = sqlx::query_scalar!("SELECT terminal FROM members")
+    let known = sqlx::query_scalar!("SELECT tile FROM tiles WHERE kind = 'terminal'")
         .fetch_all(&mut *tx)
         .await?;
     for id in known
         .iter()
         .filter(|id| !terminals.iter().any(|terminal| &terminal.id == *id))
     {
-        sqlx::query!("DELETE FROM members WHERE terminal = ?", id)
+        sqlx::query!("DELETE FROM tiles WHERE tile = ?", id)
             .execute(&mut *tx)
             .await?;
     }
 
     let mut workspaces = stored(&mut tx).await?;
-    let members =
-        sqlx::query!("SELECT workspace, terminal, checkout FROM members ORDER BY position, id")
-            .fetch_all(&mut *tx)
-            .await?;
+    let rows = sqlx::query!(
+        "SELECT tile, kind, note, workspace, checkout FROM tiles ORDER BY position, id"
+    )
+    .fetch_all(&mut *tx)
+    .await?;
     tx.commit().await?;
 
     let loose = terminals
         .iter()
-        .filter(|terminal| !members.iter().any(|member| member.terminal == terminal.id))
+        .filter(|terminal| {
+            !rows
+                .iter()
+                .any(|row| row.kind == "terminal" && row.tile == terminal.id)
+        })
         .map(|terminal| terminal.id.clone())
         .collect();
-    for member in members {
-        let terminal = terminals
-            .iter()
-            .find(|terminal| terminal.id == member.terminal);
-        let workspace = workspaces
-            .iter_mut()
-            .find(|(id, _)| *id == member.workspace);
-        if let (Some(terminal), Some((_, workspace))) = (terminal, workspace) {
-            workspace.terminals.push(Terminal {
-                checkout: member.checkout,
-                ..terminal.clone()
-            });
+    for row in rows {
+        let Some((_, workspace)) = workspaces.iter_mut().find(|(id, _)| *id == row.workspace)
+        else {
+            continue;
+        };
+
+        let tile = if row.kind == "note" {
+            Some(Tile::Note(NoteTile {
+                id: row.tile,
+                checkout: row.checkout,
+                note: row.note,
+            }))
+        } else if row.kind == "monitor" {
+            Some(Tile::Monitor(MonitorTile {
+                id: row.tile,
+                checkout: row.checkout,
+            }))
+        } else {
+            terminals
+                .iter()
+                .find(|terminal| terminal.id == row.tile)
+                .map(|terminal| {
+                    Tile::Terminal(Terminal {
+                        checkout: row.checkout,
+                        ..terminal.clone()
+                    })
+                })
+        };
+        if let Some(tile) = tile {
+            workspace.tiles.push(tile);
         }
     }
 
@@ -137,16 +167,6 @@ pub async fn folders(pool: &SqlitePool) -> Result<Vec<String>, Error> {
         .await?)
 }
 
-pub async fn members(pool: &SqlitePool, workspace: &str) -> Result<Vec<String>, Error> {
-    let id: i64 = workspace.parse().map_err(|_| Error::Missing)?;
-
-    Ok(
-        sqlx::query_scalar!("SELECT terminal FROM members WHERE workspace = ?", id)
-            .fetch_all(pool)
-            .await?,
-    )
-}
-
 pub async fn delete(pool: &SqlitePool, workspace: &str) -> Result<(), Error> {
     let id: i64 = workspace.parse().map_err(|_| Error::Missing)?;
     let deleted = sqlx::query!("DELETE FROM workspaces WHERE id = ?", id)
@@ -155,83 +175,6 @@ pub async fn delete(pool: &SqlitePool, workspace: &str) -> Result<(), Error> {
     if deleted.rows_affected() == 0 {
         return Err(Error::Missing);
     }
-
-    Ok(())
-}
-
-pub async fn place(
-    pool: &SqlitePool,
-    terminal: &str,
-    workspace: &str,
-    checkout: Option<&str>,
-) -> Result<(), Error> {
-    let id: i64 = workspace.parse().map_err(|_| Error::Missing)?;
-    let placed = sqlx::query!(
-        "INSERT INTO members (terminal, workspace, checkout, position)
-         VALUES (?, ?, ?, (
-             SELECT COALESCE(MAX(position), 0) + 1 FROM members
-             WHERE workspace = ? AND checkout IS ?
-         ))
-         ON CONFLICT (terminal) DO UPDATE
-         SET workspace = excluded.workspace,
-             checkout = excluded.checkout,
-             position = CASE
-                 WHEN members.workspace = excluded.workspace
-                     AND members.checkout IS excluded.checkout
-                 THEN members.position
-                 ELSE excluded.position
-             END",
-        terminal,
-        id,
-        checkout,
-        id,
-        checkout
-    )
-    .execute(pool)
-    .await;
-
-    match placed {
-        Ok(_) => Ok(()),
-        Err(sqlx::Error::Database(error)) if error.is_foreign_key_violation() => {
-            Err(Error::Missing)
-        }
-        Err(error) => Err(error.into()),
-    }
-}
-
-pub async fn arrange(pool: &SqlitePool, terminal: &str, before: Option<&str>) -> Result<(), Error> {
-    let mut tx = pool.begin().await?;
-    let member = sqlx::query!(
-        "SELECT workspace, checkout FROM members WHERE terminal = ?",
-        terminal
-    )
-    .fetch_optional(&mut *tx)
-    .await?
-    .ok_or(Error::Unplaced)?;
-
-    let mut order = sqlx::query_scalar!(
-        "SELECT terminal FROM members WHERE workspace = ? AND checkout IS ? ORDER BY position, id",
-        member.workspace,
-        member.checkout
-    )
-    .fetch_all(&mut *tx)
-    .await?;
-    order.retain(|id| id != terminal);
-    let at = before
-        .and_then(|before| order.iter().position(|id| id == before))
-        .unwrap_or(order.len());
-    order.insert(at, terminal.to_owned());
-
-    for (position, id) in (0_i64..).zip(&order) {
-        sqlx::query!(
-            "UPDATE members SET position = ? WHERE terminal = ?",
-            position,
-            id
-        )
-        .execute(&mut *tx)
-        .await?;
-    }
-    tx.commit().await?;
 
     Ok(())
 }
@@ -252,9 +195,11 @@ fn workspace(id: i64, folder: String, identity: Option<String>) -> Workspace {
         id: id.to_string(),
         folder,
         identity,
-        terminals: Vec::new(),
+        tiles: Vec::new(),
     }
 }
 
+#[cfg(test)]
+mod fixtures;
 #[cfg(test)]
 mod tests;

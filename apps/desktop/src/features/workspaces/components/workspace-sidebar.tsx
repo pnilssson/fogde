@@ -1,12 +1,17 @@
+import type { ReactNode } from "react";
+
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { UpdateButton } from "@/components/update-button";
+import { UpdateItem } from "@/components/update-item";
 import { MachineGroup } from "@/features/workspaces/components/machine-group";
-import { SearchButton } from "@/features/workspaces/components/search-button";
+import { SearchItem } from "@/features/workspaces/components/search-item";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
 
@@ -15,6 +20,7 @@ interface Props {
   selected: View | undefined;
   onSelect: (view: View, terminal?: Selection) => void;
   onStart: (view: View, folder: string) => void;
+  settings: ReactNode;
 }
 
 export function WorkspaceSidebar({
@@ -22,17 +28,20 @@ export function WorkspaceSidebar({
   selected,
   onSelect,
   onStart,
+  settings,
 }: Props) {
   const { setOpenMobile } = useSidebar();
 
   return (
     <Sidebar className="absolute h-full">
       <SidebarHeader>
-        <SearchButton
-          onOpen={() => {
-            setOpenMobile(false);
-          }}
-        />
+        <SidebarMenu>
+          <SearchItem
+            onOpen={() => {
+              setOpenMobile(false);
+            }}
+          />
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         {groups.map(({ machine, workspaces }) => (
@@ -52,7 +61,12 @@ export function WorkspaceSidebar({
           />
         ))}
       </SidebarContent>
-      <UpdateButton />
+      <SidebarFooter>
+        <SidebarMenu>
+          <UpdateItem />
+          <SidebarMenuItem>{settings}</SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }

@@ -1,5 +1,4 @@
 use std::ffi::{OsStr, OsString};
-use std::fmt::Write as _;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -44,7 +43,7 @@ pub async fn install(url: &str, sha256: &str, packing: Packing, dir: &Path) -> R
     .await?;
 
     let bytes = fs::read(&path).await?;
-    if hex(&Sha256::digest(&bytes)) != sha256 {
+    if hex::encode(Sha256::digest(&bytes)) != sha256 {
         fs::remove_dir_all(&staging).await?;
         return Err(Error::Checksum);
     }
@@ -93,13 +92,6 @@ async fn run(program: PathBuf, args: &[OsString]) -> Result<(), Error> {
     Ok(())
 }
 
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().fold(String::new(), |mut hex, byte| {
-        let _ = write!(hex, "{byte:02x}");
-        hex
-    })
-}
-
 #[cfg(windows)]
 fn curl() -> PathBuf {
     system32("curl.exe")
@@ -134,7 +126,7 @@ mod tests {
     #[test]
     fn hashes_like_sha256sum() {
         assert_eq!(
-            hex(&Sha256::digest(b"data")),
+            hex::encode(Sha256::digest(b"data")),
             "3a6eb0790f39ac87c94f3856b2dd2c5d110e6811602261a9a923d3bb23adc8b7"
         );
     }

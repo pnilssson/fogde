@@ -13,17 +13,17 @@ import {
 } from "@/features/settings/components/settings-section";
 import { useSaveSetting } from "@/features/settings/hooks/use-save-setting";
 import type { Shell } from "@/generated/protocol";
-import { callOwn } from "@/lib/host";
+import type { Machine } from "@/lib/machines";
 import { shellQuery, shellsQuery } from "@/lib/shell";
 
 const system = "";
 
-export function ShellSettings() {
-  const { data } = useQuery(shellQuery);
-  const options = useQuery(shellsQuery).data ?? [];
+export function ShellSettings({ machine }: { machine: Machine }) {
+  const { data } = useQuery(shellQuery(machine));
+  const options = useQuery(shellsQuery(machine)).data ?? [];
   const save = useSaveSetting(
-    shellQuery,
-    (next: Shell) => callOwn("shell.set", next),
+    shellQuery(machine),
+    (next: Shell) => machine.client.call("shell.set", next),
     "Could not save the shell",
   );
   const choices = [{ name: "System default", program: system }, ...options];

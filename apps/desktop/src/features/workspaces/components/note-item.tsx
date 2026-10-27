@@ -1,55 +1,42 @@
 import { NotebookIcon } from "@phosphor-icons/react";
 
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import {
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-} from "@/components/ui/sidebar";
-import { dragProps } from "@/features/workspaces/lib/drag";
-import { closeTile } from "@/features/workspaces/lib/opening";
-import type { View } from "@/features/workspaces/lib/selection";
+import { TileItem } from "@/features/workspaces/components/tile-item";
+import { useCloseTile } from "@/features/workspaces/hooks/use-workspaces";
+import { type NoteTile, noteTitle } from "@/features/workspaces/lib/tile-kinds";
+import type { Machine } from "@/lib/machines";
 
 interface Props {
-  view: View;
-  id: string;
-  title: string;
+  machine: Machine;
+  note: NoteTile;
+  siblings: string[];
   active: boolean;
   onSelect: () => void;
+  onArrange: (tile: string, before: string | null) => void;
 }
 
-export function NoteItem({ view, id, title, active, onSelect }: Props) {
+export function NoteItem({
+  machine,
+  note,
+  siblings,
+  active,
+  onSelect,
+  onArrange,
+}: Props) {
+  const close = useCloseTile();
+
   return (
-    <SidebarMenuSubItem>
-      <ContextMenu>
-        <ContextMenuTrigger
-          render={
-            <SidebarMenuSubButton
-              size="sm"
-              isActive={active}
-              render={<button type="button" />}
-              {...dragProps({ tile: id, view })}
-              onClick={onSelect}
-            />
-          }
-        >
-          <NotebookIcon />
-          <span className="min-w-0 flex-1 truncate">{title}</span>
-        </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem
-            onClick={() => {
-              closeTile(id, view);
-            }}
-          >
-            Close
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
-    </SidebarMenuSubItem>
+    <TileItem
+      tile={{ kind: "note", machine: machine.id, id: note.id }}
+      siblings={siblings}
+      active={active}
+      icon={<NotebookIcon />}
+      label={noteTitle(note.note)}
+      closable
+      onSelect={onSelect}
+      onArrange={onArrange}
+      onClose={() => {
+        close.mutate({ machine, tile: note.id });
+      }}
+    />
   );
 }

@@ -2,6 +2,7 @@ import {
   GitBranchIcon,
   NotebookIcon,
   PlusCircleIcon,
+  PulseIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 
@@ -13,19 +14,22 @@ import {
 } from "@/components/ui/command";
 import { Spinner } from "@/components/ui/spinner";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
+import { useOpenMonitor } from "@/features/workspaces/hooks/use-monitor";
 import {
   useChoices,
   useCreateTerminal,
 } from "@/features/workspaces/hooks/use-terminals";
+import { useOpenNote } from "@/features/workspaces/hooks/use-workspaces";
 import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
 import {
   checkoutName,
   checkoutOf,
   mainCheckout,
+  working,
 } from "@/features/workspaces/lib/checkouts";
 import { viewFolder, type View } from "@/features/workspaces/lib/selection";
-import { openNotes, openStart } from "@/features/workspaces/lib/opening";
-import type { Workspace } from "@/generated/protocol";
+import { openStart } from "@/features/workspaces/lib/opening";
+import type { Checkout, Workspace } from "@/generated/protocol";
 import { useConnection } from "@/hooks/use-connection";
 import { agents, allAgents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
@@ -42,6 +46,7 @@ interface Props {
   view: View | undefined;
   run: (action: () => void) => void;
   onNewWorktree: () => void;
+  onRemoveWorktree: (checkout: Checkout) => void;
 }
 
 export function PaletteWorkspace({
@@ -50,11 +55,14 @@ export function PaletteWorkspace({
   view,
   run,
   onNewWorktree,
+  onRemoveWorktree,
 }: Props) {
   const connection = useConnection(machine);
   const choices = useChoices(machine);
   const create = useCreateTerminal();
   const remove = useRemoveWorktree(machine, workspace);
+  const openNote = useOpenNote();
+  const openMonitor = useOpenMonitor();
   if (connection.state !== "connected") {
     return null;
   }
@@ -86,12 +94,30 @@ export function PaletteWorkspace({
           keywords={["view", "show", "tile"]}
           onSelect={() => {
             run(() => {
-              openNotes(machine.id);
+              openNote.mutate({
+                machine,
+                view: view ?? { machine: machine.id, id: workspace.id },
+              });
             });
           }}
         >
           <NotebookIcon />
           Open notes
+        </CommandItem>
+        <CommandItem
+          value="open monitor"
+          keywords={["view", "show", "tile", "cpu", "memory", "usage"]}
+          onSelect={() => {
+            run(() => {
+              openMonitor.mutate({
+                machine,
+                view: view ?? { machine: machine.id, id: workspace.id },
+              });
+            });
+          }}
+        >
+          <PulseIcon />
+          Open monitor
         </CommandItem>
         {(choices ?? [null]).map((agent) => {
           const name = agent ? agents[agent].name : "terminal";
@@ -145,6 +171,13 @@ export function PaletteWorkspace({
             value="remove worktree"
             keywords={["remove", "delete"]}
             onSelect={() => {
+              if (working(workspace, checkout.path).length > 0) {
+                run(() => {
+                  onRemoveWorktree(checkout);
+                });
+                return;
+              }
+
               remove.mutate(checkout.path);
               run(() => undefined);
             }}

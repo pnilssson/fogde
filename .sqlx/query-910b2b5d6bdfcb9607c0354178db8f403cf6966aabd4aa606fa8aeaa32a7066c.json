@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT tile FROM tiles WHERE workspace = ? AND checkout IS ? ORDER BY position, id",
+  "describe": {
+    "columns": [
+      {
+        "name": "tile",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tiles",
+            "name": "tile"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "910b2b5d6bdfcb9607c0354178db8f403cf6966aabd4aa606fa8aeaa32a7066c"
+}

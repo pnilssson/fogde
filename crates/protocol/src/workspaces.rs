@@ -11,7 +11,28 @@ pub struct Workspace {
     pub folder: String,
     pub missing: bool,
     pub checkouts: Vec<Checkout>,
-    pub terminals: Vec<Terminal>,
+    pub tiles: Vec<Tile>,
+}
+
+#[derive(Clone, Debug, Serialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum Tile {
+    Terminal(Terminal),
+    Note(NoteTile),
+    Monitor(MonitorTile),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct NoteTile {
+    pub id: String,
+    pub checkout: Option<String>,
+    pub note: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct MonitorTile {
+    pub id: String,
+    pub checkout: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
@@ -29,9 +50,28 @@ pub struct PlaceTerminalParams {
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
-pub struct MoveTerminalParams {
-    pub terminal: String,
+pub struct MoveTileParams {
+    pub tile: String,
     pub before: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct OpenNoteParams {
+    pub workspace: String,
+    pub checkout: Option<String>,
+    pub note: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct OpenMonitorParams {
+    pub workspace: String,
+    pub checkout: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct ShowNoteParams {
+    pub tile: String,
+    pub note: Option<String>,
 }
 
 pub struct ListWorkspaces;
@@ -66,11 +106,43 @@ impl Method for PlaceTerminal {
     type Result = ();
 }
 
-pub struct MoveTerminal;
+pub struct MoveTile;
 
-impl Method for MoveTerminal {
+impl Method for MoveTile {
     const NAME: &'static str = "workspaces.move";
-    type Params = MoveTerminalParams;
+    type Params = MoveTileParams;
+    type Result = ();
+}
+
+pub struct OpenNote;
+
+impl Method for OpenNote {
+    const NAME: &'static str = "workspaces.openNote";
+    type Params = OpenNoteParams;
+    type Result = String;
+}
+
+pub struct ShowNote;
+
+impl Method for ShowNote {
+    const NAME: &'static str = "workspaces.showNote";
+    type Params = ShowNoteParams;
+    type Result = ();
+}
+
+pub struct OpenMonitor;
+
+impl Method for OpenMonitor {
+    const NAME: &'static str = "workspaces.openMonitor";
+    type Params = OpenMonitorParams;
+    type Result = String;
+}
+
+pub struct CloseTile;
+
+impl Method for CloseTile {
+    const NAME: &'static str = "workspaces.closeTile";
+    type Params = String;
     type Result = ();
 }
 

@@ -1,8 +1,11 @@
 mod identity;
+mod prune;
 mod store;
+mod tiles;
 mod watch;
 
 pub use identity::Searches;
+pub use tiles::{close_terminals_in, follow};
 pub use watch::{Watch, changes};
 
 use std::path::{Path, PathBuf};
@@ -11,8 +14,8 @@ use futures_util::future::join_all;
 use protocol::rpc::Failure;
 use protocol::terminals::Terminal;
 use protocol::workspaces::{
-    Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, MoveTerminal, MoveTerminalParams,
-    PlaceTerminal, PlaceTerminalParams, Workspace,
+    Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, MonitorTile, NoteTile,
+    PlaceTerminal, PlaceTerminalParams, Tile, Workspace,
 };
 use sqlx::SqlitePool;
 
@@ -25,7 +28,7 @@ pub fn register(router: &mut Router) {
     router.add::<CreateWorkspace>();
     router.add::<DeleteWorkspace>();
     router.add::<PlaceTerminal>();
-    router.add::<MoveTerminal>();
+    tiles::register(router);
 }
 
 pub async fn place(
@@ -77,7 +80,14 @@ impl Handler for ListWorkspaces {
         Ok(
             join_all(listing.workspaces.into_iter().map(|workspace| async {
                 let (workspace, missing) = locate(session, pool, workspace).await;
-                compose(workspace, missing).await
+                let checkouts = if missing {
+                    Vec::new()
+                } else {
+                    checkouts(Path::new(&workspace.folder)).await
+                };
+                let workspace = prune::prune(session, pool, workspace, &checkouts).await;
+
+                compose(workspace, missing, checkouts)
             }))
             .await,
         )
@@ -116,20 +126,6 @@ impl Handler for PlaceTerminal {
     }
 }
 
-impl Handler for MoveTerminal {
-    const ORDERED: bool = true;
-
-    async fn handle(session: &Session, params: MoveTerminalParams) -> Result<(), Failure> {
-        store::arrange(
-            pool(session).await?,
-            &params.terminal,
-            params.before.as_deref(),
-        )
-        .await
-        .map_err(failure)
-    }
-}
-
 pub async fn create(session: &Session, folder: &Path) -> Result<Workspace, Failure> {
     let identity = identity::of(folder).await;
     let stored = store::create(
@@ -140,7 +136,7 @@ pub async fn create(session: &Session, folder: &Path) -> Result<Workspace, Failu
     .await
     .map_err(failure)?;
 
-    Ok(compose(stored, false).await)
+    Ok(compose(stored, false, checkouts(folder).await))
 }
 
 async fn locate(
@@ -192,19 +188,24 @@ async fn save(pool: &SqlitePool, workspace: &store::Workspace) {
     }
 }
 
-async fn compose(workspace: store::Workspace, missing: bool) -> Workspace {
+fn compose(workspace: store::Workspace, missing: bool, checkouts: Vec<Checkout>) -> Workspace {
     let folder = PathBuf::from(&workspace.folder);
-    let checkouts = if missing {
-        Vec::new()
-    } else {
-        checkouts(&folder).await
-    };
-    let terminals = workspace
-        .terminals
+    let tiles = workspace
+        .tiles
         .into_iter()
-        .map(|terminal| Terminal {
-            checkout: terminal.checkout.and_then(|path| listed(&path, &checkouts)),
-            ..terminal
+        .map(|tile| match tile {
+            Tile::Terminal(terminal) => Tile::Terminal(Terminal {
+                checkout: terminal.checkout.and_then(|path| listed(&path, &checkouts)),
+                ..terminal
+            }),
+            Tile::Note(note) => Tile::Note(NoteTile {
+                checkout: note.checkout.and_then(|path| listed(&path, &checkouts)),
+                ..note
+            }),
+            Tile::Monitor(monitor) => Tile::Monitor(MonitorTile {
+                checkout: monitor.checkout.and_then(|path| listed(&path, &checkouts)),
+                ..monitor
+            }),
         })
         .collect();
 
@@ -220,7 +221,7 @@ async fn compose(workspace: store::Workspace, missing: bool) -> Workspace {
             ),
         missing,
         checkouts,
-        terminals,
+        tiles,
     }
 }
 

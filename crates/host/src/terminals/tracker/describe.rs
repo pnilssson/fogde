@@ -22,7 +22,7 @@ pub(super) fn describe(
     } else {
         reported.or_else(|| launch::launched(&workspace.label))
     };
-    let name = name(agent, pane, previous);
+    let name = name(workspace, agent, pane, previous);
     let herdr = pane.map_or(herdr_client::Status::Unknown, |pane| pane.status);
     let folder = pane
         .and_then(|pane| pane.cwd.as_ref())
@@ -43,9 +43,14 @@ pub(super) fn describe(
     }
 }
 
-fn name(agent: Option<Agent>, pane: Option<&Pane>, previous: Option<&TerminalState>) -> String {
+fn name(
+    workspace: &Workspace,
+    agent: Option<Agent>,
+    pane: Option<&Pane>,
+    previous: Option<&TerminalState>,
+) -> String {
     let Some(agent) = agent else {
-        return launch::label(None).to_owned();
+        return launch::shell(&workspace.label).to_owned();
     };
 
     pane.and_then(|pane| pane.title.as_deref().zip(pane.stripped.as_deref()))
@@ -55,7 +60,7 @@ fn name(agent: Option<Agent>, pane: Option<&Pane>, previous: Option<&TerminalSta
                 .filter(|state| state.agent == Some(agent))
                 .map(|state| state.name.clone())
         })
-        .unwrap_or_else(|| launch::label(Some(agent)).to_owned())
+        .unwrap_or_else(|| agent.spec().short.to_owned())
 }
 
 pub(super) fn status(

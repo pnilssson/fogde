@@ -2,6 +2,7 @@ mod changes;
 pub mod codex;
 mod herdr;
 mod images;
+mod input;
 mod launch;
 mod stream;
 mod title;
@@ -14,9 +15,8 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use futures_util::future::join_all;
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::terminals::{
-    CloseTerminal, CreateTerminal, CreateTerminalParams, PasteImage, PasteImageParams,
-    ResizeTerminal, ScrollTerminal, ScrollTerminalParams, SeekTerminal, Status, Terminal,
-    TerminalInput, TerminalInputParams, TerminalKey, TerminalKeyParams, UnwatchTerminal,
+    ClickTerminal, CloseTerminal, CreateTerminal, CreateTerminalParams, PasteImage, ResizeTerminal,
+    ScrollTerminal, SeekTerminal, Status, Terminal, TerminalInput, TerminalKey, UnwatchTerminal,
     ViewTerminal, WatchTerminal, WatchTerminalParams,
 };
 use tokio::sync::mpsc;
@@ -25,7 +25,8 @@ use crate::folders;
 use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
 pub use changes::count;
-use launch::{Launch, Launches, label};
+pub use images::prune;
+use launch::{Launch, Launches};
 use stream::Control;
 pub use tracker::Tracker;
 
@@ -72,6 +73,7 @@ pub fn register(router: &mut Router) {
     router.add::<TerminalKey>();
     router.add::<ResizeTerminal>();
     router.add::<ScrollTerminal>();
+    router.add::<ClickTerminal>();
     router.add::<SeekTerminal>();
     router.add::<PasteImage>();
     router.add::<ViewTerminal>();
@@ -129,7 +131,10 @@ impl Handler for CreateTerminal {
     async fn handle(session: &Session, params: CreateTerminalParams) -> Result<Terminal, Failure> {
         let herdr = session.herdr().await?;
         let folder = folders::absolute(&params.folder).map_err(failure)?;
-        let name = label(params.agent);
+        let name = match params.agent {
+            Some(agent) => agent.spec().short.to_owned(),
+            None => crate::shell::name(&herdr.shell()),
+        };
         let gh = if params.agent.is_some_and(|agent| agent.spec().github) {
             Some(session.gh().await?.program().to_path_buf())
         } else {
@@ -147,7 +152,7 @@ impl Handler for CreateTerminal {
         let placing = session.shared.placing.lock().await;
         let pane = herdr
             .client()
-            .create_workspace(&folder, name, &env)
+            .create_workspace(&folder, &name, &env)
             .await
             .map_err(failure)?;
         let workspace = pane.workspace.clone();
@@ -163,7 +168,7 @@ impl Handler for CreateTerminal {
 
         Ok(Terminal {
             id: workspace,
-            name: name.to_owned(),
+            name,
             agent: params.agent,
             model: None,
             status: Status::Idle,
@@ -202,79 +207,6 @@ impl Handler for UnwatchTerminal {
         session.terminals.lock().remove(&id);
 
         future::ready(Ok(()))
-    }
-}
-
-impl Handler for TerminalInput {
-    const ORDERED: bool = true;
-
-    fn handle(
-        session: &Session,
-        params: TerminalInputParams,
-    ) -> impl Future<Output = Result<(), Failure>> + Send {
-        future::ready(
-            session
-                .terminals
-                .send(&params.id, Control::Input(params.data.into_bytes())),
-        )
-    }
-}
-
-impl Handler for TerminalKey {
-    const ORDERED: bool = true;
-
-    fn handle(
-        session: &Session,
-        params: TerminalKeyParams,
-    ) -> impl Future<Output = Result<(), Failure>> + Send {
-        future::ready(
-            session
-                .terminals
-                .send(&params.id, Control::Key(herdr::key(params.key))),
-        )
-    }
-}
-
-impl Handler for ResizeTerminal {
-    const ORDERED: bool = true;
-
-    fn handle(
-        session: &Session,
-        params: WatchTerminalParams,
-    ) -> impl Future<Output = Result<(), Failure>> + Send {
-        future::ready(
-            session
-                .terminals
-                .send(&params.id, Control::Resize(params.size)),
-        )
-    }
-}
-
-impl Handler for ScrollTerminal {
-    const ORDERED: bool = true;
-
-    fn handle(
-        session: &Session,
-        params: ScrollTerminalParams,
-    ) -> impl Future<Output = Result<(), Failure>> + Send {
-        let id = params.id.clone();
-
-        future::ready(session.terminals.send(&id, Control::Scroll(params)))
-    }
-}
-
-impl Handler for PasteImage {
-    const ORDERED: bool = true;
-
-    async fn handle(session: &Session, params: PasteImageParams) -> Result<(), Failure> {
-        let path = images::save(&session.shared.images(), params.image, params.data)
-            .await
-            .map_err(failure)?;
-        let paste = images::paste(&path);
-
-        session
-            .terminals
-            .send(&params.id, Control::Input(paste.into_bytes()))
     }
 }
 

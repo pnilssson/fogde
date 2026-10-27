@@ -1,4 +1,4 @@
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Kbd } from "@/components/ui/kbd";
 import { keys } from "@/lib/shortcuts";
 
 export function Keys({
@@ -10,11 +10,5 @@ export function Keys({
   alt?: boolean;
   className?: string;
 }) {
-  return (
-    <KbdGroup className={className}>
-      {keys(letter, alt).map((key) => (
-        <Kbd key={key}>{key}</Kbd>
-      ))}
-    </KbdGroup>
-  );
+  return <Kbd className={className}>{keys(letter, alt)}</Kbd>;
 }

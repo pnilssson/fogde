@@ -1,10 +1,12 @@
 import { DotsThreeIcon, GitBranchIcon } from "@phosphor-icons/react";
 
+import { Keys } from "@/components/keys";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
@@ -12,10 +14,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   SidebarMenuAction,
+  SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
@@ -23,10 +27,12 @@ import {
   type RowsProps,
   ViewRows,
 } from "@/features/workspaces/components/view-rows";
-import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
+import { RemoveWorktree } from "@/features/workspaces/components/remove-worktree";
+import { useRemoval } from "@/features/workspaces/hooks/use-worktrees";
 import { checkoutName } from "@/features/workspaces/lib/checkouts";
 import type { View } from "@/features/workspaces/lib/selection";
 import type { Checkout } from "@/generated/protocol";
+import { shortcuts } from "@/lib/shortcuts";
 
 interface Props extends RowsProps {
   checkout: Checkout;
@@ -43,67 +49,84 @@ export function WorktreeItem({ checkout, current, down, ...props }: Props) {
   };
   const selected = current?.checkout === checkout.path;
   const name = checkoutName(checkout);
-  const removal = useRemoveWorktree(machine, workspace);
+  const removal = useRemoval(machine, workspace, checkout.path);
 
   const start = () => {
     onStart(own, checkout.path);
   };
 
   const remove = () => {
-    removal.mutate(checkout.path);
+    removal.request();
   };
 
   return (
-    <>
-      <SidebarMenuSubItem>
-        <ContextMenu disabled={down}>
-          <ContextMenuTrigger
+    <SidebarMenuSubItem>
+      <ContextMenu disabled={down}>
+        <ContextMenuTrigger
+          render={
+            <SidebarMenuSubButton
+              size="sm"
+              className="h-8"
+              isActive={selected}
+              render={<button type="button" />}
+              onClick={() => {
+                onSelect(own);
+              }}
+            />
+          }
+        >
+          <GitBranchIcon />
+          <span className="min-w-0 flex-1 truncate">{name}</span>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onClick={start}>
+            New tile
+            <ContextMenuShortcut>
+              <Keys letter={shortcuts.tile} />
+            </ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem variant="destructive" onClick={remove}>
+            Remove
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+      {!down && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
             render={
-              <SidebarMenuSubButton
-                size="sm"
-                isActive={selected}
-                render={<button type="button" />}
-                className="text-muted-foreground [&>svg]:text-muted-foreground"
-                onClick={() => {
-                  onSelect(own);
-                }}
+              <SidebarMenuAction
+                aria-label={`Actions for ${name}`}
+                className="pointer-events-none opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 aria-expanded:opacity-100"
               />
             }
           >
-            <GitBranchIcon />
-            <span className="min-w-0 flex-1 truncate">{name}</span>
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            <ContextMenuItem onClick={start}>New tile</ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem variant="destructive" onClick={remove}>
+            <DotsThreeIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={start}>
+              New tile
+              <DropdownMenuShortcut>
+                <Keys letter={shortcuts.tile} />
+              </DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={remove}>
               Remove
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
-        {!down && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <SidebarMenuAction
-                  aria-label={`Actions for ${name}`}
-                  className="top-1 h-5 opacity-0 group-focus-within/menu-sub-item:opacity-100 group-hover/menu-sub-item:opacity-100 aria-expanded:opacity-100"
-                />
-              }
-            >
-              <DotsThreeIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={start}>New tile</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={remove}>
-                Remove
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </SidebarMenuSubItem>
-      <ViewRows {...props} view={own} />
-    </>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      <SidebarMenuSub className="border-l-0 empty:hidden">
+        <ViewRows {...props} view={own} />
+      </SidebarMenuSub>
+      <RemoveWorktree
+        machine={machine}
+        workspace={workspace}
+        checkout={checkout}
+        open={removal.confirming}
+        onOpenChange={removal.setConfirming}
+      />
+    </SidebarMenuSubItem>
   );
 }

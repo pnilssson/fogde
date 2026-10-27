@@ -76,14 +76,14 @@ impl Client {
 
     pub async fn processes(&self, pane: &str) -> Result<Vec<Process>, Error> {
         let info: Info = self
-            .request("pane.process_info", Focus { pane_id: pane })
+            .request("pane.process_info", Target { pane_id: pane })
             .await?;
 
         Ok(info.process_info.foreground_processes)
     }
 
     pub async fn focus_pane(&self, pane: &str) -> Result<(), Error> {
-        self.request::<IgnoredAny>("pane.focus", Focus { pane_id: pane })
+        self.request::<IgnoredAny>("pane.focus", Target { pane_id: pane })
             .await?;
 
         Ok(())
@@ -100,6 +100,14 @@ impl Client {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn shell(&self, pane: &str) -> Result<Option<u32>, Error> {
+        let info: Info = self
+            .request("pane.process_info", Target { pane_id: pane })
+            .await?;
+
+        Ok(info.process_info.shell_pid)
     }
 
     pub async fn send_keys(&self, pane: &str, keys: &[Key]) -> Result<(), Error> {
@@ -123,18 +131,19 @@ struct PaneList {
 
 #[derive(Deserialize)]
 struct Info {
-    process_info: Foreground,
-}
-
-#[derive(Deserialize)]
-struct Foreground {
-    #[serde(default)]
-    foreground_processes: Vec<Process>,
+    process_info: ProcessInfo,
 }
 
 #[derive(Serialize)]
-struct Focus<'a> {
+struct Target<'a> {
     pane_id: &'a str,
+}
+
+#[derive(Deserialize)]
+struct ProcessInfo {
+    shell_pid: Option<u32>,
+    #[serde(default)]
+    foreground_processes: Vec<Process>,
 }
 
 #[derive(Serialize)]
@@ -196,6 +205,15 @@ mod tests {
                 },
             ]
         );
+    }
+
+    const PROCESS: &str = r#"{"id":"fogde","result":{"process_info":{"foreground_process_group_id":13565,"foreground_processes":[{"argv":["/usr/bin/python3","-I","-c","print(1)"],"argv0":"python3","cmdline":"/usr/bin/python3 -I -c print(1)","cwd":"/repos/app","name":"python3.14","pid":13565}],"pane_id":"wH:p38","shell_pid":3742},"type":"pane_process_info"}}"#;
+
+    #[test]
+    fn reads_the_shell_process() {
+        let reply: Info = crate::client::reply(PROCESS).unwrap();
+
+        assert_eq!(reply.process_info.shell_pid, Some(3742));
     }
 
     #[test]

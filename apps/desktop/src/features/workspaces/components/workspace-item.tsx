@@ -1,10 +1,12 @@
 import {
-  CaretRightIcon,
   DotsThreeIcon,
-  FolderSimpleIcon,
+  FolderIcon,
+  FolderOpenIcon,
 } from "@phosphor-icons/react";
 import { cn } from "cn";
 import { useState } from "react";
+
+import { Keys } from "@/components/keys";
 
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
@@ -12,6 +14,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
@@ -19,6 +22,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -34,8 +38,10 @@ import { mainCheckout } from "@/features/workspaces/lib/checkouts";
 import { setOpen, useOpen } from "@/features/workspaces/lib/layouts";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
 import { attention } from "@/features/workspaces/lib/status";
+import { terminalsOf } from "@/features/workspaces/lib/tile-kinds";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { shortcuts } from "@/lib/shortcuts";
 
 interface Props {
   machine: Machine;
@@ -94,13 +100,7 @@ export function WorkspaceItem({
               />
             }
           >
-            <FolderSimpleIcon className="group-hover/menu-button:hidden group-focus-visible/menu-button:hidden" />
-            <CaretRightIcon
-              className={cn(
-                "hidden transition-transform ease-out group-hover/menu-button:block group-focus-visible/menu-button:block motion-reduce:transition-none",
-                open && "rotate-90",
-              )}
-            />
+            {open ? <FolderOpenIcon /> : <FolderIcon />}
             <span
               className={cn(
                 "min-w-0 flex-1 truncate",
@@ -110,16 +110,18 @@ export function WorkspaceItem({
               {workspace.name}
             </span>
             {!open && !down && (
-              <StateIcon
-                status={attention(workspace.terminals)}
-                className="group-focus-within/menu-item:invisible group-hover/menu-item:invisible"
-              />
+              <StateIcon status={attention(terminalsOf(workspace))} />
             )}
           </ContextMenuTrigger>
           <ContextMenuContent>
             {!workspace.missing && (
               <>
-                <ContextMenuItem onClick={start}>New tile</ContextMenuItem>
+                <ContextMenuItem onClick={start}>
+                  New tile
+                  <ContextMenuShortcut>
+                    <Keys letter={shortcuts.tile} />
+                  </ContextMenuShortcut>
+                </ContextMenuItem>
                 {repo && (
                   <ContextMenuItem onClick={branch}>
                     New worktree
@@ -138,8 +140,8 @@ export function WorkspaceItem({
             <DropdownMenuTrigger
               render={
                 <SidebarMenuAction
-                  showOnHover
                   aria-label={`Actions for ${workspace.name}`}
+                  className="pointer-events-none opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 aria-expanded:opacity-100"
                 />
               }
             >
@@ -148,7 +150,12 @@ export function WorkspaceItem({
             <DropdownMenuContent>
               {!workspace.missing && (
                 <>
-                  <DropdownMenuItem onClick={start}>New tile</DropdownMenuItem>
+                  <DropdownMenuItem onClick={start}>
+                    New tile
+                    <DropdownMenuShortcut>
+                      <Keys letter={shortcuts.tile} />
+                    </DropdownMenuShortcut>
+                  </DropdownMenuItem>
                   {repo && (
                     <DropdownMenuItem onClick={branch}>
                       New worktree

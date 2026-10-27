@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT workspace, checkout FROM members WHERE terminal = ?",
+  "query": "SELECT workspace, checkout FROM tiles WHERE tile = ?",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Integer",
         "origin": {
           "Table": {
-            "table": "members",
+            "table": "tiles",
             "name": "workspace"
           }
         }
@@ -20,7 +20,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "members",
+            "table": "tiles",
             "name": "checkout"
           }
         }
@@ -34,5 +34,5 @@
       true
     ]
   },
-  "hash": "c99437d8d1a67f41f5d43011ad7351392e099b31cb47a8f2343f733aee89c36e"
+  "hash": "84ee66e2427d4fd3f829ab45c6687ddf82b8fa23f4b2895f4b0b9c08a97e7748"
 }

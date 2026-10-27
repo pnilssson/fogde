@@ -5,6 +5,7 @@ import { StatusBar } from "@/components/status-bar";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { useAgents } from "@/features/agents/hooks/use-agents";
 import { onboardedQuery } from "@/features/onboarding/api/onboarding";
+import { MonitorMeters } from "@/features/monitor/components/monitor-meters";
 import { SettingsDialog } from "@/features/settings/components/settings-dialog";
 import { UsageMeters } from "@/features/usage/components/usage-meters";
 import { PaletteNotes } from "@/features/notes/components/palette-notes";
@@ -15,6 +16,7 @@ import { useAttention } from "@/features/workspaces/hooks/use-attention";
 import { useCheckouts } from "@/features/workspaces/hooks/use-checkouts";
 import { useFailures } from "@/features/workspaces/hooks/use-failures";
 import { useShortcuts } from "@/features/workspaces/hooks/use-shortcuts";
+import { useShowMonitor } from "@/features/workspaces/hooks/use-monitor";
 import { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import { useViewing } from "@/features/workspaces/hooks/use-viewing";
 import { keepMachines, useTiles } from "@/features/workspaces/lib/layouts";
@@ -53,6 +55,7 @@ export const Route = createFileRoute("/_onboarded")({
     const groups = useGroups(machines);
     const stored = useTiles((tiles) => tiles.workspace);
     const workspace = resolveWorkspace(groups, stored);
+    const showMonitor = useShowMonitor(groups, workspace);
 
     useRetryOnReturn(machines);
     useAttention(machines);
@@ -92,13 +95,14 @@ export const Route = createFileRoute("/_onboarded")({
                 selectWorkspace(next);
                 openStart(folder);
               }}
+              settings={<SettingsDialog />}
             />
             <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-surface-3">
               <Outlet />
             </SidebarInset>
           </div>
           <StatusBar
-            start={<SettingsDialog />}
+            start={<MonitorMeters machines={machines} onOpen={showMonitor} />}
             end={<UsageMeters machines={machines} />}
           />
           <CommandPalette notes={(props) => <PaletteNotes {...props} />} />

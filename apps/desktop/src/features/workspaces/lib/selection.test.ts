@@ -10,11 +10,26 @@ import type { Status } from "@/generated/protocol";
 type Groups = ReturnType<typeof useGroups>;
 
 function terminal(id: string, status: Status) {
-  return { id, name: id, agent: "claude", status, folder: "", checkout: null };
+  return {
+    kind: "terminal" as const,
+    id,
+    name: id,
+    agent: "claude",
+    status,
+    folder: "",
+    checkout: null,
+  };
 }
 
 function workspace(id: string, terminals: ReturnType<typeof terminal>[]) {
-  return { id, name: id, folder: "", missing: false, checkouts: [], terminals };
+  return {
+    id,
+    name: id,
+    folder: "",
+    missing: false,
+    checkouts: [],
+    tiles: terminals,
+  };
 }
 
 const groups = [

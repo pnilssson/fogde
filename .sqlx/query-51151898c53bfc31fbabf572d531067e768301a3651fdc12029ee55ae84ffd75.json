@@ -1,16 +1,16 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT terminal FROM members",
+  "query": "SELECT tile FROM tiles WHERE kind = 'terminal'",
   "describe": {
     "columns": [
       {
-        "name": "terminal",
+        "name": "tile",
         "ordinal": 0,
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "members",
-            "name": "terminal"
+            "table": "tiles",
+            "name": "tile"
           }
         }
       }
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "435af147b4765f0a69335d1fe389d6538d9b9bdf4827221780cf002a2c044018"
+  "hash": "51151898c53bfc31fbabf572d531067e768301a3651fdc12029ee55ae84ffd75"
 }

@@ -22,7 +22,7 @@ export function WorkspaceTree({ view, down, ...props }: Props) {
   }
 
   return (
-    <SidebarMenuSub className="mx-0 border-l-0 pr-0 pl-4">
+    <SidebarMenuSub className="border-l-0">
       <ViewRows {...props} view={own} />
       {linked.map((checkout) => (
         <WorktreeItem

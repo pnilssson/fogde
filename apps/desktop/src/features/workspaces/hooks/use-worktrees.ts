@@ -1,8 +1,13 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useIsMutating,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useState } from "react";
 
 import { toast } from "@/components/ui/toast";
 import { workspacesQuery } from "@/features/workspaces/api/workspaces";
-import { busy, mainCheckout } from "@/features/workspaces/lib/checkouts";
+import { mainCheckout, working } from "@/features/workspaces/lib/checkouts";
 import { forget, store } from "@/features/workspaces/lib/layouts";
 import { sameView } from "@/features/workspaces/lib/selection";
 import { selectWorkspace } from "@/features/workspaces/lib/tiles";
@@ -10,6 +15,8 @@ import type { CreateWorktreeParams, Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 const removing = new Set<string>();
+
+const removalKey = (machine: Machine) => [machine.id, "worktrees.remove"];
 
 export function useCreateWorktree(
   machine: Machine,
@@ -40,14 +47,11 @@ export function useRemoveWorktree(machine: Machine, workspace: Workspace) {
   const queries = useQueryClient();
 
   return useMutation({
+    mutationKey: removalKey(machine),
     mutationFn: async (path: string) => {
       const main = mainCheckout(workspace);
       if (!main) {
         throw new Error("The repository's main checkout is missing.");
-      }
-
-      if (busy(workspace, path)) {
-        throw new Error("Close its terminals to remove it.");
       }
 
       const key = `${machine.id}:${path}`;
@@ -88,4 +92,34 @@ export function useRemoveWorktree(machine: Machine, workspace: Workspace) {
       });
     },
   });
+}
+
+export function useRemoval(
+  machine: Machine,
+  workspace: Workspace,
+  path: string,
+) {
+  const remove = useRemoveWorktree(machine, workspace);
+  const [confirming, setConfirming] = useState(false);
+  const pending =
+    useIsMutating({
+      mutationKey: removalKey(machine),
+      predicate: ({ state }) => state.variables === path,
+    }) > 0;
+
+  const request = () => {
+    if (working(workspace, path).length > 0) {
+      setConfirming(true);
+      return;
+    }
+
+    remove.mutate(path);
+  };
+
+  return {
+    pending,
+    confirming,
+    setConfirming,
+    request,
+  };
 }

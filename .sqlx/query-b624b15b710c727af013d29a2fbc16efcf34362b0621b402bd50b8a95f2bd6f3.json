@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE tiles SET position = ? WHERE tile = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "b624b15b710c727af013d29a2fbc16efcf34362b0621b402bd50b8a95f2bd6f3"
+}

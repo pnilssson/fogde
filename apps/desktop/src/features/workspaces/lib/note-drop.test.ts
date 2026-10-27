@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from "vitest";
 
 import { store } from "@/features/workspaces/lib/layouts";
 import { canDropNote, dropNote } from "@/features/workspaces/lib/note-drop";
-import { openStart } from "@/features/workspaces/lib/opening";
+import { openStart, placeTile } from "@/features/workspaces/lib/opening";
 import { attach, sync } from "@/features/workspaces/lib/tiles";
 import { noteDragProps } from "@/lib/note-drag";
 
@@ -37,12 +37,6 @@ function groupOf(api: DockviewApi, id: string) {
   return panel.group;
 }
 
-function notes(api: DockviewApi) {
-  return api.panels
-    .filter((panel) => panel.view.contentComponent === "notes")
-    .map(({ params }) => params);
-}
-
 function drag(item: { machine: string; path: string }) {
   const data = { setData: () => undefined, effectAllowed: "none" };
   noteDragProps(item).onDragStart({
@@ -56,45 +50,60 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+const a = { kind: "terminal" as const, machine: "m1", id: "a" };
+
+function actions() {
+  return { paste: vi.fn(), show: vi.fn(), open: vi.fn() };
+}
+
 test("a note dropped on a terminal pastes its path there", () => {
   const api = dockview();
-  sync([{ machine: "m1", id: "a" }], () => false);
-  const paste = vi.fn();
+  sync([a], () => false);
+  const done = actions();
 
-  dropNote(note, "center", groupOf(api, "m1:a"), paste);
+  dropNote("center", groupOf(api, "m1:a"), done);
 
-  expect(paste).toHaveBeenCalledWith({ machine: "m1", id: "a" });
-  expect(notes(api)).toEqual([]);
+  expect(done.paste).toHaveBeenCalledWith({ machine: "m1", id: "a" });
+  expect(done.open).not.toHaveBeenCalled();
 });
 
 test("a note dropped on an edge opens in a new tile beside it", () => {
   const api = dockview();
-  sync([{ machine: "m1", id: "a" }], () => false);
+  sync([a], () => false);
+  const done = actions();
+  const group = groupOf(api, "m1:a");
 
-  dropNote(note, "left", groupOf(api, "m1:a"), vi.fn());
+  dropNote("left", group, done);
 
-  expect(notes(api)).toEqual([{ machine: "m1", note: note.path }]);
-  expect(api.groups).toHaveLength(2);
+  expect(done.open).toHaveBeenCalledWith({ position: "left", group });
 });
 
-test("a note dropped on a notes tile or the new tile shows it there", () => {
+test("a note dropped on a notes tile shows it there", () => {
+  const api = dockview();
+  sync([{ kind: "note", machine: "m1", id: "note-1" }], () => false);
+  const done = actions();
+
+  dropNote("center", groupOf(api, "m1:note-1"), done);
+
+  expect(done.show).toHaveBeenCalledWith({ machine: "m1", id: "note-1" });
+});
+
+test("a note dropped on the new tile opens in its place", () => {
   const api = dockview();
   openStart("/repos/app");
-  dropNote(note, "center", groupOf(api, "start"), vi.fn());
-  const [tile] = api.panels;
+  const done = actions();
 
+  dropNote("center", groupOf(api, "start"), done);
+  placeTile({ machine: "m1", id: "w1" }, "note", "note-1");
+
+  expect(done.open).toHaveBeenCalledWith(undefined);
   expect(api.getPanel("start")).toBeUndefined();
-  expect(notes(api)).toEqual([{ machine: "m1", note: note.path }]);
-
-  const other = { machine: "m1", path: "/notes/backlog.md" };
-  dropNote(other, "center", tile?.group, vi.fn());
-
-  expect(notes(api)).toEqual([{ machine: "m1", note: other.path }]);
+  expect(api.panels.map(({ id }) => id)).toEqual(["m1:note-1"]);
 });
 
 test("a note drops only into a workspace on its own machine", () => {
   const api = dockview();
-  sync([{ machine: "m1", id: "a" }], () => false);
+  sync([a], () => false);
 
   drag(note);
   expect(canDropNote(groupOf(api, "m1:a"), "center")).toBe(true);

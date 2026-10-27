@@ -1,6 +1,7 @@
 import type { DockviewPanelApi } from "dockview-react";
 import { createContext, type ReactNode } from "react";
 
+import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 interface TerminalProps {
@@ -22,6 +23,15 @@ interface NotesProps {
 export type RenderNotes = (props: NotesProps) => ReactNode;
 
 export const NotesSlot = createContext<RenderNotes>(() => null);
+
+interface MonitorProps {
+  machine: Machine;
+  workspaces: Workspace[];
+}
+
+export type RenderMonitor = (props: MonitorProps) => ReactNode;
+
+export const MonitorSlot = createContext<RenderMonitor>(() => null);
 
 interface PaletteNotesProps {
   machine: Machine;

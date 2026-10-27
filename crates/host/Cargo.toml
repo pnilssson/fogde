@@ -19,6 +19,7 @@ getrandom.workspace = true
 git.workspace = true
 github.workspace = true
 herdr-client.workspace = true
+hex.workspace = true
 notify-debouncer-mini.workspace = true
 protocol.workspace = true
 remote.workspace = true
@@ -26,6 +27,8 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 sqlx.workspace = true
+starship-battery.workspace = true
+sysinfo.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["fs", "io-std", "io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-tungstenite.workspace = true

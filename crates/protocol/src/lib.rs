@@ -7,6 +7,7 @@ pub mod github;
 pub mod health;
 pub mod machines;
 mod method;
+pub mod monitor;
 pub mod notes;
 pub mod notifications;
 pub mod onboarding;

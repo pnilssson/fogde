@@ -1,15 +1,10 @@
 import type { DockviewGroupPanel, Position } from "dockview-react";
-import { positionToDirection } from "dockview-react";
 
 import { store } from "@/features/workspaces/lib/layouts";
-import {
-  notesPanel,
-  openNotes,
-  showNote,
-} from "@/features/workspaces/lib/opening";
+import type { Spot } from "@/features/workspaces/lib/opening";
 import { Selection } from "@/features/workspaces/lib/selection";
 import { dockview } from "@/features/workspaces/lib/tiles";
-import { draggingNote, type NoteDrag } from "@/lib/note-drag";
+import { draggingNote } from "@/lib/note-drag";
 
 export function canDropNote(
   group: DockviewGroupPanel | undefined,
@@ -26,42 +21,38 @@ export function canDropNote(
   );
 }
 
+interface Actions {
+  paste: (terminal: Selection) => void;
+  show: (tile: Selection) => void;
+  open: (spot: Spot | undefined) => void;
+}
+
 export function dropNote(
-  note: NoteDrag,
   position: Position,
   group: DockviewGroupPanel | undefined,
-  paste: (terminal: Selection) => void,
+  { paste, show, open }: Actions,
 ) {
-  const api = dockview();
-  if (!api) {
-    return;
-  }
-
   const panel = group?.activePanel;
   if (panel && position === "center") {
+    const tile = Selection.safeParse(panel.params).data;
     switch (panel.view.contentComponent) {
-      case "terminal": {
-        const terminal = Selection.safeParse(panel.params).data;
-        if (terminal) {
-          paste(terminal);
+      case "terminal":
+        if (tile) {
+          paste(tile);
           panel.focus();
         }
         return;
-      }
       case "notes":
-        showNote(panel.api, { machine: note.machine, note: note.path });
-        panel.focus();
+        if (tile) {
+          show(tile);
+          panel.focus();
+        }
         return;
       case "start":
-        openNotes(note.machine, note.path);
+        open(undefined);
         return;
     }
   }
 
-  const direction =
-    position === "center" ? "right" : positionToDirection(position);
-  api.addPanel({
-    ...notesPanel(note.machine, note.path),
-    position: group ? { referenceGroup: group, direction } : { direction },
-  });
+  open({ position, group });
 }

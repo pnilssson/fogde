@@ -1,8 +1,15 @@
+mod events;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::Method;
 use crate::agents::Agent;
-use crate::{Event, Method};
+
+pub use events::{
+    EndedEvent, FailedEvent, FrameEvent, ScrolledEvent, StateEvent, TerminalEnded, TerminalFailed,
+    TerminalFrame, TerminalScrolled,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
 pub struct Terminal {
@@ -113,6 +120,13 @@ pub struct ScrollTerminalParams {
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
+pub struct ClickTerminalParams {
+    pub id: String,
+    pub column: u16,
+    pub row: u16,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
 pub struct SeekTerminalParams {
     pub id: String,
     pub offset: u32,
@@ -134,36 +148,6 @@ pub struct PasteImageParams {
     pub id: String,
     pub image: Image,
     pub data: String,
-}
-
-#[derive(Clone, Debug, Serialize, TS)]
-pub struct TerminalFrame {
-    pub id: String,
-    pub cols: u16,
-    pub rows: u16,
-    pub full: bool,
-    pub data: String,
-}
-
-#[derive(Clone, Debug, Serialize, TS)]
-pub struct TerminalScrolled {
-    pub id: String,
-    pub offset: u32,
-    pub max: u32,
-    pub rows: u32,
-}
-
-#[derive(Clone, Debug, Serialize, TS)]
-pub struct TerminalEnded {
-    pub id: String,
-    pub error: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize, TS)]
-pub struct TerminalFailed {
-    pub id: String,
-    pub agent: Agent,
-    pub error: String,
 }
 
 pub struct CreateTerminal;
@@ -230,6 +214,14 @@ impl Method for ScrollTerminal {
     type Result = ();
 }
 
+pub struct ClickTerminal;
+
+impl Method for ClickTerminal {
+    const NAME: &'static str = "terminals.click";
+    type Params = ClickTerminalParams;
+    type Result = ();
+}
+
 pub struct SeekTerminal;
 
 impl Method for SeekTerminal {
@@ -252,39 +244,4 @@ impl Method for ViewTerminal {
     const NAME: &'static str = "terminals.view";
     type Params = Option<String>;
     type Result = ();
-}
-
-pub struct FrameEvent;
-
-impl Event for FrameEvent {
-    const NAME: &'static str = "terminals.frame";
-    type Params = TerminalFrame;
-}
-
-pub struct ScrolledEvent;
-
-impl Event for ScrolledEvent {
-    const NAME: &'static str = "terminals.scrolled";
-    type Params = TerminalScrolled;
-}
-
-pub struct StateEvent;
-
-impl Event for StateEvent {
-    const NAME: &'static str = "terminals.state";
-    type Params = TerminalState;
-}
-
-pub struct EndedEvent;
-
-impl Event for EndedEvent {
-    const NAME: &'static str = "terminals.ended";
-    type Params = TerminalEnded;
-}
-
-pub struct FailedEvent;
-
-impl Event for FailedEvent {
-    const NAME: &'static str = "terminals.failed";
-    type Params = TerminalFailed;
 }

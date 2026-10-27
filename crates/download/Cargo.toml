@@ -6,6 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+hex.workspace = true
 process.workspace = true
 sha2.workspace = true
 thiserror.workspace = true

@@ -2,7 +2,7 @@ use herdr_client::{Pane, Workspace};
 use protocol::agents::Agent;
 use protocol::terminals::{Status, TerminalState};
 
-use super::Git;
+use super::{Git, Model};
 use crate::terminals::{launch, title};
 
 pub(super) fn describe(
@@ -12,6 +12,7 @@ pub(super) fn describe(
     viewed: bool,
     detected: bool,
     git: &Git,
+    model: Option<&Model>,
 ) -> TerminalState {
     let reported = pane
         .and_then(|pane| pane.agent.as_deref())
@@ -32,6 +33,9 @@ pub(super) fn describe(
         id: workspace.id.clone(),
         name,
         agent,
+        model: model
+            .filter(|model| Some(model.agent) == agent)
+            .and_then(|model| model.name.clone()),
         status: status(herdr, previous.map(|state| state.status), viewed),
         branch: git.branches.get(&folder).cloned().flatten(),
         changes: git.changes.get(&folder).cloned(),

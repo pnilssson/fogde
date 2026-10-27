@@ -142,6 +142,7 @@ mod tests {
             id: id.to_owned(),
             name: "Terminal".to_owned(),
             agent: None,
+            model: None,
             status,
             folder: "/repos/app".to_owned(),
             branch: None,

@@ -14,6 +14,7 @@ use crate::monitor::Monitor;
 use crate::notes::Notes;
 use crate::settings::Settings;
 use crate::shell;
+use crate::terminals::codex::{self, Wrap};
 use crate::terminals::{self, Tracker};
 use crate::usage::Meter;
 use crate::workspaces::{Searches, Watch};
@@ -31,13 +32,15 @@ pub struct Shared {
     pub usage: Meter,
     pub monitor: Monitor,
     fogde: PathBuf,
+    launcher: Option<PathBuf>,
+    codex: Mutex<()>,
     tools: PathBuf,
     gh: OnceCell<Gh>,
     herdr: OnceCell<Herdr>,
 }
 
 impl Shared {
-    pub fn new(binaries: Option<Binaries>) -> io::Result<Self> {
+    pub fn new(binaries: Option<Binaries>, launcher: Option<PathBuf>) -> io::Result<Self> {
         let fogde = fogde()?;
         let app = fogde.join(".app");
 
@@ -55,6 +58,8 @@ impl Shared {
             monitor: Monitor::default(),
             tools: app.join("tools"),
             fogde,
+            launcher,
+            codex: Mutex::default(),
             gh: OnceCell::new(),
             herdr: OnceCell::new(),
         };
@@ -81,6 +86,16 @@ impl Shared {
                 Ok(herdr)
             })
             .await
+    }
+
+    pub async fn codex(&self) -> Wrap {
+        let _preparing = self.codex.lock().await;
+
+        codex::prepare(
+            &self.fogde.join(".app").join("shell"),
+            self.launcher.as_deref(),
+        )
+        .await
     }
 
     pub fn running_herdr(&self) -> Option<&Herdr> {

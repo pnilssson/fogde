@@ -13,6 +13,7 @@ agents = { path = "crates/agents" }
 anyhow = "1.0.104"
 axum = "0.8.9"
 base64 = "0.23.1"
+ctrlc = "3.5.2"
 download = { path = "crates/download" }
 file-id = { version = "0.2.3", features = ["serde"] }
 filetime = "0.2.29"

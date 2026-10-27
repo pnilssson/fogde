@@ -11,12 +11,19 @@ const SHELL_WAIT: Duration = Duration::from_secs(10);
 const RETRY: Duration = Duration::from_millis(50);
 
 impl Client {
-    pub async fn start_agent(&self, name: &str, kind: &str, pane: &str) -> Result<(), Error> {
+    pub async fn start_agent(
+        &self,
+        name: &str,
+        kind: &str,
+        args: &[&str],
+        pane: &str,
+    ) -> Result<(), Error> {
         let deadline = Instant::now() + SHELL_WAIT;
         loop {
             let request = Start {
                 name,
                 kind,
+                args,
                 pane_id: pane,
             };
             match self.request::<IgnoredAny>("agent.start", request).await {
@@ -33,6 +40,7 @@ impl Client {
 struct Start<'a> {
     name: &'a str,
     kind: &'a str,
+    args: &'a [&'a str],
     pane_id: &'a str,
 }
 
@@ -56,8 +64,24 @@ mod tests {
         );
 
         Client::new(&socket)
-            .start_agent("codex-w4", "codex", "w4:p1")
+            .start_agent("codex-w4", "codex", &["--no-daemon"], "w4:p1")
             .await
             .unwrap();
+    }
+
+    #[test]
+    fn writes_start_with_agent_arguments() {
+        let start = serde_json::to_value(Start {
+            name: "codex-w4",
+            kind: "codex",
+            args: &["--no-daemon"],
+            pane_id: "w4:p1",
+        })
+        .unwrap();
+
+        assert_eq!(
+            start,
+            serde_json::json!({"name": "codex-w4", "kind": "codex", "args": ["--no-daemon"], "pane_id": "w4:p1"})
+        );
     }
 }

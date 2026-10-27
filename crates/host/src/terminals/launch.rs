@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use herdr_client::{Client, Pane};
@@ -47,7 +47,10 @@ pub fn start(client: Client, launch: Launch, outgoing: mpsc::UnboundedSender<Mes
     let pane = pane.id;
 
     tokio::spawn(async move {
-        let Err(error) = client.start_agent(&name, agent.spec().command, &pane).await else {
+        let Err(error) = client
+            .start_agent(&name, agent.spec().command, args(agent), &pane)
+            .await
+        else {
             return;
         };
 
@@ -64,6 +67,13 @@ pub fn start(client: Client, launch: Launch, outgoing: mpsc::UnboundedSender<Mes
             },
         );
     });
+}
+
+fn args(agent: Agent) -> &'static [&'static str] {
+    match agent {
+        Agent::Codex => &["--no-daemon"],
+        Agent::Claude | Agent::Copilot => &[],
+    }
 }
 
 pub fn launched(label: &str) -> Option<Agent> {
@@ -86,13 +96,9 @@ pub fn agent(command: &str) -> Option<Agent> {
         .find(|agent| agent.spec().command == command)
 }
 
-pub fn path_with(program: &Path) -> String {
+pub fn path_with(first: &[PathBuf]) -> String {
     let current = std::env::var_os("PATH").unwrap_or_default();
-    let dirs = program
-        .parent()
-        .map(Path::to_path_buf)
-        .into_iter()
-        .chain(std::env::split_paths(&current));
+    let dirs = first.iter().cloned().chain(std::env::split_paths(&current));
 
     std::env::join_paths(dirs).map_or_else(
         |_| current.to_string_lossy().into_owned(),

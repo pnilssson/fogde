@@ -4,7 +4,7 @@ default:
     @just --list
 
 [env("FOGDE_HOME", home_directory() / "Fogde-dev")]
-dev: server
+dev: server shim
     npm run --prefix apps/desktop tauri dev -- --config src-tauri/tauri.dev.conf.json
 
 # The host for 64-bit Linux servers, which the app installs over SSH. Zig cross-compiles its C parts.
@@ -12,8 +12,16 @@ server:
     cargo zigbuild -p host --bin fogde-host --release --target x86_64-unknown-linux-musl
     cargo zigbuild -p host --bin fogde-host --release --target aarch64-unknown-linux-musl
 
-build: server
-    npm run --prefix apps/desktop tauri build -- --config src-tauri/tauri.release.conf.json
+build: server (shim "--release")
+    npm run --prefix apps/desktop tauri build -- --config src-tauri/tauri.release.conf.json {{ if os() == "windows" { "--config src-tauri/tauri.release.windows.conf.json" } else { "" } }}
+
+# The codex launcher Windows terminals find first on PATH; on macOS and Linux the shell wraps codex instead.
+[windows]
+shim *flags:
+    cargo build -p shim {{ flags }}
+
+[unix]
+shim *flags:
 
 # The app icons, from a full-bleed tile and a macOS tile with the margin macOS expects around it.
 icons:

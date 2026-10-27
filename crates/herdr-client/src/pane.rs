@@ -36,6 +36,11 @@ pub struct Scrollback {
     pub rows: u64,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+pub struct Process {
+    pub pid: u32,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 pub enum Key {
     #[serde(rename = "shift+enter")]
@@ -69,6 +74,14 @@ impl Client {
         Ok(list.panes)
     }
 
+    pub async fn processes(&self, pane: &str) -> Result<Vec<Process>, Error> {
+        let info: Info = self
+            .request("pane.process_info", Target { pane_id: pane })
+            .await?;
+
+        Ok(info.process_info.foreground_processes)
+    }
+
     pub async fn focus_pane(&self, pane: &str) -> Result<(), Error> {
         self.request::<IgnoredAny>("pane.focus", Target { pane_id: pane })
             .await?;
@@ -90,11 +103,11 @@ impl Client {
     }
 
     pub async fn shell(&self, pane: &str) -> Result<Option<u32>, Error> {
-        let reply: ProcessReply = self
+        let info: Info = self
             .request("pane.process_info", Target { pane_id: pane })
             .await?;
 
-        Ok(reply.process_info.shell_pid)
+        Ok(info.process_info.shell_pid)
     }
 
     pub async fn send_keys(&self, pane: &str, keys: &[Key]) -> Result<(), Error> {
@@ -116,19 +129,21 @@ struct PaneList {
     panes: Vec<Pane>,
 }
 
+#[derive(Deserialize)]
+struct Info {
+    process_info: ProcessInfo,
+}
+
 #[derive(Serialize)]
 struct Target<'a> {
     pane_id: &'a str,
 }
 
 #[derive(Deserialize)]
-struct ProcessReply {
-    process_info: ProcessInfo,
-}
-
-#[derive(Deserialize)]
 struct ProcessInfo {
     shell_pid: Option<u32>,
+    #[serde(default)]
+    foreground_processes: Vec<Process>,
 }
 
 #[derive(Serialize)]
@@ -148,6 +163,8 @@ mod tests {
     use super::*;
 
     const LIST: &str = r#"{"panes":[{"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"0f6e1c52-3a7b-4d2e-9c1a-5b8e2f4d7a10"},"agent_status":"idle","cwd":"C:\\Users\\dev\\app","focused":true,"pane_id":"w3:p1","revision":10,"scroll":{"max_offset_from_bottom":0,"offset_from_bottom":0,"viewport_rows":56},"tab_id":"w3:t1","terminal_id":"term_65e188ff9e68f3","terminal_title":"✳ Claude Code","terminal_title_stripped":"Claude Code","workspace_id":"w3"},{"agent_status":"unknown","cwd":"C:\\Users\\dev\\notes","focused":false,"pane_id":"w3:p2","revision":0,"scroll":{"max_offset_from_bottom":20,"offset_from_bottom":0,"viewport_rows":14},"tab_id":"w3:t1","terminal_id":"term_65e188ff9f8c04","workspace_id":"w3"}],"type":"pane_list"}"#;
+
+    const PROCESSES: &str = r#"{"type":"pane_process_info","process_info":{"pane_id":"w3:p1","shell_pid":34528,"foreground_process_group_id":5332,"foreground_processes":[{"pid":5332,"name":"copilot.exe","argv0":"C:\\Program Files\\Copilot\\copilot.exe","argv":["C:\\Program Files\\Copilot\\copilot.exe"],"cmdline":"\"C:\\Program Files\\Copilot\\copilot.exe\"","cwd":"C:\\Users\\dev\\app\\"}]}}"#;
 
     #[test]
     fn reads_agent_and_shell_panes() {
@@ -194,9 +211,29 @@ mod tests {
 
     #[test]
     fn reads_the_shell_process() {
-        let reply: ProcessReply = crate::client::reply(PROCESS).unwrap();
+        let reply: Info = crate::client::reply(PROCESS).unwrap();
 
         assert_eq!(reply.process_info.shell_pid, Some(3742));
+    }
+
+    #[test]
+    fn reads_foreground_processes() {
+        let info: Info = serde_json::from_str(PROCESSES).unwrap();
+
+        assert_eq!(
+            info.process_info.foreground_processes,
+            vec![Process { pid: 5332 }]
+        );
+    }
+
+    #[test]
+    fn reads_a_pane_without_foreground_processes() {
+        let info: Info = serde_json::from_str(
+            r#"{"type":"pane_process_info","process_info":{"pane_id":"w3:p1"}}"#,
+        )
+        .unwrap();
+
+        assert_eq!(info.process_info.foreground_processes, []);
     }
 
     #[test]

@@ -1,0 +1,19 @@
+[package]
+name = "shim"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "codex"
+path = "src/main.rs"
+
+[target.'cfg(windows)'.dependencies]
+ctrlc.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

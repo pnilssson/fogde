@@ -58,7 +58,7 @@ pub async fn serve(build: String) -> io::Result<()> {
     tracing::info!(%build, "host started");
 
     let daemon = Arc::new(Daemon {
-        shared: Arc::new(Shared::new(None)?),
+        shared: Arc::new(Shared::new(None, None)?),
         build,
         id,
         stop: Notify::new(),

@@ -2,6 +2,7 @@ mod agent;
 mod error;
 mod install;
 pub mod limits;
+mod model;
 mod signin;
 mod status;
 
@@ -10,6 +11,7 @@ use protocol::agents::Agent;
 
 pub use agent::{State, install, state};
 pub use error::Error;
+pub use model::model;
 pub use signin::{Prompt, SignIn};
 
 pub async fn states() -> Result<Vec<(Agent, State)>, Error> {

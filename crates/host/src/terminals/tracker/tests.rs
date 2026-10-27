@@ -64,6 +64,7 @@ async fn a_session_that_falls_behind_gets_every_current_state() {
             id: format!("w{index}"),
             name: "Claude".into(),
             agent: None,
+            model: None,
             status: Status::Working,
             folder: "/repos/app".into(),
             branch: Some("main".into()),
@@ -196,4 +197,19 @@ fn a_shell_title_before_claude_starts_is_not_its_task() {
     });
 
     assert_eq!(names, ["Claude", "Claude", "Rust crates in folder"]);
+}
+
+#[tokio::test]
+async fn an_agent_whose_processes_cannot_be_read_waits_for_its_next_status() {
+    let tracker = Tracker::default();
+    let dir = tempfile::tempdir().unwrap();
+    let client = Client::new(&dir.path().join("herdr.sock"));
+
+    tracker.read_models(&client, &[pane(Some("claude"))]).await;
+
+    assert!(
+        lock(&tracker.models)
+            .get("w1")
+            .is_some_and(|model| model.name.is_none())
+    );
 }

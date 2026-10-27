@@ -15,16 +15,18 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { Keys } from "@/components/keys";
 import { NameDialog } from "@/features/notes/components/name-dialog";
 import type { Entry } from "@/features/notes/hooks/use-note-files";
-import { report } from "@/lib/report";
+import { copyPath } from "@/features/notes/lib/copy";
+import { pressed, shortcuts } from "@/lib/shortcuts";
 
 export interface EntryActions {
   onRename: (path: string, name: string) => Promise<unknown>;
   onDelete: (path: string) => void;
-  onInsert?: ((path: string) => void) | undefined;
 }
 
 interface Props extends EntryActions {
@@ -36,12 +38,6 @@ interface Props extends EntryActions {
   onCreate?: (kind: Entry) => void;
 }
 
-function copy(path: string) {
-  navigator.clipboard.writeText(path).catch((error: unknown) => {
-    report("Could not copy the path", error);
-  });
-}
-
 export function EntryMenu({
   kind,
   name,
@@ -51,16 +47,26 @@ export function EntryMenu({
   onCreate,
   onRename,
   onDelete,
-  onInsert,
 }: Props) {
+  const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   return (
     <>
-      <ContextMenu>
+      <ContextMenu open={open} onOpenChange={setOpen}>
         <ContextMenuTrigger render={trigger}>{children}</ContextMenuTrigger>
-        <ContextMenuContent>
+        <ContextMenuContent
+          onKeyDown={(event) => {
+            if (!pressed(event.nativeEvent, shortcuts.path)) {
+              return;
+            }
+
+            event.preventDefault();
+            copyPath(path);
+            setOpen(false);
+          }}
+        >
           {onCreate && (
             <>
               <ContextMenuItem
@@ -80,21 +86,15 @@ export function EntryMenu({
               <ContextMenuSeparator />
             </>
           )}
-          {onInsert && (
-            <ContextMenuItem
-              onClick={() => {
-                onInsert(path);
-              }}
-            >
-              Insert path
-            </ContextMenuItem>
-          )}
           <ContextMenuItem
             onClick={() => {
-              copy(path);
+              copyPath(path);
             }}
           >
             Copy path
+            <ContextMenuShortcut>
+              <Keys letter={shortcuts.path} />
+            </ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem
             onClick={() => {

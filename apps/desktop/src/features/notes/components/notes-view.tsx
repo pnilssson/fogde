@@ -37,10 +37,9 @@ interface Props {
   machine: Machine;
   note: string | undefined;
   onOpen: (note: string) => void;
-  onInsert: ((path: string) => void) | undefined;
 }
 
-export function NotesView({ machine, note, onOpen, onInsert }: Props) {
+export function NotesView({ machine, note, onOpen }: Props) {
   const list = useQuery(notesQuery(machine));
   const order = useOrder();
   const browsing = useListShown();
@@ -112,7 +111,6 @@ export function NotesView({ machine, note, onOpen, onInsert }: Props) {
                 onDelete: (path) => {
                   files.remove.mutate(path);
                 },
-                onInsert,
               }}
             />
           </ScrollArea>

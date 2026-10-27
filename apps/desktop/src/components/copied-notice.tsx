@@ -1,6 +1,12 @@
 import { CheckIcon } from "@phosphor-icons/react";
 
-export function CopiedNotice({ copied }: { copied: boolean }) {
+export function CopiedNotice({
+  copied,
+  label,
+}: {
+  copied: boolean;
+  label: string;
+}) {
   return (
     <div
       role="status"
@@ -9,7 +15,7 @@ export function CopiedNotice({ copied }: { copied: boolean }) {
       {copied && (
         <div className="flex animate-in items-center gap-2 rounded-lg bg-popover px-4 py-2 type-body text-popover-foreground shadow-surface-5 duration-150 ease-out fade-in-0">
           <CheckIcon aria-hidden />
-          Copied
+          {label}
         </div>
       )}
     </div>

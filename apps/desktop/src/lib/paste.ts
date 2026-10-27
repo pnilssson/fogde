@@ -6,7 +6,3 @@ export function bracket(text: string) {
 
   return `\x1b[200~${clean}\x1b[201~`;
 }
-
-export function pastePath(path: string) {
-  return bracket(/^[\w./\\:~-]+$/.test(path) ? path : `"${path}"`);
-}

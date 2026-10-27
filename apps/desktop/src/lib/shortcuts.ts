@@ -5,7 +5,7 @@ export const shortcuts = {
   attention: "G",
   tile: "T",
   close: "W",
-  insert: "P",
+  path: "P",
   settings: ",",
 } as const;
 

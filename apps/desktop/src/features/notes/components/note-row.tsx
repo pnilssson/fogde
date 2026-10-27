@@ -30,7 +30,6 @@ export function NoteRow({
   onOpen,
   onRename,
   onDelete,
-  onInsert,
 }: Props) {
   const Item = nested ? SidebarMenuSubItem : SidebarMenuItem;
   const Button = nested ? SubButton : SidebarMenuButton;
@@ -51,7 +50,6 @@ export function NoteRow({
         }
         onRename={onRename}
         onDelete={onDelete}
-        onInsert={onInsert}
       >
         <FileTextIcon />
         <span className="min-w-0 flex-1 truncate">{note.name}</span>

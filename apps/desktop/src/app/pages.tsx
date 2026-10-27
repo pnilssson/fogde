@@ -1,17 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-import { Keys } from "@/components/keys";
+import { CopiedNotice } from "@/components/copied-notice";
 import { PageFrame } from "@/components/page-frame";
-import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
 import { MonitorView } from "@/features/monitor/components/monitor-view";
 import { notesQuery } from "@/features/notes/api/notes";
 import { ListToggle } from "@/features/notes/components/list-toggle";
 import { NotesView } from "@/features/notes/components/notes-view";
+import { copyPath, usePathCopied } from "@/features/notes/lib/copy";
 import { inDialog } from "@/features/workspaces/hooks/use-shortcuts";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
-import { store, useTiles } from "@/features/workspaces/lib/layouts";
+import { store } from "@/features/workspaces/lib/layouts";
 import type { View } from "@/features/workspaces/lib/selection";
 import { show } from "@/features/workspaces/lib/tiles";
 import type { Workspace } from "@/generated/protocol";
@@ -24,8 +23,6 @@ import {
   usePageMachine,
   useShownNote,
 } from "@/lib/page";
-import { pastePath } from "@/lib/paste";
-import { report } from "@/lib/report";
 import { pressed, shortcuts } from "@/lib/shortcuts";
 
 type Groups = ReturnType<typeof useGroups>;
@@ -87,68 +84,26 @@ function NotesPage(frame: FrameProps) {
   const shown = list.data?.notes.some(({ path }) => path === note)
     ? note
     : undefined;
-  const target = useTiles(({ active }) => active);
-  const insert = (path: string) => {
-    if (target?.machine !== machine.id) {
-      toast.add({
-        type: "error",
-        title: "No terminal to insert into",
-        description: `Click a terminal on ${machine.name} first.`,
-      });
-      return;
-    }
+  const copied = usePathCopied();
 
-    machine.client
-      .call("terminals.input", { id: target.id, data: pastePath(path) })
-      .then(() => {
-        leavePage(() => {
-          show(target);
-        });
-      })
-      .catch((error: unknown) => {
-        report("Could not insert the note path", error);
-      });
-  };
-
-  useInsertShortcut(
+  useCopyShortcut(
     shown
       ? () => {
-          insert(shown);
+          copyPath(shown);
         }
       : undefined,
   );
 
   return (
-    <PageFrame
-      title="Notes"
-      {...frame}
-      leading={<ListToggle />}
-      actions={
-        shown && (
-          <Button
-            variant="secondary"
-            size="xs"
-            onClick={() => {
-              insert(shown);
-            }}
-          >
-            Insert path
-            <Keys
-              letter={shortcuts.insert}
-              className="ml-1 bg-transparent px-0"
-            />
-          </Button>
-        )
-      }
-    >
+    <PageFrame title="Notes" {...frame} leading={<ListToggle />}>
       <NotesView
         machine={machine}
         note={note}
         onOpen={(next) => {
           openNote(machine.id, next);
         }}
-        onInsert={insert}
       />
+      <CopiedNotice copied={copied} label="Path copied" />
     </PageFrame>
   );
 }
@@ -173,7 +128,7 @@ function back() {
   });
 }
 
-function useInsertShortcut(action: (() => void) | undefined) {
+function useCopyShortcut(action: (() => void) | undefined) {
   const current = useRef(action);
 
   useEffect(() => {
@@ -183,8 +138,10 @@ function useInsertShortcut(action: (() => void) | undefined) {
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
       if (
-        !pressed(event, shortcuts.insert) ||
+        !pressed(event, shortcuts.path) ||
         inDialog(event.target) ||
+        (event.target instanceof Element &&
+          event.target.closest('[role="menu"]')) ||
         !current.current
       ) {
         return;

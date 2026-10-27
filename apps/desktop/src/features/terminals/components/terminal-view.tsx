@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { DockviewPanelApi } from "dockview-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import { CopiedNotice } from "@/features/terminals/components/copied-notice";
+import { CopiedNotice } from "@/components/copied-notice";
 import { TerminalScrollbar } from "@/features/terminals/components/terminal-scrollbar";
 import {
   type Status,
@@ -293,7 +293,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
             seek.current(offset);
           }}
         />
-        <CopiedNotice copied={copied} />
+        <CopiedNotice copied={copied} label="Copied" />
       </div>
     </div>
   );

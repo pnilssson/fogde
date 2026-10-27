@@ -129,7 +129,6 @@ function Rows({ folder, nested, note, open, onToggle, actions }: RowsProps) {
                 }}
                 onRename={actions.onRename}
                 onDelete={actions.onDelete}
-                onInsert={actions.onInsert}
               >
                 <CaretRightIcon
                   className={cn(
@@ -167,7 +166,6 @@ function Rows({ folder, nested, note, open, onToggle, actions }: RowsProps) {
           onOpen={actions.onOpen}
           onRename={actions.onRename}
           onDelete={actions.onDelete}
-          onInsert={actions.onInsert}
         />
       ))}
     </>

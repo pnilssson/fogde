@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO tiles (tile, workspace, checkout, position)\n         VALUES (?, ?, ?, (\n             SELECT COALESCE(MAX(position), 0) + 1 FROM tiles\n             WHERE workspace = ? AND checkout IS ?\n         ))\n         ON CONFLICT (tile) DO UPDATE\n         SET workspace = excluded.workspace,\n             checkout = excluded.checkout,\n             position = CASE\n                 WHEN tiles.workspace = excluded.workspace\n                     AND tiles.checkout IS excluded.checkout\n                 THEN tiles.position\n                 ELSE excluded.position\n             END",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "5ee402b57f30f964b53751da05064f0ffe973bf13365c79ac94124b8e5ced0f8"
+}

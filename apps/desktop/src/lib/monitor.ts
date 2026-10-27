@@ -11,8 +11,8 @@ export const barQuery = queryOptions({
 });
 
 export const metrics: { metric: Metric; label: string }[] = [
-  { metric: "cpu", label: "Fogde CPU" },
-  { metric: "memory", label: "Fogde memory" },
+  { metric: "cpu", label: "CPU" },
+  { metric: "memory", label: "Memory" },
   { metric: "battery", label: "Battery drain" },
   { metric: "latency", label: "Connection latency" },
 ];

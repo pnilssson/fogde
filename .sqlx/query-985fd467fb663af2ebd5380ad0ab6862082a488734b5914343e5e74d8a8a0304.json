@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT tile, note FROM tiles WHERE note IS NOT NULL",
+  "query": "SELECT tile, checkout FROM tiles WHERE checkout IS NOT NULL",
   "describe": {
     "columns": [
       {
@@ -15,13 +15,13 @@
         }
       },
       {
-        "name": "note",
+        "name": "checkout",
         "ordinal": 1,
         "type_info": "Text",
         "origin": {
           "Table": {
             "table": "tiles",
-            "name": "note"
+            "name": "checkout"
           }
         }
       }
@@ -34,5 +34,5 @@
       true
     ]
   },
-  "hash": "24a9a5f61c66d3dc09950ba8de0d311b1b32e8a16f3f639faf9b5b4ebac029ef"
+  "hash": "985fd467fb663af2ebd5380ad0ab6862082a488734b5914343e5e74d8a8a0304"
 }

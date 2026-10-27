@@ -18,15 +18,10 @@ export function TerminalLoads({ samples, workspaces }: Props) {
   const heading = useId();
   const latest = samples.at(-1)?.terminals ?? [];
   const rows = workspaces.flatMap((workspace) =>
-    workspace.tiles.flatMap((terminal) => {
-      const load =
-        terminal.kind === "terminal"
-          ? latest.find(({ id }) => id === terminal.id)
-          : undefined;
+    workspace.terminals.flatMap((terminal) => {
+      const load = latest.find(({ id }) => id === terminal.id);
 
-      return terminal.kind === "terminal" && load
-        ? [{ terminal, workspace: workspace.name, load }]
-        : [];
+      return load ? [{ terminal, workspace: workspace.name, load }] : [];
     }),
   );
   if (rows.length === 0) {

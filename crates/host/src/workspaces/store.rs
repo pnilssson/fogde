@@ -1,16 +1,13 @@
 use std::path::Path;
 
 use protocol::terminals::Terminal;
-use protocol::workspaces::{MonitorTile, NoteTile, Tile};
 use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::folders;
 
 mod tiles;
 
-pub use tiles::{
-    arrange, close, follow, members, open_monitor, open_note, place, show_note, terminals_in,
-};
+pub use tiles::{arrange, members, place, terminals_in};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -27,7 +24,7 @@ pub struct Workspace {
     pub id: String,
     pub folder: String,
     pub identity: Option<String>,
-    pub tiles: Vec<Tile>,
+    pub terminals: Vec<Terminal>,
 }
 
 pub struct Listing {
@@ -38,7 +35,7 @@ pub struct Listing {
 pub async fn list(pool: &SqlitePool, terminals: &[Terminal]) -> Result<Listing, Error> {
     let mut tx = pool.begin().await?;
 
-    let known = sqlx::query_scalar!("SELECT tile FROM tiles WHERE kind = 'terminal'")
+    let known = sqlx::query_scalar!("SELECT tile FROM tiles")
         .fetch_all(&mut *tx)
         .await?;
     for id in known
@@ -51,20 +48,14 @@ pub async fn list(pool: &SqlitePool, terminals: &[Terminal]) -> Result<Listing, 
     }
 
     let mut workspaces = stored(&mut tx).await?;
-    let rows = sqlx::query!(
-        "SELECT tile, kind, note, workspace, checkout FROM tiles ORDER BY position, id"
-    )
-    .fetch_all(&mut *tx)
-    .await?;
+    let rows = sqlx::query!("SELECT tile, workspace, checkout FROM tiles ORDER BY position, id")
+        .fetch_all(&mut *tx)
+        .await?;
     tx.commit().await?;
 
     let loose = terminals
         .iter()
-        .filter(|terminal| {
-            !rows
-                .iter()
-                .any(|row| row.kind == "terminal" && row.tile == terminal.id)
-        })
+        .filter(|terminal| !rows.iter().any(|row| row.tile == terminal.id))
         .map(|terminal| terminal.id.clone())
         .collect();
     for row in rows {
@@ -73,30 +64,11 @@ pub async fn list(pool: &SqlitePool, terminals: &[Terminal]) -> Result<Listing, 
             continue;
         };
 
-        let tile = if row.kind == "note" {
-            Some(Tile::Note(NoteTile {
-                id: row.tile,
+        if let Some(terminal) = terminals.iter().find(|terminal| terminal.id == row.tile) {
+            workspace.terminals.push(Terminal {
                 checkout: row.checkout,
-                note: row.note,
-            }))
-        } else if row.kind == "monitor" {
-            Some(Tile::Monitor(MonitorTile {
-                id: row.tile,
-                checkout: row.checkout,
-            }))
-        } else {
-            terminals
-                .iter()
-                .find(|terminal| terminal.id == row.tile)
-                .map(|terminal| {
-                    Tile::Terminal(Terminal {
-                        checkout: row.checkout,
-                        ..terminal.clone()
-                    })
-                })
-        };
-        if let Some(tile) = tile {
-            workspace.tiles.push(tile);
+                ..terminal.clone()
+            });
         }
     }
 
@@ -195,7 +167,7 @@ fn workspace(id: i64, folder: String, identity: Option<String>) -> Workspace {
         id: id.to_string(),
         folder,
         identity,
-        tiles: Vec::new(),
+        terminals: Vec::new(),
     }
 }
 

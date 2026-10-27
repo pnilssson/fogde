@@ -38,7 +38,6 @@ import { mainCheckout } from "@/features/workspaces/lib/checkouts";
 import { setOpen, useOpen } from "@/features/workspaces/lib/layouts";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
 import { attention } from "@/features/workspaces/lib/status";
-import { terminalsOf } from "@/features/workspaces/lib/tile-kinds";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 import { shortcuts } from "@/lib/shortcuts";
@@ -110,7 +109,7 @@ export function WorkspaceItem({
               {workspace.name}
             </span>
             {!open && !down && (
-              <StateIcon status={attention(terminalsOf(workspace))} />
+              <StateIcon status={attention(workspace.terminals)} />
             )}
           </ContextMenuTrigger>
           <ContextMenuContent>

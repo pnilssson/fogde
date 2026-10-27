@@ -62,8 +62,6 @@ export type Memory = { used: number, total: number, };
 
 export type Metric = "cpu" | "memory" | "battery" | "latency";
 
-export type MonitorTile = { id: string, checkout: string | null, };
-
 export type MoveTileParams = { tile: string, before: string | null, };
 
 export type Note = { name: string, path: string, folder: string, modified: number, created: number, };
@@ -72,13 +70,7 @@ export type NoteList = { root: string, folders: Array<string>, notes: Array<Note
 
 export type NoteText = { text: string, version: string, };
 
-export type NoteTile = { id: string, checkout: string | null, note: string | null, };
-
 export type Notifications = { enabled: boolean, sound: boolean, };
-
-export type OpenMonitorParams = { workspace: string, checkout: string | null, };
-
-export type OpenNoteParams = { workspace: string, checkout: string | null, note: string | null, };
 
 export type PasteImageParams = { id: string, image: Image, data: string, };
 
@@ -114,8 +106,6 @@ export type Shell = { program: string | null, };
 
 export type ShellOption = { name: string, program: string, };
 
-export type ShowNoteParams = { tile: string, note: string | null, };
-
 export type Shown = { [key in Agent]?: boolean };
 
 export type SignInCode = { code: string, url: string, };
@@ -150,15 +140,13 @@ export type TerminalState = { id: string, name: string, agent: Agent | null, mod
 
 export type Theme = "system" | "light" | "dark";
 
-export type Tile = { "kind": "terminal" } & Terminal | { "kind": "note" } & NoteTile | { "kind": "monitor" } & MonitorTile;
-
 export type Usage = { agent: Agent, windows: Array<Window>, at: number, };
 
 export type WatchTerminalParams = { id: string, size: Size, };
 
 export type Window = { span: Span, left: number, resets: number, };
 
-export type Workspace = { id: string, name: string, folder: string, missing: boolean, checkouts: Array<Checkout>, tiles: Array<Tile>, };
+export type Workspace = { id: string, name: string, folder: string, missing: boolean, checkouts: Array<Checkout>, terminals: Array<Terminal>, };
 
 export type WriteNoteParams = { path: string, text: string, version: string, };
 
@@ -236,15 +224,11 @@ export type Methods = {
   "usage.getShown": { params: null; result: Shown };
   "usage.list": { params: null; result: Array<Usage> };
   "usage.setShown": { params: Shown; result: null };
-  "workspaces.closeTile": { params: string; result: null };
   "workspaces.create": { params: string; result: Workspace };
   "workspaces.delete": { params: string; result: null };
   "workspaces.list": { params: null; result: Array<Workspace> };
   "workspaces.move": { params: MoveTileParams; result: null };
-  "workspaces.openMonitor": { params: OpenMonitorParams; result: string };
-  "workspaces.openNote": { params: OpenNoteParams; result: string };
   "workspaces.place": { params: PlaceTerminalParams; result: null };
-  "workspaces.showNote": { params: ShowNoteParams; result: null };
   "worktrees.create": { params: CreateWorktreeParams; result: string };
   "worktrees.remove": { params: RemoveWorktreeParams; result: null };
 };

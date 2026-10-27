@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useRef } from "react";
 
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/components/ui/toast";
 import { noteQuery } from "@/features/notes/api/notes";
 import { noteState, replaceText } from "@/features/notes/lib/editor";
@@ -125,12 +126,14 @@ export function NoteEditor({ machine, note, notes, loaded, onOpen }: Props) {
   }, [loaded]);
 
   return (
-    <div
-      ref={container}
-      className="h-full min-h-0 select-text"
-      onKeyDown={(event) => {
-        event.stopPropagation();
-      }}
-    />
+    <ScrollArea className="h-full">
+      <div
+        ref={container}
+        className="flex min-h-full flex-col select-text"
+        onKeyDown={(event) => {
+          event.stopPropagation();
+        }}
+      />
+    </ScrollArea>
   );
 }

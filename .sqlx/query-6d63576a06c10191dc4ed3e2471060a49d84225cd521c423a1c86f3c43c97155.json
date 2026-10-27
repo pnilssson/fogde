@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT tile FROM tiles WHERE kind = 'monitor' AND workspace = ? AND checkout IS ?",
+  "query": "SELECT tile FROM tiles WHERE workspace = ?",
   "describe": {
     "columns": [
       {
@@ -16,11 +16,11 @@
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 1
     },
     "nullable": [
       false
     ]
   },
-  "hash": "79298bc23fb9898cc28ef424bef9a3cc9915ab79a32a9d3e76e397a0381a5362"
+  "hash": "6d63576a06c10191dc4ed3e2471060a49d84225cd521c423a1c86f3c43c97155"
 }

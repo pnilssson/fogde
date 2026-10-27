@@ -17,12 +17,11 @@ import {
   usePaletteOpen,
 } from "@/features/workspaces/lib/palette";
 import { NewWorktree } from "@/features/workspaces/components/new-worktree";
+import { PalettePages } from "@/features/workspaces/components/palette-pages";
 import { PaletteTiles } from "@/features/workspaces/components/palette-tiles";
 import { PaletteWorkspace } from "@/features/workspaces/components/palette-workspace";
 import { RemoveWorktree } from "@/features/workspaces/components/remove-worktree";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
-import { useOpenNote } from "@/features/workspaces/hooks/use-workspaces";
-import { terminalsOf } from "@/features/workspaces/lib/tile-kinds";
 import {
   findWorkspace,
   viewOf,
@@ -38,6 +37,7 @@ import {
 import type { RenderPaletteNotes } from "@/features/workspaces/lib/slot";
 import type { Checkout, Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { closePage, openNote } from "@/lib/page";
 import { setSettingsOpen } from "@/lib/settings-open";
 import { shortcuts } from "@/lib/shortcuts";
 
@@ -129,7 +129,7 @@ function Commands({
 }: CommandsProps) {
   const { groups, workspace } = useContext(WorkspaceContext);
   const found = findWorkspace(groups, workspace);
-  const openNote = useOpenNote();
+  const notesMachine = found?.group.machine ?? groups[0]?.machine;
   const needs = waiting(groups);
   const shown = new Set(needs.map(({ terminal }) => key(terminal)));
   const several = groups.length > 1;
@@ -183,27 +183,19 @@ function Commands({
           onRemoveWorktree={onRemoveWorktree}
         />
       )}
-      {found &&
-        !found.workspace.missing &&
+      {notesMachine &&
         notes({
-          machine: found.group.machine,
+          machine: notesMachine,
           onOpen: (note) => {
             run(() => {
-              openNote.mutate({
-                machine: found.group.machine,
-                view: workspace ?? {
-                  machine: found.group.machine.id,
-                  id: found.workspace.id,
-                },
-                note,
-              });
+              openNote(notesMachine.id, note);
             });
           },
         })}
       <CommandGroup heading="Terminals">
         {groups.flatMap(({ machine, workspaces }) =>
           (workspaces.data ?? []).flatMap((current) =>
-            terminalsOf(current)
+            current.terminals
               .filter(({ id }) => !shown.has(key({ machine: machine.id, id })))
               .map((terminal) => {
                 const selection = { machine: machine.id, id: terminal.id };
@@ -245,6 +237,7 @@ function Commands({
                 keywords={[current.name, machine.name]}
                 onSelect={() => {
                   run(() => {
+                    closePage();
                     selectWorkspace(selection);
                   });
                 }}
@@ -260,6 +253,7 @@ function Commands({
         )}
       </CommandGroup>
       {tiles > 0 && <PaletteTiles tiles={tiles} run={run} />}
+      <PalettePages machine={workspace?.machine} run={run} />
       <CommandGroup heading="App">
         <CommandItem
           value="Settings"

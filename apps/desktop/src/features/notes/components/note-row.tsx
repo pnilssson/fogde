@@ -12,27 +12,25 @@ import {
   EntryMenu,
 } from "@/features/notes/components/entry-menu";
 import type { Note } from "@/generated/protocol";
-import { noteDragProps } from "@/lib/note-drag";
 
 export interface RowActions extends EntryActions {
   onOpen: (path: string) => void;
 }
 
 interface Props extends RowActions {
-  machine: string;
   note: Note;
   active: boolean;
   nested: boolean;
 }
 
 export function NoteRow({
-  machine,
   note,
   active,
   nested,
   onOpen,
   onRename,
   onDelete,
+  onInsert,
 }: Props) {
   const Item = nested ? SidebarMenuSubItem : SidebarMenuItem;
   const Button = nested ? SubButton : SidebarMenuButton;
@@ -46,7 +44,6 @@ export function NoteRow({
         trigger={
           <Button
             isActive={active}
-            {...noteDragProps({ machine, path: note.path })}
             onClick={() => {
               onOpen(note.path);
             }}
@@ -54,6 +51,7 @@ export function NoteRow({
         }
         onRename={onRename}
         onDelete={onDelete}
+        onInsert={onInsert}
       >
         <FileTextIcon />
         <span className="min-w-0 flex-1 truncate">{note.name}</span>

@@ -1,5 +1,4 @@
 use protocol::terminals::Terminal;
-use protocol::workspaces::Tile;
 use sqlx::SqlitePool;
 
 use super::{Workspace, list, place};
@@ -18,45 +17,11 @@ pub fn terminal(id: &str, folder: &str) -> Terminal {
     }
 }
 
-pub fn id(tile: &Tile) -> &str {
-    match tile {
-        Tile::Terminal(terminal) => &terminal.id,
-        Tile::Note(note) => &note.id,
-        Tile::Monitor(monitor) => &monitor.id,
-    }
-}
-
-pub fn checkout(tile: &Tile) -> Option<&str> {
-    match tile {
-        Tile::Terminal(terminal) => terminal.checkout.as_deref(),
-        Tile::Note(note) => note.checkout.as_deref(),
-        Tile::Monitor(monitor) => monitor.checkout.as_deref(),
-    }
-}
-
 pub fn ids(workspace: &Workspace) -> Vec<&str> {
-    workspace.tiles.iter().map(id).collect()
-}
-
-pub fn terminals(workspace: &Workspace) -> Vec<&Terminal> {
     workspace
-        .tiles
+        .terminals
         .iter()
-        .filter_map(|tile| match tile {
-            Tile::Terminal(terminal) => Some(terminal),
-            Tile::Note(_) | Tile::Monitor(_) => None,
-        })
-        .collect()
-}
-
-pub fn notes(workspace: &Workspace) -> Vec<Option<&str>> {
-    workspace
-        .tiles
-        .iter()
-        .filter_map(|tile| match tile {
-            Tile::Note(note) => Some(note.note.as_deref()),
-            Tile::Terminal(_) | Tile::Monitor(_) => None,
-        })
+        .map(|terminal| terminal.id.as_str())
         .collect()
 }
 
@@ -73,9 +38,9 @@ pub async fn order(pool: &SqlitePool, checkout: Option<&str>, terminals: &[&str]
         .collect();
 
     list(pool, &running).await.unwrap().workspaces[0]
-        .tiles
+        .terminals
         .iter()
-        .filter(|tile| self::checkout(tile) == checkout)
-        .map(|tile| id(tile).to_owned())
+        .filter(|terminal| terminal.checkout.as_deref() == checkout)
+        .map(|terminal| terminal.id.clone())
         .collect()
 }

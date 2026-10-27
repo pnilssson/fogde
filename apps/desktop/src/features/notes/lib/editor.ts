@@ -42,9 +42,14 @@ const muted = HighlightStyle.define([
 ]);
 
 const theme = EditorView.theme({
-  "&": { height: "100%", backgroundColor: "transparent" },
+  "&": { flexGrow: 1, backgroundColor: "transparent" },
   "&.cm-focused": { outline: "none" },
-  ".cm-scroller": { fontFamily: "inherit", lineHeight: "inherit" },
+  ".cm-scroller": {
+    flexGrow: 1,
+    overflow: "visible",
+    fontFamily: "inherit",
+    lineHeight: "inherit",
+  },
   ".cm-content": {
     maxWidth: "48rem",
     margin: "0 auto",

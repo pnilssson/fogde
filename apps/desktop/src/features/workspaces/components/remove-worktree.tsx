@@ -11,8 +11,7 @@ import {
 import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
 import { checkoutName, working } from "@/features/workspaces/lib/checkouts";
 import { activity } from "@/features/workspaces/lib/status";
-import type { TerminalTile } from "@/features/workspaces/lib/tile-kinds";
-import type { Checkout, Workspace } from "@/generated/protocol";
+import type { Checkout, Terminal, Workspace } from "@/generated/protocol";
 import { agents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 
@@ -24,7 +23,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-function warning(terminals: TerminalTile[]) {
+function warning(terminals: Terminal[]) {
   const outcome = "Removing it closes its terminals.";
   if (terminals.length > 1) {
     return `${String(terminals.length)} terminals are still busy. ${outcome}`;

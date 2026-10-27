@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 
+import { closePage, pageOpen } from "@/lib/page";
+
 let closer: (() => void) | undefined;
 
 export function useActiveClose(
@@ -22,5 +24,10 @@ export function useActiveClose(
 }
 
 export function closeActive() {
+  if (pageOpen()) {
+    closePage();
+    return;
+  }
+
   closer?.();
 }

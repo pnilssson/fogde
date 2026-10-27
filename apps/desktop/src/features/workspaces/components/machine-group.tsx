@@ -1,8 +1,6 @@
 import {
   ArrowClockwiseIcon,
-  DesktopIcon,
   FolderSimplePlusIcon,
-  HardDrivesIcon,
 } from "@phosphor-icons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { cn } from "cn";
@@ -30,9 +28,9 @@ import { WorkspaceItem } from "@/features/workspaces/components/workspace-item";
 import { useStatus } from "@/features/workspaces/hooks/use-terminals";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
 import type { Workspace } from "@/generated/protocol";
-import { isComputer, type Machine } from "@/lib/machines";
+import type { Machine } from "@/lib/machines";
 
-const action = "static w-7 text-muted-foreground [&>svg]:size-5";
+const action = "static w-7 text-muted-foreground";
 
 interface Props {
   machine: Machine;
@@ -59,20 +57,16 @@ export function MachineGroup({
   };
 
   return (
-    <SidebarGroup className="group/machine py-0">
+    <SidebarGroup className="py-0">
       <div className="flex items-center">
         <ContextMenu disabled={down || loading}>
           <ContextMenuTrigger
             render={
               <SidebarGroupLabel
-                className={cn(
-                  "h-10 min-w-0 flex-1 gap-2 type-title text-muted-foreground [&>svg]:size-5",
-                  down && "opacity-50",
-                )}
+                className={cn("min-w-0 flex-1 gap-2", down && "opacity-50")}
               />
             }
           >
-            {isComputer(machine) ? <DesktopIcon /> : <HardDrivesIcon />}
             <span className="truncate">{machine.name}</span>
           </ContextMenuTrigger>
           <ContextMenuContent>
@@ -118,10 +112,7 @@ export function MachineGroup({
             <TooltipTrigger
               render={
                 <SidebarGroupAction
-                  className={cn(
-                    action,
-                    "opacity-0 group-hover/machine:opacity-100 focus-visible:opacity-100",
-                  )}
+                  className={action}
                   aria-label={`New workspace on ${machine.name}`}
                   onClick={create}
                 />

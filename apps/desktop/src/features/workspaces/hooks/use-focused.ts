@@ -19,9 +19,9 @@ export function useFocused(workspace: Workspace, view: View) {
     return shared ? startId : undefined;
   }
 
-  return workspace.tiles.find(
-    (tile) =>
-      inView(view, tile) &&
-      tileId({ machine: view.machine, id: tile.id }) === focused,
+  return workspace.terminals.find(
+    (terminal) =>
+      inView(view, terminal) &&
+      tileId({ machine: view.machine, id: terminal.id }) === focused,
   )?.id;
 }

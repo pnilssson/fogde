@@ -1,8 +1,4 @@
-import {
-  FilePlusIcon,
-  FolderPlusIcon,
-  SidebarSimpleIcon,
-} from "@phosphor-icons/react";
+import { FilePlusIcon, FolderPlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
@@ -29,6 +25,7 @@ import {
   type Entry,
   useNoteFiles,
 } from "@/features/notes/hooks/use-note-files";
+import { useListShown } from "@/features/notes/lib/list";
 import { view } from "@/features/notes/lib/recent";
 import { useOrder } from "@/features/notes/lib/sort";
 import { buildTree } from "@/features/notes/lib/tree";
@@ -40,12 +37,13 @@ interface Props {
   machine: Machine;
   note: string | undefined;
   onOpen: (note: string) => void;
+  onInsert: ((path: string) => void) | undefined;
 }
 
-export function NotesView({ machine, note, onOpen }: Props) {
+export function NotesView({ machine, note, onOpen, onInsert }: Props) {
   const list = useQuery(notesQuery(machine));
   const order = useOrder();
-  const [browsing, setBrowsing] = useState(true);
+  const browsing = useListShown();
   const [creating, setCreating] = useState(false);
   const [kind, setKind] = useState<Entry>("note");
   const [parent, setParent] = useState<string>();
@@ -82,7 +80,7 @@ export function NotesView({ machine, note, onOpen }: Props) {
 
   return (
     <div className="flex h-full min-h-0">
-      {browsing ? (
+      {browsing && (
         <aside className="flex w-64 min-w-0 shrink-0 flex-col border-r">
           <div className="flex h-8 shrink-0 items-center gap-1 px-2">
             <Action
@@ -100,14 +98,6 @@ export function NotesView({ machine, note, onOpen }: Props) {
               }}
             />
             <SortMenu />
-            <span className="flex-1" />
-            <Action
-              label="Hide notes list"
-              icon={<SidebarSimpleIcon />}
-              onClick={() => {
-                setBrowsing(false);
-              }}
-            />
           </div>
           <ScrollArea className="min-h-0 flex-1">
             <NotesTree
@@ -122,6 +112,7 @@ export function NotesView({ machine, note, onOpen }: Props) {
                 onDelete: (path) => {
                   files.remove.mutate(path);
                 },
+                onInsert,
               }}
             />
           </ScrollArea>
@@ -145,16 +136,6 @@ export function NotesView({ machine, note, onOpen }: Props) {
             }}
           />
         </aside>
-      ) : (
-        <div className="flex shrink-0 flex-col border-r p-1">
-          <Action
-            label="Show notes list"
-            icon={<SidebarSimpleIcon />}
-            onClick={() => {
-              setBrowsing(true);
-            }}
-          />
-        </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
         {open ? (

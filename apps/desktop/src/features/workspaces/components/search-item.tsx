@@ -9,7 +9,7 @@ export function SearchItem({ onOpen }: { onOpen: () => void }) {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        className="text-muted-foreground"
+        className="bg-surface-2 shadow-surface-1 hover:bg-hover"
         onClick={() => {
           onOpen();
           setPaletteOpen(true);
@@ -17,7 +17,7 @@ export function SearchItem({ onOpen }: { onOpen: () => void }) {
       >
         <MagnifyingGlassIcon />
         <span className="min-w-0 flex-1 truncate">Search</span>
-        <Keys letter={shortcuts.palette} />
+        <Keys letter={shortcuts.palette} className="bg-transparent px-0" />
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

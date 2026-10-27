@@ -3,10 +3,6 @@ import { z } from "zod";
 
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import { byAttention, needsYou } from "@/features/workspaces/lib/status";
-import {
-  type NoteTile,
-  terminalsOf,
-} from "@/features/workspaces/lib/tile-kinds";
 import type { Terminal, Workspace } from "@/generated/protocol";
 
 export const Selection = z.object({ machine: z.string(), id: z.string() });
@@ -76,24 +72,15 @@ export function findWorkspace(
 export function findTerminal(groups: Groups, { machine, id }: Selection) {
   const group = findGroup(groups, machine);
   const owns = (workspace: Workspace) =>
-    terminalsOf(workspace).some((current) => current.id === id);
+    workspace.terminals.some((current) => current.id === id);
   const workspace = group?.workspaces.data?.find(owns);
   const terminal = workspace
-    ? terminalsOf(workspace).find((current) => current.id === id)
+    ? workspace.terminals.find((current) => current.id === id)
     : undefined;
 
   return group && workspace && terminal
     ? { machine: group.machine, workspace, terminal }
     : undefined;
-}
-
-export function findNote(groups: Groups, { machine, id }: Selection) {
-  const group = findGroup(groups, machine);
-  const note = group?.workspaces.data
-    ?.flatMap(({ tiles }) => tiles)
-    .find((tile): tile is NoteTile => tile.kind === "note" && tile.id === id);
-
-  return group && note ? { machine: group.machine, note } : undefined;
 }
 
 export function resolveWorkspace(
@@ -129,7 +116,7 @@ export function resolveWorkspace(
 export function waiting(groups: Groups) {
   return groups.flatMap(({ machine, workspaces }) =>
     (workspaces.data ?? []).flatMap((workspace) =>
-      byAttention(terminalsOf(workspace))
+      byAttention(workspace.terminals)
         .filter(({ status }) => needsYou(status))
         .map((terminal) => ({
           workspace: viewOf(machine.id, workspace, terminal),

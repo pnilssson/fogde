@@ -1,5 +1,3 @@
-import { MonitorItem } from "@/features/workspaces/components/monitor-item";
-import { NoteItem } from "@/features/workspaces/components/note-item";
 import { StartItem } from "@/features/workspaces/components/start-item";
 import { TerminalItem } from "@/features/workspaces/components/terminal-item";
 import { useFocused } from "@/features/workspaces/hooks/use-focused";
@@ -35,8 +33,10 @@ export function ViewRows({
   const start = useStart(view);
   const focused = useFocused(workspace, view);
   const move = useMoveTile();
-  const tiles = workspace.tiles.filter((tile) => inView(view, tile));
-  const ids = tiles.map(({ id }) => id);
+  const terminals = workspace.terminals.filter((terminal) =>
+    inView(view, terminal),
+  );
+  const ids = terminals.map(({ id }) => id);
 
   const arrange = (tile: string, before: string | null) => {
     if (!changes(ids, tile, before)) {
@@ -48,26 +48,19 @@ export function ViewRows({
 
   return (
     <>
-      {tiles.map((tile) => {
-        const shared = {
-          machine,
-          siblings: ids,
-          active: focused === tile.id,
-          onSelect: () => {
-            onSelect(view, { machine: machine.id, id: tile.id });
-          },
-          onArrange: arrange,
-        };
-
-        switch (tile.kind) {
-          case "terminal":
-            return <TerminalItem key={tile.id} {...shared} terminal={tile} />;
-          case "note":
-            return <NoteItem key={tile.id} {...shared} note={tile} />;
-          case "monitor":
-            return <MonitorItem key={tile.id} {...shared} monitor={tile} />;
-        }
-      })}
+      {terminals.map((terminal) => (
+        <TerminalItem
+          key={terminal.id}
+          machine={machine}
+          terminal={terminal}
+          siblings={ids}
+          active={focused === terminal.id}
+          onSelect={() => {
+            onSelect(view, { machine: machine.id, id: terminal.id });
+          }}
+          onArrange={arrange}
+        />
+      ))}
       {start !== undefined && (
         <StartItem
           view={view}

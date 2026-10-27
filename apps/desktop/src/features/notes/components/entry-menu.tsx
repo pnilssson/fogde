@@ -24,6 +24,7 @@ import { report } from "@/lib/report";
 export interface EntryActions {
   onRename: (path: string, name: string) => Promise<unknown>;
   onDelete: (path: string) => void;
+  onInsert?: ((path: string) => void) | undefined;
 }
 
 interface Props extends EntryActions {
@@ -50,6 +51,7 @@ export function EntryMenu({
   onCreate,
   onRename,
   onDelete,
+  onInsert,
 }: Props) {
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -77,6 +79,15 @@ export function EntryMenu({
               </ContextMenuItem>
               <ContextMenuSeparator />
             </>
+          )}
+          {onInsert && (
+            <ContextMenuItem
+              onClick={() => {
+                onInsert(path);
+              }}
+            >
+              Insert path
+            </ContextMenuItem>
           )}
           <ContextMenuItem
             onClick={() => {

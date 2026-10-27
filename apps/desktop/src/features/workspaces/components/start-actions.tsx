@@ -1,20 +1,13 @@
-import {
-  NotebookIcon,
-  PulseIcon,
-  TerminalWindowIcon,
-} from "@phosphor-icons/react";
+import { TerminalWindowIcon } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 
 import { AgentIcon } from "@/components/agent-icon";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { useOpenMonitor } from "@/features/workspaces/hooks/use-monitor";
 import {
   useChoices,
   useCreateTerminal,
 } from "@/features/workspaces/hooks/use-terminals";
-import { useOpenNote } from "@/features/workspaces/hooks/use-workspaces";
-import { useTiles } from "@/features/workspaces/lib/layouts";
 import {
   startFocused,
   useStartFocus,
@@ -31,9 +24,6 @@ interface Props {
 export function StartActions({ machine, workspace, folder }: Props) {
   const choices = useChoices(machine);
   const create = useCreateTerminal();
-  const open = useOpenNote();
-  const monitor = useOpenMonitor();
-  const view = useTiles((tiles) => tiles.workspace);
   const focus = useStartFocus();
   const first = useRef<HTMLButtonElement>(null);
   const wanted = useRef(false);
@@ -88,32 +78,6 @@ export function StartActions({ machine, workspace, folder }: Props) {
           </Button>
         );
       })}
-      <Button
-        variant="secondary"
-        size="sm"
-        disabled={create.isPending || open.isPending || !view}
-        onClick={() => {
-          if (view) {
-            open.mutate({ machine, view });
-          }
-        }}
-      >
-        <NotebookIcon data-icon="inline-start" />
-        Notes
-      </Button>
-      <Button
-        variant="secondary"
-        size="sm"
-        disabled={create.isPending || monitor.isPending || !view}
-        onClick={() => {
-          if (view) {
-            monitor.mutate({ machine, view });
-          }
-        }}
-      >
-        <PulseIcon data-icon="inline-start" />
-        Monitor
-      </Button>
     </div>
   );
 }

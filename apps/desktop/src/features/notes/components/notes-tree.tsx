@@ -32,7 +32,6 @@ interface Props {
 }
 
 interface RowsProps {
-  machine: string;
   folder: Folder;
   nested: boolean;
   note: string | undefined;
@@ -87,7 +86,6 @@ export function NotesTree({ machine, root, note, actions }: Props) {
   return (
     <SidebarMenu className="p-2">
       <Rows
-        machine={machine}
         folder={root}
         nested={false}
         note={note}
@@ -99,15 +97,7 @@ export function NotesTree({ machine, root, note, actions }: Props) {
   );
 }
 
-function Rows({
-  machine,
-  folder,
-  nested,
-  note,
-  open,
-  onToggle,
-  actions,
-}: RowsProps) {
+function Rows({ folder, nested, note, open, onToggle, actions }: RowsProps) {
   const Item = nested ? SidebarMenuSubItem : SidebarMenuItem;
   const Button = nested ? SubButton : SidebarMenuButton;
 
@@ -139,6 +129,7 @@ function Rows({
                 }}
                 onRename={actions.onRename}
                 onDelete={actions.onDelete}
+                onInsert={actions.onInsert}
               >
                 <CaretRightIcon
                   className={cn(
@@ -153,7 +144,6 @@ function Rows({
                 {(inner.folders.length > 0 || inner.notes.length > 0) && (
                   <SidebarMenuSub>
                     <Rows
-                      machine={machine}
                       folder={inner}
                       nested
                       note={note}
@@ -171,13 +161,13 @@ function Rows({
       {folder.notes.map((current) => (
         <NoteRow
           key={current.path}
-          machine={machine}
           note={current}
           active={current.path === note}
           nested={nested}
           onOpen={actions.onOpen}
           onRename={actions.onRename}
           onDelete={actions.onDelete}
+          onInsert={actions.onInsert}
         />
       ))}
     </>

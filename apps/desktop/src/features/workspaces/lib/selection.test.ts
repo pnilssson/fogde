@@ -11,7 +11,6 @@ type Groups = ReturnType<typeof useGroups>;
 
 function terminal(id: string, status: Status) {
   return {
-    kind: "terminal" as const,
     id,
     name: id,
     agent: "claude",
@@ -28,7 +27,7 @@ function workspace(id: string, terminals: ReturnType<typeof terminal>[]) {
     folder: "",
     missing: false,
     checkouts: [],
-    tiles: terminals,
+    terminals,
   };
 }
 

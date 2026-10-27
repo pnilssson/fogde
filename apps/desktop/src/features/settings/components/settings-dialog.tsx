@@ -23,9 +23,10 @@ import { AccessibilitySettings } from "@/features/settings/components/accessibil
 import { AppearanceSettings } from "@/features/settings/components/appearance-settings";
 import { MachineNav } from "@/features/settings/components/machine-nav";
 import { MachinePage } from "@/features/settings/components/machine-page";
+import { MonitorSettings } from "@/features/settings/components/monitor-settings";
 import { NotificationSettings } from "@/features/settings/components/notification-settings";
 import { StatsSettings } from "@/features/settings/components/stats-settings";
-import { StatusBarSettings } from "@/features/settings/components/status-bar-settings";
+import { UsageSettings } from "@/features/settings/components/usage-settings";
 import { useMachines } from "@/hooks/use-machines";
 import { setSettingsOpen, useSettingsOpen } from "@/lib/settings-open";
 import { shortcuts } from "@/lib/shortcuts";
@@ -57,7 +58,8 @@ const pages = [
     content: (
       <>
         <StatsSettings />
-        <StatusBarSettings />
+        <UsageSettings />
+        <MonitorSettings />
       </>
     ),
   },

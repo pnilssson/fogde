@@ -1,5 +1,8 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { cn } from "cn";
 import { useEffect } from "react";
+
+import { Pages } from "@/app/pages";
 
 import { StatusBar } from "@/components/status-bar";
 import { SidebarInset } from "@/components/ui/sidebar";
@@ -16,7 +19,6 @@ import { useAttention } from "@/features/workspaces/hooks/use-attention";
 import { useCheckouts } from "@/features/workspaces/hooks/use-checkouts";
 import { useFailures } from "@/features/workspaces/hooks/use-failures";
 import { useShortcuts } from "@/features/workspaces/hooks/use-shortcuts";
-import { useShowMonitor } from "@/features/workspaces/hooks/use-monitor";
 import { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import { useViewing } from "@/features/workspaces/hooks/use-viewing";
 import { keepMachines, useTiles } from "@/features/workspaces/lib/layouts";
@@ -29,6 +31,7 @@ import { selectWorkspace, show } from "@/features/workspaces/lib/tiles";
 import { useMachines } from "@/hooks/use-machines";
 import { useRetryOnReturn } from "@/hooks/use-retry-on-return";
 import { entryId, machinesQuery } from "@/lib/machines";
+import { closePage, leavePage, openPage, usePage } from "@/lib/page";
 
 export const Route = createFileRoute("/_onboarded")({
   beforeLoad: async ({ context }) => {
@@ -55,7 +58,7 @@ export const Route = createFileRoute("/_onboarded")({
     const groups = useGroups(machines);
     const stored = useTiles((tiles) => tiles.workspace);
     const workspace = resolveWorkspace(groups, stored);
-    const showMonitor = useShowMonitor(groups, workspace);
+    const page = usePage();
 
     useRetryOnReturn(machines);
     useAttention(machines);
@@ -87,22 +90,45 @@ export const Route = createFileRoute("/_onboarded")({
               selected={workspace}
               onSelect={(next, selection) => {
                 selectWorkspace(next);
-                if (selection) {
-                  show(selection);
-                }
+                leavePage(() => {
+                  if (selection) {
+                    show(selection);
+                  }
+                });
               }}
               onStart={(next, folder) => {
+                closePage();
                 selectWorkspace(next);
                 openStart(folder);
               }}
               settings={<SettingsDialog />}
             />
             <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-surface-3">
-              <Outlet />
+              <div
+                className={cn(
+                  "flex min-h-0 flex-1 flex-col",
+                  page && "opacity-0",
+                )}
+                inert={page !== undefined}
+              >
+                <Outlet />
+              </div>
+              {page && (
+                <div className="absolute inset-0">
+                  <Pages groups={groups} workspace={workspace} />
+                </div>
+              )}
             </SidebarInset>
           </div>
           <StatusBar
-            start={<MonitorMeters machines={machines} onOpen={showMonitor} />}
+            start={
+              <MonitorMeters
+                machines={machines}
+                onOpen={(machine) => {
+                  openPage("monitor", machine.id);
+                }}
+              />
+            }
             end={<UsageMeters machines={machines} />}
           />
           <CommandPalette notes={(props) => <PaletteNotes {...props} />} />

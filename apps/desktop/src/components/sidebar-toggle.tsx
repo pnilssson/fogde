@@ -19,9 +19,8 @@ export function SidebarToggle() {
         render={
           <Button
             variant="ghost"
-            size="sm"
+            size="icon-sm"
             aria-label={label}
-            aria-expanded={expanded}
             onClick={toggleSidebar}
           />
         }

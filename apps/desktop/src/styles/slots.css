@@ -32,6 +32,7 @@
 [data-sidebar="menu-sub"] {
   margin-right: 0;
   padding-right: 0;
+  padding-block: 0.25rem 0;
 }
 
 [data-sidebar="menu-sub-button"] {
@@ -75,4 +76,34 @@
 
 .terminal-thumb[data-dragging] {
   background-color: var(--terminal-scrollbar-active);
+}
+
+[data-sidebar="menu-button"],
+[data-sidebar="menu-sub-button"] {
+  color: var(--muted-foreground);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  font-weight: 400;
+}
+
+[data-sidebar="group-label"] {
+  color: var(--muted-foreground);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: 400;
+}
+
+[data-sidebar="menu-button"][data-active],
+[data-sidebar="menu-sub-button"][data-active] {
+  background-color: var(--surface-3);
+  box-shadow: var(--shadow-2);
+}
+
+[data-sidebar="menu-button"]:is(:hover, [data-active]),
+[data-sidebar="menu-sub-button"]:is(:hover, [data-active]) {
+  color: var(--sidebar-accent-foreground);
+}
+
+[data-sidebar="menu-sub-button"] > svg {
+  color: inherit;
 }

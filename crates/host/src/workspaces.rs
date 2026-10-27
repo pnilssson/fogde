@@ -5,7 +5,7 @@ mod tiles;
 mod watch;
 
 pub use identity::Searches;
-pub use tiles::{close_terminals_in, follow};
+pub use tiles::close_terminals_in;
 pub use watch::{Watch, changes};
 
 use std::path::{Path, PathBuf};
@@ -14,8 +14,8 @@ use futures_util::future::join_all;
 use protocol::rpc::Failure;
 use protocol::terminals::Terminal;
 use protocol::workspaces::{
-    Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, MonitorTile, NoteTile,
-    PlaceTerminal, PlaceTerminalParams, Tile, Workspace,
+    Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, PlaceTerminal, PlaceTerminalParams,
+    Workspace,
 };
 use sqlx::SqlitePool;
 
@@ -190,22 +190,12 @@ async fn save(pool: &SqlitePool, workspace: &store::Workspace) {
 
 fn compose(workspace: store::Workspace, missing: bool, checkouts: Vec<Checkout>) -> Workspace {
     let folder = PathBuf::from(&workspace.folder);
-    let tiles = workspace
-        .tiles
+    let terminals = workspace
+        .terminals
         .into_iter()
-        .map(|tile| match tile {
-            Tile::Terminal(terminal) => Tile::Terminal(Terminal {
-                checkout: terminal.checkout.and_then(|path| listed(&path, &checkouts)),
-                ..terminal
-            }),
-            Tile::Note(note) => Tile::Note(NoteTile {
-                checkout: note.checkout.and_then(|path| listed(&path, &checkouts)),
-                ..note
-            }),
-            Tile::Monitor(monitor) => Tile::Monitor(MonitorTile {
-                checkout: monitor.checkout.and_then(|path| listed(&path, &checkouts)),
-                ..monitor
-            }),
+        .map(|terminal| Terminal {
+            checkout: terminal.checkout.and_then(|path| listed(&path, &checkouts)),
+            ..terminal
         })
         .collect();
 
@@ -221,7 +211,7 @@ fn compose(workspace: store::Workspace, missing: bool, checkouts: Vec<Checkout>)
             ),
         missing,
         checkouts,
-        tiles,
+        terminals,
     }
 }
 

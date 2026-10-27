@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT tile, kind, note, workspace, checkout FROM tiles ORDER BY position, id",
+  "query": "SELECT tile, workspace, checkout FROM tiles ORDER BY position, id",
   "describe": {
     "columns": [
       {
@@ -15,30 +15,8 @@
         }
       },
       {
-        "name": "kind",
-        "ordinal": 1,
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "tiles",
-            "name": "kind"
-          }
-        }
-      },
-      {
-        "name": "note",
-        "ordinal": 2,
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "tiles",
-            "name": "note"
-          }
-        }
-      },
-      {
         "name": "workspace",
-        "ordinal": 3,
+        "ordinal": 1,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -49,7 +27,7 @@
       },
       {
         "name": "checkout",
-        "ordinal": 4,
+        "ordinal": 2,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -65,10 +43,8 @@
     "nullable": [
       false,
       false,
-      true,
-      false,
       true
     ]
   },
-  "hash": "3afae402b1136a4582bf2be98129bfda51493a4f8ab4cd8ea8d81a9b4e738fb7"
+  "hash": "4ae8f1c191847e0037ff30ed989bf51c180aa1a8c460e8ab50d9171359c59cf0"
 }

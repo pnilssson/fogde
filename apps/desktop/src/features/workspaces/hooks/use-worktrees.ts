@@ -13,6 +13,7 @@ import { sameView } from "@/features/workspaces/lib/selection";
 import { selectWorkspace } from "@/features/workspaces/lib/tiles";
 import type { CreateWorktreeParams, Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { closePage } from "@/lib/page";
 
 const removing = new Set<string>();
 
@@ -31,6 +32,7 @@ export function useCreateWorktree(
     onSuccess: async (path) => {
       await queries.invalidateQueries(workspacesQuery(machine));
       onCreated?.();
+      closePage();
       selectWorkspace({ machine: machine.id, id: workspace, checkout: path });
     },
     onError: (error) => {

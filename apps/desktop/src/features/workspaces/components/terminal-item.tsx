@@ -26,7 +26,7 @@ export function TerminalItem({
 
   return (
     <TileItem
-      tile={{ kind: "terminal", machine: machine.id, id: terminal.id }}
+      tile={{ machine: machine.id, id: terminal.id }}
       siblings={siblings}
       active={active}
       icon={<TerminalIcon agent={terminal.agent} />}

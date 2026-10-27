@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT tile FROM tiles WHERE workspace = ? AND kind = 'terminal'",
+  "query": "SELECT tile FROM tiles",
   "describe": {
     "columns": [
       {
@@ -16,11 +16,11 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false
     ]
   },
-  "hash": "9b931fbe0d00ab02f594995dc85c1ef365b7f259ac3d0004522d267f995de773"
+  "hash": "e741118094d6622bd56bbf1c78aab9095ba031a83bfdacd0d9f58a36547cc234"
 }

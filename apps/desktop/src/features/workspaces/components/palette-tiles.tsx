@@ -16,6 +16,7 @@ import {
 import { closeActive } from "@/features/workspaces/lib/closing";
 import { moveTile, type Side } from "@/features/workspaces/lib/drag";
 import { focusTile } from "@/features/workspaces/lib/tile-focus";
+import { leavePage } from "@/lib/page";
 import { arrows, shortcuts } from "@/lib/shortcuts";
 
 const moves: { side: Side; label: string; icon: typeof ArrowLeftIcon }[] = [
@@ -56,7 +57,9 @@ export function PaletteTiles({ tiles, run }: Props) {
             value={label}
             onSelect={() => {
               run(() => {
-                moveTile(side);
+                leavePage(() => {
+                  moveTile(side);
+                });
               });
             }}
           >
@@ -77,7 +80,9 @@ export function PaletteTiles({ tiles, run }: Props) {
               value={`Go to tile ${String(number)}`}
               onSelect={() => {
                 run(() => {
-                  focusTile(number);
+                  leavePage(() => {
+                    focusTile(number);
+                  });
                 });
               }}
             >

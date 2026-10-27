@@ -1,8 +1,6 @@
 import {
   GitBranchIcon,
-  NotebookIcon,
   PlusCircleIcon,
-  PulseIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 
@@ -14,12 +12,10 @@ import {
 } from "@/components/ui/command";
 import { Spinner } from "@/components/ui/spinner";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
-import { useOpenMonitor } from "@/features/workspaces/hooks/use-monitor";
 import {
   useChoices,
   useCreateTerminal,
 } from "@/features/workspaces/hooks/use-terminals";
-import { useOpenNote } from "@/features/workspaces/hooks/use-workspaces";
 import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
 import {
   checkoutName,
@@ -33,6 +29,7 @@ import type { Checkout, Workspace } from "@/generated/protocol";
 import { useConnection } from "@/hooks/use-connection";
 import { agents, allAgents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
+import { closePage, leavePage } from "@/lib/page";
 import { shortcuts } from "@/lib/shortcuts";
 
 const searched = allAgents.flatMap((agent) => [
@@ -61,8 +58,6 @@ export function PaletteWorkspace({
   const choices = useChoices(machine);
   const create = useCreateTerminal();
   const remove = useRemoveWorktree(machine, workspace);
-  const openNote = useOpenNote();
-  const openMonitor = useOpenMonitor();
   if (connection.state !== "connected") {
     return null;
   }
@@ -79,7 +74,9 @@ export function PaletteWorkspace({
           keywords={["new", "open", "start"]}
           onSelect={() => {
             run(() => {
-              openStart(folder, true);
+              leavePage(() => {
+                openStart(folder, true);
+              });
             });
           }}
         >
@@ -88,36 +85,6 @@ export function PaletteWorkspace({
           <CommandShortcut>
             <Keys letter={shortcuts.tile} />
           </CommandShortcut>
-        </CommandItem>
-        <CommandItem
-          value="open notes"
-          keywords={["view", "show", "tile"]}
-          onSelect={() => {
-            run(() => {
-              openNote.mutate({
-                machine,
-                view: view ?? { machine: machine.id, id: workspace.id },
-              });
-            });
-          }}
-        >
-          <NotebookIcon />
-          Open notes
-        </CommandItem>
-        <CommandItem
-          value="open monitor"
-          keywords={["view", "show", "tile", "cpu", "memory", "usage"]}
-          onSelect={() => {
-            run(() => {
-              openMonitor.mutate({
-                machine,
-                view: view ?? { machine: machine.id, id: workspace.id },
-              });
-            });
-          }}
-        >
-          <PulseIcon />
-          Open monitor
         </CommandItem>
         {(choices ?? [null]).map((agent) => {
           const name = agent ? agents[agent].name : "terminal";
@@ -128,6 +95,7 @@ export function PaletteWorkspace({
               value={`new ${name}`}
               keywords={["new", "open", "start"]}
               onSelect={() => {
+                closePage();
                 create.mutate({
                   machine,
                   workspace: workspace.id,

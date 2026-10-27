@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { Switch } from "@/components/ui/switch";
-import { MonitorRows } from "@/features/settings/components/monitor-rows";
 import {
   SettingsRow,
   SettingsSection,
@@ -12,22 +11,22 @@ import { agents, allAgents } from "@/lib/agents";
 import { callOwn } from "@/lib/host";
 import { shownQuery, shows } from "@/lib/usage";
 
-export function StatusBarSettings() {
+export function UsageSettings() {
   const { data } = useQuery(shownQuery);
   const save = useSaveSetting(
     shownQuery,
     (next: Shown) => callOwn("usage.setShown", next),
-    "Could not save the status bar settings",
+    "Could not save the usage limit settings",
   );
 
   return (
-    <SettingsSection id="status-bar-heading" title="Status bar">
+    <SettingsSection
+      id="usage-heading"
+      title="Usage limits"
+      hint="Shows how much of each plan is left in the status bar."
+    >
       {allAgents.map((agent) => (
-        <SettingsRow
-          key={agent}
-          label={`${agents[agent].short} usage left`}
-          labelled
-        >
+        <SettingsRow key={agent} label={agents[agent].short} labelled>
           <Switch
             checked={data !== undefined && shows(data, agent)}
             disabled={!data}
@@ -39,7 +38,6 @@ export function StatusBarSettings() {
           />
         </SettingsRow>
       ))}
-      <MonitorRows />
     </SettingsSection>
   );
 }

@@ -13,6 +13,7 @@ import {
 import { focusTile } from "@/features/workspaces/lib/tile-focus";
 import { openStart } from "@/features/workspaces/lib/opening";
 import { revealNext } from "@/features/workspaces/lib/tiles";
+import { leavePage } from "@/lib/page";
 import { toggleSettings } from "@/lib/settings-open";
 import { arrowSide, pressed, shortcuts, tileNumber } from "@/lib/shortcuts";
 
@@ -84,7 +85,9 @@ function actionFor(event: KeyboardEvent, { groups, workspace }: Context) {
 
     return found && !found.workspace.missing
       ? () => {
-          openStart(viewFolder(found.workspace, workspace), true);
+          leavePage(() => {
+            openStart(viewFolder(found.workspace, workspace), true);
+          });
         }
       : undefined;
   }
@@ -92,7 +95,9 @@ function actionFor(event: KeyboardEvent, { groups, workspace }: Context) {
   const side = arrowSide(event);
   if (side) {
     return () => {
-      moveTile(side);
+      leavePage(() => {
+        moveTile(side);
+      });
     };
   }
 
@@ -100,12 +105,14 @@ function actionFor(event: KeyboardEvent, { groups, workspace }: Context) {
 
   return number
     ? () => {
-        focusTile(number);
+        leavePage(() => {
+          focusTile(number);
+        });
       }
     : undefined;
 }
 
-function inDialog(target: EventTarget | null) {
+export function inDialog(target: EventTarget | null) {
   return (
     target instanceof Element &&
     target.closest('[role="dialog"], [role="alertdialog"]') !== null

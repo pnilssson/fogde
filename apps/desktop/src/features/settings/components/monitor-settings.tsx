@@ -8,7 +8,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { SettingsRow } from "@/features/settings/components/settings-section";
+import {
+  SettingsRow,
+  SettingsSection,
+} from "@/features/settings/components/settings-section";
 import { useSaveSetting } from "@/features/settings/hooks/use-save-setting";
 import { useMachines } from "@/hooks/use-machines";
 import type { Bar } from "@/generated/protocol";
@@ -16,19 +19,23 @@ import { callOwn } from "@/lib/host";
 import { idOf } from "@/lib/machines";
 import { barMachine, barQuery, metrics } from "@/lib/monitor";
 
-export function MonitorRows() {
+export function MonitorSettings() {
   const { data } = useQuery(barQuery);
   const { all } = useMachines();
   const save = useSaveSetting(
     barQuery,
     (next: Bar) => callOwn("monitor.setBar", next),
-    "Could not save the status bar settings",
+    "Could not save the monitoring settings",
   );
   const chosen = data && barMachine(data, all);
 
   return (
-    <>
-      <SettingsRow label="Machine to monitor" labelled>
+    <SettingsSection
+      id="monitor-heading"
+      title="Monitoring"
+      hint="Shows what Fogde uses on one machine in the status bar."
+    >
+      <SettingsRow label="Machine" labelled>
         <Select
           items={all.map(({ id, name }) => ({ label: name, value: id }))}
           value={chosen?.id ?? null}
@@ -74,6 +81,6 @@ export function MonitorRows() {
           />
         </SettingsRow>
       ))}
-    </>
+    </SettingsSection>
   );
 }

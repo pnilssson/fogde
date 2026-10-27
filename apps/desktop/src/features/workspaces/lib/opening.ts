@@ -1,6 +1,5 @@
-import type { DockviewApi, DockviewGroupPanel, Position } from "dockview-react";
+import type { DockviewApi } from "dockview-react";
 
-import type { Listed } from "@/features/workspaces/lib/drag";
 import { dropTile, startId, store } from "@/features/workspaces/lib/layouts";
 import {
   sameView,
@@ -8,13 +7,7 @@ import {
   type View,
 } from "@/features/workspaces/lib/selection";
 import { requestStartFocus } from "@/features/workspaces/lib/start-focus";
-import {
-  dockview,
-  place,
-  show,
-  tileId,
-  tilePanel,
-} from "@/features/workspaces/lib/tiles";
+import { dockview, show, tileId } from "@/features/workspaces/lib/tiles";
 
 function beside(api: DockviewApi) {
   const focused = api.activePanel;
@@ -82,48 +75,6 @@ export function opened(selection: Selection) {
     id: tileId(selection),
     component: "terminal",
     params: selection,
-    position: { referenceGroup: start.group, direction: "within" },
-  });
-  start.api.close();
-}
-
-export interface Spot {
-  position: Position;
-  group: DockviewGroupPanel | undefined;
-}
-
-export function placeTile(
-  view: View,
-  kind: Listed["kind"],
-  id: string,
-  spot?: Spot,
-) {
-  const api = dockview();
-  const tile = { kind, machine: view.machine, id };
-  if (!api || !sameView(view, store.getState().workspace)) {
-    return;
-  }
-
-  const existing = api.getPanel(tileId(tile));
-  if (existing) {
-    existing.api.setActive();
-    return;
-  }
-
-  if (spot) {
-    const group = api.groups.find((current) => current === spot.group);
-    place(api, tile, spot.position, group);
-    return;
-  }
-
-  const start = api.getPanel(startId);
-  if (!start) {
-    api.addPanel({ ...tilePanel(tile), position: beside(api) });
-    return;
-  }
-
-  api.addPanel({
-    ...tilePanel(tile),
     position: { referenceGroup: start.group, direction: "within" },
   });
   start.api.close();

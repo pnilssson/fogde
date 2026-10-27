@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { useDeleteWorkspace } from "@/features/workspaces/hooks/use-workspaces";
-import { terminalsOf } from "@/features/workspaces/lib/tile-kinds";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
@@ -48,7 +47,7 @@ export function DeleteWorkspace({
         <AlertDialogHeader>
           <AlertDialogTitle>{`Delete ${workspace.name}?`}</AlertDialogTitle>
           <AlertDialogDescription>
-            {`${outcome(terminalsOf(workspace).length)} Your files in `}
+            {`${outcome(workspace.terminals.length)} Your files in `}
             <span className="wrap-anywhere">{workspace.folder}</span>
             {" aren't touched."}
           </AlertDialogDescription>

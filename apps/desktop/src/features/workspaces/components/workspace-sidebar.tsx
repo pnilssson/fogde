@@ -1,3 +1,4 @@
+import { NotebookIcon, PulseIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { UpdateItem } from "@/components/update-item";
 import { MachineGroup } from "@/features/workspaces/components/machine-group";
+import { PageItem } from "@/features/workspaces/components/page-item";
 import { SearchItem } from "@/features/workspaces/components/search-item";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
@@ -41,9 +43,27 @@ export function WorkspaceSidebar({
               setOpenMobile(false);
             }}
           />
+          <PageItem
+            page="notes"
+            machine={selected?.machine}
+            icon={<NotebookIcon />}
+            label="Notes"
+            onOpen={() => {
+              setOpenMobile(false);
+            }}
+          />
+          <PageItem
+            page="monitor"
+            machine={selected?.machine}
+            icon={<PulseIcon />}
+            label="Monitor"
+            onOpen={() => {
+              setOpenMobile(false);
+            }}
+          />
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="gap-4 pt-2">
         {groups.map(({ machine, workspaces }) => (
           <MachineGroup
             key={machine.id}

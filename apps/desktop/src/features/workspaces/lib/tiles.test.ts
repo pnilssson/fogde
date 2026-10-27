@@ -17,9 +17,9 @@ import {
   sync,
 } from "@/features/workspaces/lib/tiles";
 
-const a = { kind: "terminal" as const, machine: "m1", id: "a" };
-const b = { kind: "terminal" as const, machine: "m1", id: "b" };
-const c = { kind: "terminal" as const, machine: "m1", id: "c" };
+const a = { machine: "m1", id: "a" };
+const b = { machine: "m1", id: "b" };
+const c = { machine: "m1", id: "c" };
 
 let detach: (() => void) | undefined;
 
@@ -121,7 +121,7 @@ test("a dragged tile drops only where it would move", () => {
   expect(canDrop(groupOf(api, "m1:b"), "center")).toBe(false);
   expect(canDrop(groupOf(api, "m1:b"), "left")).toBe(true);
 
-  startDrag({ kind: "terminal", machine: "m2", id: "d" });
+  startDrag({ machine: "m2", id: "d" });
   expect(canDrop(groupOf(api, "m1:b"), "left")).toBe(false);
   endDrag();
 });
@@ -220,29 +220,4 @@ test("closing a tile in another workspace removes it from its saved layout", () 
   selectWorkspace(workspace);
 
   expect(tiles(api)).toEqual([["m1:a"], ["m1:b"]]);
-});
-
-test("notes tiles come and go with the workspace tiles", () => {
-  const api = dockview();
-  const plan = { kind: "note" as const, machine: "m1", id: "note-1" };
-
-  sync([a, plan], () => false);
-  expect(tiles(api)).toEqual([["m1:a"], ["m1:note-1"]]);
-  expect(api.getPanel("m1:note-1")?.view.contentComponent).toBe("notes");
-
-  sync([a], () => false);
-  expect(tiles(api)).toEqual([["m1:a"]]);
-});
-
-test("notes tiles the host no longer lists are closed", () => {
-  const api = dockview();
-  api.addPanel({
-    id: "notes:1",
-    component: "notes",
-    params: { machine: "m1", note: "/notes/plan.md" },
-  });
-
-  sync([a], () => false);
-
-  expect(tiles(api)).toEqual([["m1:a"]]);
 });

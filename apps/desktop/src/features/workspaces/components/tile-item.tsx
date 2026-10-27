@@ -19,16 +19,16 @@ import {
   dragProps,
   hover,
   isListed,
-  type Listed,
   useDragging,
   useOver,
 } from "@/features/workspaces/lib/drag";
 import { beforeOf, changes } from "@/features/workspaces/lib/order";
+import type { Selection } from "@/features/workspaces/lib/selection";
 import type { Status } from "@/generated/protocol";
 import { shortcuts } from "@/lib/shortcuts";
 
 interface Props {
-  tile: Listed;
+  tile: Selection;
   siblings: string[];
   active: boolean;
   icon: ReactNode;

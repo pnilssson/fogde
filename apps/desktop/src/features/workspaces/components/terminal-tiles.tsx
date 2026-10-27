@@ -10,16 +10,12 @@ import {
 } from "dockview-react";
 import { useContext, useEffect, useState } from "react";
 
-import { MonitorPane } from "@/features/workspaces/components/monitor-pane";
-import { NotesPane } from "@/features/workspaces/components/notes-pane";
 import { StartPage } from "@/features/workspaces/components/start-page";
 import { TerminalPane } from "@/features/workspaces/components/terminal-pane";
 import { TileBar } from "@/features/workspaces/components/tile-bar";
 import {
   isPlacing,
-  useOpenNote,
   usePlaceTerminal,
-  useShowNote,
 } from "@/features/workspaces/hooks/use-workspaces";
 import { Trash } from "@/features/workspaces/components/trash";
 import {
@@ -28,7 +24,7 @@ import {
   drop,
   dragged,
   endDrag,
-  isTerminal,
+  isListed,
 } from "@/features/workspaces/lib/drag";
 import {
   holdId,
@@ -37,19 +33,11 @@ import {
   useTiles,
 } from "@/features/workspaces/lib/layouts";
 import type { Selection } from "@/features/workspaces/lib/selection";
-import type { Machine } from "@/lib/machines";
-import { draggingNote, noteDragType } from "@/lib/note-drag";
-import { pastePath } from "@/lib/paste";
-import { report } from "@/lib/report";
 import {
   startFocused,
   useStartFocus,
 } from "@/features/workspaces/lib/start-focus";
 import {
-  MonitorSlot,
-  NotesSlot,
-  type RenderMonitor,
-  type RenderNotes,
   TerminalSlot,
   type RenderTerminal,
 } from "@/features/workspaces/lib/slot";
@@ -59,7 +47,6 @@ import {
   inView,
   WorkspaceContext,
 } from "@/features/workspaces/lib/selection";
-import { canDropNote, dropNote } from "@/features/workspaces/lib/note-drop";
 import { closeStart } from "@/features/workspaces/lib/opening";
 import {
   activate,
@@ -142,8 +129,6 @@ function Hold() {
 const components = {
   terminal: TerminalTile,
   start: StartTile,
-  notes: NotesPane,
-  monitor: MonitorPane,
   [holdId]: Hold,
 };
 
@@ -154,35 +139,16 @@ function accept(event: DockviewReadyEvent) {
     }
 
     const types = over.nativeEvent.dataTransfer?.types ?? [];
-    if (
-      (types.includes(dragType) && canDrop(over.group, over.position)) ||
-      (types.includes(noteDragType) && canDropNote(over.group, over.position))
-    ) {
+    if (types.includes(dragType) && canDrop(over.group, over.position)) {
       over.accept();
     }
   });
 }
 
-function paste(machine: Machine, terminal: Selection, path: string) {
-  machine.client
-    .call("terminals.input", { id: terminal.id, data: pastePath(path) })
-    .catch((error: unknown) => {
-      report("Could not paste the note path", error);
-    });
-}
-
-interface Props {
-  terminal: RenderTerminal;
-  notes: RenderNotes;
-  monitor: RenderMonitor;
-}
-
-export function TerminalTiles({ terminal, notes, monitor }: Props) {
+export function TerminalTiles({ terminal }: { terminal: RenderTerminal }) {
   const { groups, workspace } = useContext(WorkspaceContext);
   const [api, setApi] = useState<DockviewApi>();
   const place = usePlaceTerminal();
-  const open = useOpenNote();
-  const show = useShowNote();
 
   useEffect(() => (api ? attach(api) : undefined), [api]);
 
@@ -197,9 +163,9 @@ export function TerminalTiles({ terminal, notes, monitor }: Props) {
     }
 
     sync(
-      found.workspace.tiles
-        .filter((tile) => inView(workspace, tile))
-        .map(({ kind, id }) => ({ kind, machine: workspace.machine, id })),
+      found.workspace.terminals
+        .filter((current) => inView(workspace, current))
+        .map(({ id }) => ({ machine: workspace.machine, id })),
       ({ machine, id }) => isPlacing(machine, id),
     );
   }, [api, groups, workspace]);
@@ -211,39 +177,13 @@ export function TerminalTiles({ terminal, notes, monitor }: Props) {
       return;
     }
 
-    const note = draggingNote();
-    if (note && event.nativeEvent.dataTransfer?.types.includes(noteDragType)) {
-      if (!group || !workspace) {
-        return;
-      }
-
-      const { machine } = group;
-      dropNote(event.position, event.group, {
-        paste: (target) => {
-          paste(machine, target, note.path);
-        },
-        show: (tile) => {
-          show.mutate({ machine, tile: tile.id, note: note.path });
-        },
-        open: (spot) => {
-          open.mutate({
-            machine,
-            view: workspace,
-            note: note.path,
-            spot,
-          });
-        },
-      });
-      return;
-    }
-
     const item = dragged(event.nativeEvent);
     endDrag();
     if (!item || !workspace || !group) {
       return;
     }
 
-    if (isTerminal(item) && !isShown(item)) {
+    if (isListed(item) && !isShown(item)) {
       place.mutate({
         machine: group.machine,
         terminal: item.id,
@@ -256,27 +196,23 @@ export function TerminalTiles({ terminal, notes, monitor }: Props) {
 
   return (
     <TerminalSlot value={terminal}>
-      <NotesSlot value={notes}>
-        <MonitorSlot value={monitor}>
-          <div className="relative min-h-0 flex-1">
-            <DockviewReact
-              className="isolate"
-              theme={theme}
-              components={components}
-              watermarkComponent={Watermark}
-              disableFloatingGroups
-              dndEdges={edges}
-              onReady={(event) => {
-                accept(event);
-                restore(event.api);
-                setApi(event.api);
-              }}
-              onDidDrop={dropped}
-            />
-            {group && <Trash machine={group.machine} />}
-          </div>
-        </MonitorSlot>
-      </NotesSlot>
+      <div className="relative min-h-0 flex-1">
+        <DockviewReact
+          className="isolate"
+          theme={theme}
+          components={components}
+          watermarkComponent={Watermark}
+          disableFloatingGroups
+          dndEdges={edges}
+          onReady={(event) => {
+            accept(event);
+            restore(event.api);
+            setApi(event.api);
+          }}
+          onDidDrop={dropped}
+        />
+        {group && <Trash machine={group.machine} />}
+      </div>
     </TerminalSlot>
   );
 }

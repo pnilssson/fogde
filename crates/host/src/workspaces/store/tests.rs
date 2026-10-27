@@ -64,7 +64,11 @@ async fn terminals_keep_the_checkout_they_were_placed_in() {
     )
     .await
     .unwrap();
-    let checkouts: Vec<_> = listing.workspaces[0].tiles.iter().map(checkout).collect();
+    let checkouts: Vec<_> = listing.workspaces[0]
+        .terminals
+        .iter()
+        .map(|terminal| terminal.checkout.as_deref())
+        .collect();
 
     assert_eq!(checkouts, [None, Some("/worktrees/app/login")]);
 }
@@ -80,7 +84,7 @@ async fn placing_again_moves_a_terminal_between_checkouts() {
     place(&pool, "w1", &app.id, None).await.unwrap();
     let listing = list(&pool, &[terminal("w1", "/repos/app")]).await.unwrap();
 
-    assert_eq!(terminals(&listing.workspaces[0])[0].checkout, None);
+    assert_eq!(listing.workspaces[0].terminals[0].checkout, None);
 }
 
 #[tokio::test]
@@ -106,7 +110,7 @@ async fn closed_terminals_leave_their_workspace() {
     let listing = list(&pool, &[terminal("w2", "/repos/app")]).await.unwrap();
 
     assert_eq!(ids(&listing.workspaces[0]), ["w2"]);
-    assert_eq!(terminals(&listing.workspaces[0])[0].name, "Terminal w2");
+    assert_eq!(listing.workspaces[0].terminals[0].name, "Terminal w2");
     assert_eq!(members(&pool, &app.id).await.unwrap(), ["w2"]);
 }
 
@@ -141,33 +145,5 @@ async fn rejects_unknown_workspaces() {
     assert!(matches!(
         place(&pool, "w1", "home", None).await,
         Err(Error::Missing)
-    ));
-}
-
-#[tokio::test]
-async fn notes_stay_open_when_terminals_close() {
-    let pool = db::memory().await;
-    let app = create(&pool, "/repos/app", None).await.unwrap();
-    placed(&pool, &app, &["w1"]).await;
-    let note = open_note(&pool, &app.id, None, None).await.unwrap();
-
-    let listing = list(&pool, &[]).await.unwrap();
-
-    assert_eq!(ids(&listing.workspaces[0]), [note.as_str()]);
-    assert_eq!(listing.loose, Vec::<String>::new());
-    assert_eq!(members(&pool, &app.id).await.unwrap(), Vec::<String>::new());
-}
-
-#[tokio::test]
-async fn deleting_a_workspace_closes_its_notes() {
-    let pool = db::memory().await;
-    let app = create(&pool, "/repos/app", None).await.unwrap();
-    let note = open_note(&pool, &app.id, None, None).await.unwrap();
-
-    delete(&pool, &app.id).await.unwrap();
-
-    assert!(matches!(
-        show_note(&pool, &note, None).await,
-        Err(Error::Closed)
     ));
 }

@@ -7,7 +7,6 @@ import type {
 } from "dockview-react";
 import { positionToDirection } from "dockview-react";
 
-import type { Listed } from "@/features/workspaces/lib/drag";
 import {
   holdId,
   layoutKey,
@@ -20,6 +19,7 @@ import {
   Selection,
   type View,
 } from "@/features/workspaces/lib/selection";
+import { leavePage } from "@/lib/page";
 
 let current: DockviewApi | undefined;
 let pending: Selection | undefined;
@@ -33,24 +33,8 @@ export function tileId({ machine, id }: Selection) {
   return `${machine}:${id}`;
 }
 
-const components = {
-  terminal: "terminal",
-  note: "notes",
-  monitor: "monitor",
-} as const;
-
-function listedOf(panel: IDockviewPanel) {
-  const kind = Object.entries(components).find(
-    ([, component]) => component === panel.view.contentComponent,
-  )?.[0];
-
-  return kind === undefined
-    ? undefined
-    : { kind, selection: Selection.safeParse(panel.params).data };
-}
-
 function selectionOf(panel: IDockviewPanel | undefined) {
-  if (panel?.view.contentComponent !== components.terminal) {
+  if (panel?.view.contentComponent !== "terminal") {
     return undefined;
   }
 
@@ -129,19 +113,19 @@ export function leaveWorkspace(gone: Selection) {
   }
 }
 
-export function tilePanel({ kind, machine, id }: Listed) {
+function tilePanel({ machine, id }: Selection) {
   const selection = { machine, id };
 
   return {
     id: tileId(selection),
-    component: components[kind],
+    component: "terminal",
     params: selection,
   };
 }
 
 export function place(
   api: DockviewApi,
-  tile: Listed,
+  tile: Selection,
   position: Position,
   group: DockviewGroupPanel | undefined,
   inactive = false,
@@ -168,7 +152,9 @@ export function show(selection: Selection) {
 
 export function reveal(workspace: View, terminal: Selection) {
   selectWorkspace(workspace);
-  show(terminal);
+  leavePage(() => {
+    show(terminal);
+  });
 }
 
 export function revealNext(groups: Parameters<typeof nextWaiting>[0]) {
@@ -186,23 +172,22 @@ export function isShown(selection: Selection) {
   return current?.getPanel(tileId(selection)) !== undefined;
 }
 
-export function sync(tiles: Listed[], keep: (selection: Selection) => boolean) {
+export function sync(
+  tiles: Selection[],
+  keep: (selection: Selection) => boolean,
+) {
   if (!current) {
     return;
   }
 
   const ids = new Set(tiles.map(tileId));
   for (const panel of [...current.panels]) {
-    const listed = listedOf(panel);
-    if (!listed || ids.has(panel.id)) {
+    const selection = selectionOf(panel);
+    if (!selection || ids.has(panel.id)) {
       continue;
     }
 
-    const kept =
-      listed.kind === "terminal" &&
-      listed.selection !== undefined &&
-      keep(listed.selection);
-    if (!kept) {
+    if (!keep(selection)) {
       panel.api.close();
     }
   }

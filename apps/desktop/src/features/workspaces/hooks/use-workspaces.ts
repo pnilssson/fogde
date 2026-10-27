@@ -5,17 +5,9 @@ import {
 } from "@tanstack/react-query";
 
 import { toast } from "@/components/ui/toast";
-import {
-  addTile,
-  changeTile,
-  removeTile,
-  workspacesQuery,
-} from "@/features/workspaces/api/workspaces";
+import { workspacesQuery } from "@/features/workspaces/api/workspaces";
 import { forget } from "@/features/workspaces/lib/layouts";
-import { placeTile, type Spot } from "@/features/workspaces/lib/opening";
 import { arranged } from "@/features/workspaces/lib/order";
-import type { View } from "@/features/workspaces/lib/selection";
-import { terminalsOf } from "@/features/workspaces/lib/tile-kinds";
 import {
   leaveWorkspace,
   selectWorkspace,
@@ -26,6 +18,7 @@ import type {
   Workspace,
 } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { closePage } from "@/lib/page";
 
 const placing = new Set<string>();
 
@@ -42,12 +35,12 @@ function move(
   { terminal, workspace, checkout }: PlaceTerminalParams,
 ) {
   const moved = workspaces
-    ?.flatMap(terminalsOf)
+    ?.flatMap(({ terminals }) => terminals)
     .find(({ id }) => id === terminal);
   const stays = workspaces?.some(
     (current) =>
       current.id === workspace &&
-      terminalsOf(current).some(
+      current.terminals.some(
         ({ id, checkout: placed }) => id === terminal && placed === checkout,
       ),
   );
@@ -56,11 +49,11 @@ function move(
   }
 
   return workspaces?.map((current) => {
-    const tiles = current.tiles.filter(({ id }) => id !== terminal);
+    const terminals = current.terminals.filter(({ id }) => id !== terminal);
 
     return current.id === workspace && moved
-      ? { ...current, tiles: [...tiles, { ...moved, checkout }] }
-      : { ...current, tiles };
+      ? { ...current, terminals: [...terminals, { ...moved, checkout }] }
+      : { ...current, terminals };
   });
 }
 
@@ -104,14 +97,17 @@ function arrange(
   { tile, before }: MoveTileParams,
 ) {
   return workspaces?.map((workspace) => {
-    const moving = workspace.tiles.find(({ id }) => id === tile);
+    const moving = workspace.terminals.find(({ id }) => id === tile);
     if (!moving) {
       return workspace;
     }
 
-    const target = workspace.tiles.find(({ id }) => id === before) ?? null;
+    const target = workspace.terminals.find(({ id }) => id === before) ?? null;
 
-    return { ...workspace, tiles: arranged(workspace.tiles, moving, target) };
+    return {
+      ...workspace,
+      terminals: arranged(workspace.terminals, moving, target),
+    };
   });
 }
 
@@ -133,90 +129,6 @@ export function useMoveTile() {
     },
     onError: (error, { machine }) => {
       failed(queries, machine, "Could not move the tile", error);
-    },
-    onSettled: (_, __, { machine }) =>
-      queries.invalidateQueries(workspacesQuery(machine)),
-  });
-}
-
-interface OpenNote {
-  machine: Machine;
-  view: View;
-  note?: string | undefined;
-  spot?: Spot | undefined;
-}
-
-export function useOpenNote() {
-  const queries = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ machine, view, note }: OpenNote) =>
-      machine.client.call("workspaces.openNote", {
-        workspace: view.id,
-        checkout: view.checkout ?? null,
-        note: note ?? null,
-      }),
-    onMutate: ({ machine }) => queries.cancelQueries(workspacesQuery(machine)),
-    onSuccess: (id, { machine, view, note, spot }) => {
-      addTile(queries, machine, view.id, {
-        kind: "note",
-        id,
-        checkout: view.checkout ?? null,
-        note: note ?? null,
-      });
-      placeTile(view, "note", id, spot);
-    },
-    onError: (error, { machine }) => {
-      failed(queries, machine, "Could not open the notes", error);
-    },
-    onSettled: (_, __, { machine }) =>
-      queries.invalidateQueries(workspacesQuery(machine)),
-  });
-}
-
-interface ShowNote {
-  machine: Machine;
-  tile: string;
-  note: string | undefined;
-}
-
-export function useShowNote() {
-  const queries = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ machine, tile, note }: ShowNote) =>
-      machine.client.call("workspaces.showNote", { tile, note: note ?? null }),
-    onMutate: async ({ machine, tile, note }) => {
-      await queries.cancelQueries(workspacesQuery(machine));
-      changeTile(queries, machine, tile, (current) =>
-        current.kind === "note" ? { ...current, note: note ?? null } : current,
-      );
-    },
-    onError: (error, { machine }) => {
-      failed(queries, machine, "Could not open the note", error);
-    },
-    onSettled: (_, __, { machine }) =>
-      queries.invalidateQueries(workspacesQuery(machine)),
-  });
-}
-
-interface CloseTile {
-  machine: Machine;
-  tile: string;
-}
-
-export function useCloseTile() {
-  const queries = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ machine, tile }: CloseTile) =>
-      machine.client.call("workspaces.closeTile", tile),
-    onMutate: async ({ machine, tile }) => {
-      await queries.cancelQueries(workspacesQuery(machine));
-      removeTile(queries, machine, tile);
-    },
-    onError: (error, { machine }) => {
-      failed(queries, machine, "Could not close the tile", error);
     },
     onSettled: (_, __, { machine }) =>
       queries.invalidateQueries(workspacesQuery(machine)),
@@ -262,6 +174,7 @@ export function useCreateWorkspace(machine: Machine, onCreated: () => void) {
           ? current
           : [...current, workspace],
       );
+      closePage();
       selectWorkspace({ machine: machine.id, id: workspace.id });
       onCreated();
     },

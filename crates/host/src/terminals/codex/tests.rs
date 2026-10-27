@@ -52,6 +52,7 @@ mod shells {
 
     struct Pane {
         root: tempfile::TempDir,
+        original: BTreeMap<String, String>,
         env: BTreeMap<String, String>,
     }
 
@@ -74,7 +75,11 @@ mod shells {
                 .await
                 .unwrap();
 
-            Self { root, env }
+            Self {
+                root,
+                original,
+                env,
+            }
         }
 
         fn home(&self) -> std::path::PathBuf {
@@ -82,11 +87,24 @@ mod shells {
         }
 
         fn run(&self, shell: &str, args: &[&str]) -> Option<String> {
+            self.start(shell, args, &self.env)
+        }
+
+        fn bare(&self, shell: &str, args: &[&str]) -> Option<String> {
+            self.start(shell, args, &self.original)
+        }
+
+        fn start(
+            &self,
+            shell: &str,
+            args: &[&str],
+            env: &BTreeMap<String, String>,
+        ) -> Option<String> {
             let path = format!("{}:/usr/bin:/bin", self.root.path().join("bin").display());
             let output = Command::new(shell)
                 .args(args)
                 .env_clear()
-                .envs(&self.env)
+                .envs(env)
                 .env("HOME", self.home())
                 .env("PATH", path)
                 .output()
@@ -154,19 +172,20 @@ mod shells {
     async fn wraps_codex_in_fish_and_restores_the_data_folders() {
         let unset = Pane::new(&[]).await;
         let set = Pane::new(&[("XDG_DATA_DIRS", "/opt/share")]).await;
-        let script = "codex fix; codex --remote=ws://localhost:9999; echo \"[$XDG_DATA_DIRS]\"";
+        let script = "codex fix; codex --remote=ws://localhost:9999";
+        let data = "echo \"[$XDG_DATA_DIRS]\"";
 
-        let (Some(unset), Some(set)) = (
-            unset.run("fish", &["-c", script]),
-            set.run("fish", &["-c", script]),
-        ) else {
-            return;
-        };
+        for pane in [unset, set] {
+            let (Some(printed), Some(wrapped), Some(bare)) = (
+                pane.run("fish", &["-c", script]),
+                pane.run("fish", &["-c", data]),
+                pane.bare("fish", &["-c", data]),
+            ) else {
+                return;
+            };
 
-        assert_eq!(unset, "--no-daemon fix\n--remote=ws://localhost:9999\n[]\n");
-        assert_eq!(
-            set,
-            "--no-daemon fix\n--remote=ws://localhost:9999\n[/opt/share]\n"
-        );
+            assert_eq!(printed, "--no-daemon fix\n--remote=ws://localhost:9999\n");
+            assert_eq!(wrapped, bare);
+        }
     }
 }

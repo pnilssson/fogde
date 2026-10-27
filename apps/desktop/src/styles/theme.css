@@ -8,6 +8,10 @@
   --text-body--line-height: 20px;
   --text-caption: 12px;
   --text-caption--line-height: 16px;
+  --text-note: 16px;
+  --text-note--line-height: 24px;
+  --text-note-heading: 20px;
+  --text-note-heading--line-height: 28px;
   --font-weight-*: initial;
   --font-weight-normal: 400;
   --font-weight-semibold: 550;
@@ -58,6 +62,14 @@
 
 @utility type-caption {
   @apply text-caption font-normal;
+}
+
+@utility type-note {
+  @apply text-note font-normal;
+}
+
+@utility type-note-heading {
+  @apply text-note-heading font-semibold;
 }
 
 @utility type-code {

@@ -76,6 +76,63 @@ test("renders a note with links that open and leaves its text untouched", () => 
   view.destroy();
 });
 
+test("renders a table as a grid until the cursor enters it", () => {
+  const wikilink = vi.fn();
+  const text = [
+    "| App | State | Code \\| note |",
+    "|:----|------:|:-------------:|",
+    "| web | **done** | [[login]] |",
+    "| | | |",
+    "| api |",
+    "",
+  ].join("\n");
+  const view = new EditorView({
+    parent: document.body,
+    state: noteState(text, { wikilink, link: vi.fn() }, vi.fn()),
+  });
+  const grid = () =>
+    [...view.dom.querySelectorAll("tr")].map((row) =>
+      [...row.children].map((cell) => cell.textContent),
+    );
+
+  expect(grid()).toEqual([
+    ["App", "State", "Code | note"],
+    ["web", "done", "login"],
+    ["", "", ""],
+    ["api", "", ""],
+  ]);
+  expect(view.dom.querySelector("th:nth-child(2)")?.className).toContain(
+    "text-right",
+  );
+  expect(view.dom.querySelector("th:nth-child(3)")?.className).toContain(
+    "text-center",
+  );
+
+  view.dom
+    .querySelector("td [data-wikilink]")
+    ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+
+  expect(wikilink).toHaveBeenCalledWith("login");
+
+  const focus = (focusing: boolean) => {
+    view.dispatch({
+      effects: view.state
+        .facet(EditorView.focusChangeEffect)
+        .flatMap((effect) => effect(view.state, focusing) ?? []),
+    });
+  };
+  focus(true);
+  view.dispatch({ selection: { anchor: text.indexOf("web") } });
+
+  expect(view.dom.querySelector("table")).toBeNull();
+
+  focus(false);
+
+  expect(view.dom.querySelector("table")).not.toBeNull();
+  expect(view.state.sliceDoc()).toBe(text);
+  view.destroy();
+});
+
 test("a note replaced from disk keeps the line endings it has on disk", () => {
   const edited = vi.fn();
   const view = new EditorView({

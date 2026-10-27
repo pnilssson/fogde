@@ -9,35 +9,39 @@ import {
 } from "@codemirror/view";
 import type { SyntaxNodeRef } from "@lezer/common";
 
-import { Bullet, Checkbox, Rule } from "@/features/notes/lib/widgets";
+import { indent, type Items, listItem } from "@/features/notes/lib/lists";
+import { Rule } from "@/features/notes/lib/widgets";
 import { wikilinkParts } from "@/features/notes/lib/wikilinks";
 
-const linkClass = "cursor-pointer text-primary underline underline-offset-2";
+export const linkClass =
+  "cursor-pointer text-primary underline underline-offset-2";
 
 const hidden = Decoration.replace({});
 
+const minor = "font-semibold text-muted-foreground";
+
 const headings: Record<string, string> = {
   ATXHeading1: "type-display",
-  ATXHeading2: "type-title",
-  ATXHeading3: "type-title",
-  ATXHeading4: "font-semibold",
-  ATXHeading5: "font-semibold",
-  ATXHeading6: "font-semibold",
+  ATXHeading2: "type-note-heading",
+  ATXHeading3: "font-semibold",
+  ATXHeading4: minor,
+  ATXHeading5: minor,
+  ATXHeading6: minor,
   SetextHeading1: "type-display",
-  SetextHeading2: "type-title",
+  SetextHeading2: "type-note-heading",
 };
 
-const marks: Record<string, string> = {
+export const marks: Record<string, string> = {
   Emphasis: "italic",
   StrongEmphasis: "font-bold",
   Strikethrough: "line-through",
   InlineCode: "rounded-sm bg-muted px-1 type-code",
 };
 
-const lines: Record<string, string> = {
-  FencedCode: "bg-muted type-code",
-  CodeBlock: "bg-muted type-code",
-  Blockquote: "border-l-2 pl-4 text-muted-foreground",
+const blocks: Record<string, string> = {
+  FencedCode: "cm-code bg-muted type-code",
+  CodeBlock: "cm-code bg-muted type-code",
+  Blockquote: "cm-quote border-l-2 text-muted-foreground",
   Table: "type-code",
 };
 
@@ -80,14 +84,41 @@ function decorate(
     }
   };
 
-  const lineClass = headings[name] ?? lines[name];
-  if (lineClass) {
-    const last = doc.lineAt(node.to).number;
-    for (let line = doc.lineAt(node.from).number; line <= last; line++) {
+  const heading = headings[name];
+  if (heading) {
+    const first = doc.lineAt(node.from).number;
+    const last = name.startsWith("Setext")
+      ? doc.lineAt(node.to).number - 1
+      : first;
+    found.push(
+      Decoration.line({ class: `${heading} cm-h${name.slice(-1)}` }).range(
+        doc.line(first).from,
+      ),
+    );
+    for (let line = first + 1; line <= last; line++) {
       found.push(
-        Decoration.line({ class: lineClass }).range(doc.line(line).from),
+        Decoration.line({ class: heading }).range(doc.line(line).from),
       );
     }
+  }
+
+  const block = blocks[name];
+  if (block) {
+    const last = doc.lineAt(node.to).number;
+    for (let line = doc.lineAt(node.from).number; line <= last; line++) {
+      found.push(Decoration.line({ class: block }).range(doc.line(line).from));
+    }
+  }
+
+  if (name === "FencedCode" || name === "CodeBlock") {
+    found.push(
+      Decoration.line({ class: "rounded-t-md" }).range(
+        doc.lineAt(node.from).from,
+      ),
+      Decoration.line({ class: "rounded-b-md" }).range(
+        doc.lineAt(node.to).from,
+      ),
+    );
   }
 
   const markClass = marks[name];
@@ -120,28 +151,15 @@ function decorate(
     case "StrikethroughMark":
       hide(node.from, node.to);
       break;
-    case "CodeMark":
-      if (node.node.parent?.name === "InlineCode") {
+    case "CodeMark": {
+      const parent = node.node.parent?.name;
+      if (parent === "InlineCode") {
         hide(node.from, node.to);
+      } else if (parent === "FencedCode") {
+        hide(node.from, doc.lineAt(node.from).to);
       }
       break;
-    case "ListMark":
-      if (node.node.parent?.parent?.name === "BulletList") {
-        found.push(
-          Decoration.replace({ widget: new Bullet() }).range(
-            node.from,
-            node.to,
-          ),
-        );
-      }
-      break;
-    case "TaskMarker":
-      found.push(
-        Decoration.replace({
-          widget: new Checkbox(text(node.from, node.to) !== "[ ]", node.from),
-        }).range(node.from, node.to),
-      );
-      break;
+    }
     case "HorizontalRule":
       found.push(
         Decoration.replace({ widget: new Rule() }).range(node.from, node.to),
@@ -180,14 +198,20 @@ function decorate(
 
 function build(view: EditorView) {
   const found: Range<Decoration>[] = [];
+  const items: Items = new Map();
   const active = activeLines(view);
-  const { doc } = view.state;
+  const { state } = view;
+  const { doc } = state;
 
   for (const { from, to } of view.visibleRanges) {
-    syntaxTree(view.state).iterate({
+    syntaxTree(state).iterate({
       from,
       to,
       enter: (node) => {
+        if (node.name === "ListItem") {
+          listItem(state, node.node, active, items, found);
+        }
+
         const first = doc.lineAt(node.from).number;
         const last = doc.lineAt(node.to).number;
         let editing = false;
@@ -195,12 +219,12 @@ function build(view: EditorView) {
           editing = active.has(line);
         }
 
-        decorate(view.state, node, editing, found);
+        decorate(state, node, editing, found);
       },
     });
   }
 
-  return Decoration.set(found, true);
+  return Decoration.set([...found, ...indent(state, items)], true);
 }
 
 export const preview = ViewPlugin.fromClass(

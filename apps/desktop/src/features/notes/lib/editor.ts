@@ -24,6 +24,7 @@ import { tags } from "@lezer/highlight";
 
 import { diff } from "@/features/notes/lib/merge";
 import { preview } from "@/features/notes/lib/preview";
+import { tables } from "@/features/notes/lib/tables";
 import { wikilinks } from "@/features/notes/lib/wikilinks";
 
 const external = Annotation.define<boolean>();
@@ -51,7 +52,7 @@ const theme = EditorView.theme({
     lineHeight: "inherit",
   },
   ".cm-content": {
-    maxWidth: "48rem",
+    maxWidth: "calc(65ch + 64px)",
     margin: "0 auto",
     padding: "24px 32px",
     caretColor: "var(--foreground)",
@@ -59,6 +60,28 @@ const theme = EditorView.theme({
   ".cm-cursor": { borderLeftColor: "var(--foreground)" },
   ".cm-selectionBackground, &.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground":
     { background: "var(--selected)" },
+  ".cm-line": { padding: "0" },
+  ".cm-h1, .cm-h2": { paddingTop: "32px" },
+  ".cm-h3, .cm-h4, .cm-h5, .cm-h6": { paddingTop: "16px" },
+  ".cm-content > .cm-line:first-child": { paddingTop: "0" },
+  ".cm-code": { paddingInline: "16px" },
+  ".cm-quote": { paddingLeft: "16px" },
+  ".cm-item": {
+    paddingLeft: "calc(var(--depth) * 32px)",
+    textIndent: "calc(var(--depth) * -32px)",
+  },
+  ".cm-item-rest": { paddingLeft: "calc(var(--depth) * 32px)" },
+  ".cm-indent": {
+    display: "inline-block",
+    width: "calc((var(--depth) - 1) * 32px)",
+    textIndent: "0",
+  },
+  ".cm-item-rest .cm-indent": { width: "0" },
+  ".cm-item-rest.cm-code": {
+    marginLeft: "calc(var(--depth) * 32px)",
+    paddingLeft: "16px",
+  },
+  ".cm-marker": { display: "inline-block", minWidth: "32px", textIndent: "0" },
 });
 
 function wrap(marker: string): Command {
@@ -153,10 +176,11 @@ export function noteState(
     history(),
     drawSelection(),
     EditorView.lineWrapping,
-    EditorView.contentAttributes.of({ class: "type-title font-normal" }),
+    EditorView.contentAttributes.of({ class: "type-note" }),
     markdown({ base: markdownLanguage, extensions: [wikilinks] }),
     syntaxHighlighting(muted),
     preview,
+    tables,
     theme,
     follow(links),
     keymap.of([

@@ -8,7 +8,7 @@ export class Bullet extends WidgetType {
   toDOM() {
     const bullet = document.createElement("span");
     bullet.textContent = "•";
-    bullet.className = "text-muted-foreground";
+    bullet.className = "cm-marker text-center text-muted-foreground";
 
     return bullet;
   }
@@ -42,10 +42,12 @@ export class Checkbox extends WidgetType {
   }
 
   toDOM(view: EditorView) {
+    const marker = document.createElement("span");
+    marker.className = "cm-marker text-center";
     const box = document.createElement("input");
     box.type = "checkbox";
     box.checked = this.checked;
-    box.className = "mr-1 align-middle";
+    box.className = "align-middle";
     box.setAttribute("aria-label", this.checked ? "Done" : "Not done");
     box.addEventListener("mousedown", (event) => {
       event.preventDefault();
@@ -60,11 +62,12 @@ export class Checkbox extends WidgetType {
         },
       });
     });
+    marker.append(box);
 
-    return box;
+    return marker;
   }
 
-  override ignoreEvent() {
-    return true;
+  override ignoreEvent(event: Event) {
+    return event.target instanceof HTMLInputElement;
   }
 }

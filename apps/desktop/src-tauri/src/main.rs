@@ -4,7 +4,7 @@
 mod menu;
 mod window;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use protocol::{Connection, Frame};
 use tauri::{Manager, State};
@@ -32,6 +32,22 @@ fn binaries(app: &tauri::App) -> tauri::Result<host::Binaries> {
     ))
 }
 
+fn launcher(app: &tauri::App) -> tauri::Result<Option<PathBuf>> {
+    if !cfg!(windows) {
+        return Ok(None);
+    }
+
+    if cfg!(debug_assertions) {
+        return Ok(Some(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../target/debug/codex.exe"),
+        ));
+    }
+
+    Ok(Some(
+        app.path().resource_dir()?.join("shims").join("codex.exe"),
+    ))
+}
+
 fn main() -> anyhow::Result<()> {
     if let Err(error) = host::log("desktop", cfg!(debug_assertions)) {
         tracing::warn!(%error, "could not open the log file");
@@ -49,7 +65,7 @@ fn main() -> anyhow::Result<()> {
                 .build(),
         )
         .setup(|app| {
-            let host = tauri::async_runtime::block_on(host::start(binaries(app)?))?;
+            let host = tauri::async_runtime::block_on(host::start(binaries(app)?, launcher(app)?))?;
             app.manage(host);
             #[cfg(target_os = "macos")]
             menu::install(app)?;

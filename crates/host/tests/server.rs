@@ -18,7 +18,7 @@ async fn exchange(url: &str, message: &str) -> Result<Value, Box<dyn std::error:
 
 #[tokio::test]
 async fn rejects_wrong_token() {
-    let connection = host::start(host::Binaries::built(std::env::temp_dir()))
+    let connection = host::start(host::Binaries::built(std::env::temp_dir()), None)
         .await
         .unwrap();
 
@@ -29,7 +29,7 @@ async fn rejects_wrong_token() {
 
 #[tokio::test]
 async fn rejects_missing_token() {
-    let connection = host::start(host::Binaries::built(std::env::temp_dir()))
+    let connection = host::start(host::Binaries::built(std::env::temp_dir()), None)
         .await
         .unwrap();
 
@@ -38,7 +38,7 @@ async fn rejects_missing_token() {
 
 #[tokio::test]
 async fn answers_unknown_method_and_bad_json() {
-    let connection = host::start(host::Binaries::built(std::env::temp_dir()))
+    let connection = host::start(host::Binaries::built(std::env::temp_dir()), None)
         .await
         .unwrap();
     let url = format!("{}?token={}", connection.url, connection.token);

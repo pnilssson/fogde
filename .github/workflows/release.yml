@@ -73,7 +73,7 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            args: ""
+            args: --config src-tauri/tauri.release.windows.conf.json
           - os: macos-latest
             args: --target universal-apple-darwin
           - os: ubuntu-22.04
@@ -97,6 +97,8 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - if: runner.os == 'macOS'
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - if: runner.os == 'Windows'
+        run: cargo build -p shim --release
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: lts/*

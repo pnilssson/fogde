@@ -11,9 +11,15 @@ process.workspace = true
 protocol.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sqlx.workspace = true
+sysinfo.workspace = true
 thiserror.workspace = true
 time.workspace = true
 tokio = { workspace = true, features = ["io-util", "macros", "process", "rt", "time"] }
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

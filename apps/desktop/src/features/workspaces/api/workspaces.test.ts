@@ -14,6 +14,7 @@ const claude: Terminal = {
   id: "w2",
   name: "Claude",
   agent: "claude",
+  model: null,
   status: "idle",
   folder: "/repos/app",
   branch: "main",
@@ -107,7 +108,7 @@ test("keeps a closed terminal gone when an older list arrives after it", async (
   expect(terminals).toEqual([]);
 });
 
-test("applies a state change, with its folder and branch, to the terminal it names", () => {
+test("applies a state change, with its model, folder and branch, to the terminal it names", () => {
   const call = vi.fn();
   const machine = { id: "local", client: { call } } as unknown as Machine;
   const queries = new QueryClient();
@@ -118,6 +119,7 @@ test("applies a state change, with its folder and branch, to the terminal it nam
     id: "w2",
     name: "Fix the login",
     agent: "claude",
+    model: "Opus 5.5",
     status: "blocked",
     folder: "/repos/app/src",
     branch: "fix-login",
@@ -129,6 +131,7 @@ test("applies a state change, with its folder and branch, to the terminal it nam
   expect(queries.getQueryData(queryKey)?.[0]?.terminals[0]).toEqual({
     ...claude,
     name: "Fix the login",
+    model: "Opus 5.5",
     status: "blocked",
     folder: "/repos/app/src",
     branch: "fix-login",
@@ -149,6 +152,7 @@ test("reloads the workspaces for a terminal it doesn't know", async () => {
     id: "w2",
     name: "Claude",
     agent: "claude",
+    model: null,
     status: "working",
     folder: "/repos/app",
     branch: "main",

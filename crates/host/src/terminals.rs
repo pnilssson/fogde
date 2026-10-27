@@ -1,4 +1,5 @@
 mod changes;
+pub mod codex;
 mod herdr;
 mod images;
 mod launch;
@@ -24,7 +25,6 @@ use crate::folders;
 use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
 pub use changes::count;
-pub use launch::path_with;
 use launch::{Launch, Launches, label};
 use stream::Control;
 pub use tracker::Tracker;
@@ -92,6 +92,7 @@ pub async fn list(session: &Session) -> Result<Vec<Terminal>, Failure> {
                 id: state.id,
                 name: state.name,
                 agent: state.agent,
+                model: state.model,
                 status: state.status,
                 folder: state.folder,
                 branch: state.branch,
@@ -129,10 +130,16 @@ impl Handler for CreateTerminal {
         let herdr = session.herdr().await?;
         let folder = folders::absolute(&params.folder).map_err(failure)?;
         let name = label(params.agent);
-        let mut env = herdr.pane_env().clone();
-        if params.agent.is_some_and(|agent| agent.spec().github) {
-            env.insert("PATH".to_owned(), path_with(session.gh().await?.program()));
-        }
+        let gh = if params.agent.is_some_and(|agent| agent.spec().github) {
+            Some(session.gh().await?.program().to_path_buf())
+        } else {
+            None
+        };
+        let env = session
+            .shared
+            .codex()
+            .await
+            .pane_env(herdr.pane_env(), gh.as_deref());
 
         let checkouts = crate::workspaces::checkouts(&folder).await;
         let checkout = crate::workspaces::worktree_of(&folder, &checkouts);
@@ -158,6 +165,7 @@ impl Handler for CreateTerminal {
             id: workspace,
             name: name.to_owned(),
             agent: params.agent,
+            model: None,
             status: Status::Idle,
             folder: folder.display().to_string(),
             branch: git::branch(&folder).await,

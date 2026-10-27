@@ -20,6 +20,7 @@ interface Props {
   icon: ReactNode;
   title: string;
   status?: Status | undefined;
+  model?: string | null | undefined;
   place?: Place | undefined;
   branch?: string | null | undefined;
   changes?: Changes | null | undefined;
@@ -37,6 +38,7 @@ export function TileBar({
   icon,
   title,
   status,
+  model,
   place,
   branch,
   changes,
@@ -48,7 +50,7 @@ export function TileBar({
     <header
       {...(item ? dragProps(item) : {})}
       className={cn(
-        "flex h-8 shrink-0 items-center gap-2 border-b px-2 font-mono type-caption",
+        "@container flex h-8 shrink-0 items-center gap-2 border-b px-2 font-mono type-caption",
         item && "cursor-grab active:cursor-grabbing",
         !active && "text-muted-foreground",
       )}
@@ -57,6 +59,11 @@ export function TileBar({
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="truncate">{title}</span>
         {status && <StateIcon status={status} />}
+        {model && (
+          <span className="hidden shrink-0 text-muted-foreground @lg:inline">
+            {model}
+          </span>
+        )}
       </div>
       {place && (
         <Tooltip>

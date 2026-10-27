@@ -6,6 +6,7 @@ fn terminal(id: &str, folder: &str) -> Terminal {
         id: id.to_owned(),
         name: format!("Terminal {id}"),
         agent: None,
+        model: None,
         status: protocol::terminals::Status::Idle,
         folder: folder.to_owned(),
         branch: None,

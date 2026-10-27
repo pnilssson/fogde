@@ -102,7 +102,7 @@ export type Stats = { behind: boolean, lines: boolean, upstream: boolean, };
 
 export type Status = "idle" | "working" | "blocked" | "done";
 
-export type Terminal = { id: string, name: string, agent: Agent | null, status: Status, folder: string, branch: string | null, changes: Changes | null, checkout: string | null, };
+export type Terminal = { id: string, name: string, agent: Agent | null, model: string | null, status: Status, folder: string, branch: string | null, changes: Changes | null, checkout: string | null, };
 
 export type TerminalEnded = { id: string, error: string | null, };
 
@@ -116,7 +116,7 @@ export type TerminalKeyParams = { id: string, key: Key, };
 
 export type TerminalScrolled = { id: string, offset: number, max: number, rows: number, };
 
-export type TerminalState = { id: string, name: string, agent: Agent | null, status: Status, folder: string, branch: string | null, changes: Changes | null, };
+export type TerminalState = { id: string, name: string, agent: Agent | null, model: string | null, status: Status, folder: string, branch: string | null, changes: Changes | null, };
 
 export type Theme = "system" | "light" | "dark";
 

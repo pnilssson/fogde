@@ -9,6 +9,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{Notify, broadcast};
 
 use describe::describe;
+use models::Model;
 
 const RETRY: Duration = Duration::from_secs(2);
 const RESYNC: Duration = Duration::from_millis(1500);
@@ -34,6 +35,7 @@ pub struct Tracker {
     changes: broadcast::Sender<TerminalState>,
     states: Mutex<HashMap<String, TerminalState>>,
     git: Mutex<Git>,
+    models: Mutex<HashMap<String, Model>>,
     detected: Mutex<HashSet<String>>,
     views: Mutex<HashMap<u64, String>>,
     viewed: Notify,
@@ -46,6 +48,7 @@ impl Default for Tracker {
             changes: broadcast::channel(256).0,
             states: Mutex::default(),
             git: Mutex::default(),
+            models: Mutex::default(),
             detected: Mutex::default(),
             views: Mutex::default(),
             viewed: Notify::new(),
@@ -100,6 +103,7 @@ impl Tracker {
             viewed,
             detected,
             &lock(&self.git),
+            lock(&self.models).get(&workspace.id),
         )
     }
 
@@ -164,6 +168,10 @@ impl Tracker {
             }
         }
 
+        if self.read_models(client, &panes).await {
+            self.update(&workspaces, &panes);
+        }
+
         Ok(seen)
     }
 
@@ -181,6 +189,7 @@ impl Tracker {
     fn update(&self, workspaces: &[Workspace], panes: &[Pane]) -> (Vec<String>, Vec<String>) {
         let viewed = self.viewed();
         let git = lock(&self.git).clone();
+        let models = lock(&self.models).clone();
         let mut detected = lock(&self.detected);
         let mut states = lock(&self.states);
         let mut next = HashMap::new();
@@ -203,6 +212,7 @@ impl Tracker {
                 looking,
                 detected.contains(&workspace.id),
                 &git,
+                models.get(&workspace.id),
             );
             if looking && pane.status == herdr_client::Status::Done {
                 clearing.push(pane.id.clone());
@@ -244,5 +254,6 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 mod describe;
+mod models;
 #[cfg(test)]
 mod tests;

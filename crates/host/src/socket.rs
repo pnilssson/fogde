@@ -1,5 +1,6 @@
 use std::io;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::Router;
@@ -38,13 +39,13 @@ struct Auth {
     token: String,
 }
 
-pub async fn start(binaries: Binaries) -> io::Result<Connection> {
+pub async fn start(binaries: Binaries, launcher: Option<PathBuf>) -> io::Result<Connection> {
     let token = token::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let url = format!("ws://{}/", listener.local_addr()?);
 
     let desktop = Arc::new(Desktop {
-        shared: Arc::new(Shared::new(Some(binaries))?),
+        shared: Arc::new(Shared::new(Some(binaries), launcher)?),
         token: token.clone(),
     });
 

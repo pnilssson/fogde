@@ -1,13 +1,15 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { callOwn } from "@/lib/host";
+import type { Machine } from "@/lib/machines";
 
-export const shellQuery = queryOptions({
-  queryKey: ["shell.get"],
-  queryFn: () => callOwn("shell.get"),
-});
+export const shellQuery = (machine: Machine) =>
+  queryOptions({
+    queryKey: [machine.id, "shell.get"],
+    queryFn: () => machine.client.call("shell.get"),
+  });
 
-export const shellsQuery = queryOptions({
-  queryKey: ["shell.list"],
-  queryFn: () => callOwn("shell.list"),
-});
+export const shellsQuery = (machine: Machine) =>
+  queryOptions({
+    queryKey: [machine.id, "shell.list"],
+    queryFn: () => machine.client.call("shell.list"),
+  });

@@ -23,7 +23,7 @@ export function UsageSettings() {
     <SettingsSection
       id="usage-heading"
       title="Usage limits"
-      hint="Shows how much of each plan is left in the status bar."
+      hint="Shows how much of each plan is left at the bottom of the sidebar."
     >
       {allAgents.map((agent) => (
         <SettingsRow key={agent} label={agents[agent].short} labelled>

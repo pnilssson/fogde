@@ -34,6 +34,12 @@ pub struct MoveTileParams {
     pub before: Option<String>,
 }
 
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct ArrangeWorkspaceParams {
+    pub workspace: String,
+    pub before: Option<String>,
+}
+
 pub struct ListWorkspaces;
 
 impl Method for ListWorkspaces {
@@ -55,6 +61,14 @@ pub struct DeleteWorkspace;
 impl Method for DeleteWorkspace {
     const NAME: &'static str = "workspaces.delete";
     type Params = String;
+    type Result = ();
+}
+
+pub struct ArrangeWorkspace;
+
+impl Method for ArrangeWorkspace {
+    const NAME: &'static str = "workspaces.arrange";
+    type Params = ArrangeWorkspaceParams;
     type Result = ();
 }
 

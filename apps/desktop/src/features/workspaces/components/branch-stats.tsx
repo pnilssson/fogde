@@ -96,7 +96,7 @@ export function BranchStats({ changes }: Props) {
     <Tooltip>
       <TooltipTrigger
         render={
-          <span className="flex shrink-0 items-center gap-2 tabular-nums" />
+          <span className="flex shrink-0 items-center gap-2 font-mono type-caption tabular-nums" />
         }
       >
         {parts.map(({ key, counts }) => (

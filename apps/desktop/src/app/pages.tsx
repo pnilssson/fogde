@@ -2,21 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import { CopiedNotice } from "@/components/copied-notice";
+import { MachinePicker } from "@/components/machine-picker";
 import { PageFrame } from "@/components/page-frame";
 import { MonitorView } from "@/features/monitor/components/monitor-view";
 import { notesQuery } from "@/features/notes/api/notes";
-import { ListToggle } from "@/features/notes/components/list-toggle";
 import { NotesView } from "@/features/notes/components/notes-view";
 import { copyPath, usePathCopied } from "@/features/notes/lib/copy";
 import { inDialog } from "@/features/workspaces/hooks/use-shortcuts";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
-import { store } from "@/features/workspaces/lib/layouts";
 import type { View } from "@/features/workspaces/lib/selection";
-import { show } from "@/features/workspaces/lib/tiles";
+import { showTiles } from "@/features/workspaces/lib/tiles";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 import {
-  leavePage,
   openNote,
   openPage,
   usePage,
@@ -54,7 +52,7 @@ export function Pages({ groups, workspace }: Props) {
     onMachine: (next: string) => {
       openPage(page, next);
     },
-    onClose: back,
+    onClose: showTiles,
   };
 
   return page === "notes" ? (
@@ -77,8 +75,8 @@ interface FrameProps {
   onClose: () => void;
 }
 
-function NotesPage(frame: FrameProps) {
-  const { machine } = frame;
+function NotesPage({ onClose, ...picker }: FrameProps) {
+  const { machine } = picker;
   const note = useShownNote(machine.id);
   const list = useQuery(notesQuery(machine));
   const shown = list.data?.notes.some(({ path }) => path === note)
@@ -95,10 +93,11 @@ function NotesPage(frame: FrameProps) {
   );
 
   return (
-    <PageFrame title="Notes" {...frame} leading={<ListToggle />}>
+    <PageFrame title="Notes" onClose={onClose}>
       <NotesView
         machine={machine}
         note={note}
+        picker={<MachinePicker {...picker} />}
         onOpen={(next) => {
           openNote(machine.id, next);
         }}
@@ -110,22 +109,18 @@ function NotesPage(frame: FrameProps) {
 
 function MonitorPage({
   workspaces,
-  ...frame
+  onClose,
+  ...picker
 }: FrameProps & { workspaces: Workspace[] }) {
   return (
-    <PageFrame title="Monitor" {...frame}>
-      <MonitorView machine={frame.machine} workspaces={workspaces} />
+    <PageFrame title="Monitor" onClose={onClose}>
+      <MonitorView
+        machine={picker.machine}
+        workspaces={workspaces}
+        picker={<MachinePicker {...picker} />}
+      />
     </PageFrame>
   );
-}
-
-function back() {
-  leavePage(() => {
-    const { active } = store.getState();
-    if (active) {
-      show(active);
-    }
-  });
 }
 
 function useCopyShortcut(action: (() => void) | undefined) {

@@ -96,7 +96,8 @@ pub async fn create(
     }
 
     let inserted = sqlx::query!(
-        "INSERT INTO workspaces (folder, identity) VALUES (?, ?)",
+        "INSERT INTO workspaces (folder, identity, position)
+         VALUES (?, ?, (SELECT COALESCE(MAX(position) + 1, 0) FROM workspaces))",
         folder,
         identity
     )
@@ -151,9 +152,44 @@ pub async fn delete(pool: &SqlitePool, workspace: &str) -> Result<(), Error> {
     Ok(())
 }
 
+pub async fn reorder(
+    pool: &SqlitePool,
+    workspace: &str,
+    before: Option<&str>,
+) -> Result<(), Error> {
+    let id: i64 = workspace.parse().map_err(|_| Error::Missing)?;
+    let mut tx = pool.begin().await?;
+    let mut order = sqlx::query_scalar!("SELECT id FROM workspaces ORDER BY position, id")
+        .fetch_all(&mut *tx)
+        .await?;
+    if !order.contains(&id) {
+        return Err(Error::Missing);
+    }
+
+    order.retain(|each| *each != id);
+    let at = before
+        .and_then(|before| before.parse::<i64>().ok())
+        .and_then(|before| order.iter().position(|each| *each == before))
+        .unwrap_or(order.len());
+    order.insert(at, id);
+
+    for (position, each) in (0_i64..).zip(&order) {
+        sqlx::query!(
+            "UPDATE workspaces SET position = ? WHERE id = ?",
+            position,
+            each
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+
+    Ok(())
+}
+
 async fn stored(db: &mut SqliteConnection) -> Result<Vec<(i64, Workspace)>, Error> {
     Ok(
-        sqlx::query!("SELECT id, folder, identity FROM workspaces ORDER BY id")
+        sqlx::query!("SELECT id, folder, identity FROM workspaces ORDER BY position, id")
             .fetch_all(db)
             .await?
             .into_iter()

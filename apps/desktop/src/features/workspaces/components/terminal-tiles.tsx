@@ -18,6 +18,7 @@ import {
   usePlaceTerminal,
 } from "@/features/workspaces/hooks/use-workspaces";
 import { Trash } from "@/features/workspaces/components/trash";
+import { useActiveClose } from "@/features/workspaces/lib/closing";
 import {
   canDrop,
   dragType,
@@ -56,7 +57,7 @@ import {
   sync,
 } from "@/features/workspaces/lib/tiles";
 
-const theme = { name: "fogde", className: "dockview-theme-fogde" };
+const theme = { name: "fogde", className: "dockview-theme-fogde", gap: 8 };
 
 const edges = {
   activationSize: { type: "percentage", value: 15 },
@@ -74,7 +75,6 @@ function TerminalTile({ api, params }: IDockviewPanelProps<Selection>) {
     <TerminalPane
       panel={api}
       machine={found.machine}
-      workspace={found.workspace}
       terminal={found.terminal}
     />
   );
@@ -85,6 +85,8 @@ function StartTile({ api, params }: IDockviewPanelProps<{ folder?: string }>) {
   const active = useTiles((tiles) => tiles.focused === startId);
   const shared = useStart(workspace) !== undefined;
   const focus = useStartFocus();
+
+  useActiveClose(active, closeStart);
 
   useEffect(() => {
     if (focus) {
@@ -116,7 +118,7 @@ function StartTile({ api, params }: IDockviewPanelProps<{ folder?: string }>) {
 
 function Watermark() {
   return (
-    <div className="flex h-full overflow-auto">
+    <div className="flex h-full overflow-auto rounded-xl bg-surface-3 shadow-surface-2">
       <StartPage />
     </div>
   );

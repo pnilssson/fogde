@@ -2,7 +2,7 @@ import { TerminalWindowIcon } from "@phosphor-icons/react";
 import { useId } from "react";
 
 import { AgentIcon } from "@/components/agent-icon";
-import { Bars } from "@/features/monitor/components/sparkline";
+import { Bars } from "@/features/monitor/components/bars";
 import type { Reading } from "@/features/monitor/hooks/use-samples";
 import { bytes, percent } from "@/features/monitor/lib/format";
 import type { Workspace } from "@/generated/protocol";

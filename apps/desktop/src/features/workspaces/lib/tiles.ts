@@ -150,6 +150,15 @@ export function show(selection: Selection) {
   pending = selection;
 }
 
+export function showTiles() {
+  leavePage(() => {
+    const { active } = store.getState();
+    if (active) {
+      show(active);
+    }
+  });
+}
+
 export function reveal(workspace: View, terminal: Selection) {
   selectWorkspace(workspace);
   leavePage(() => {

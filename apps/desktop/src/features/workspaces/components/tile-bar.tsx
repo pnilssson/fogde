@@ -1,4 +1,4 @@
-import { GitBranchIcon, XIcon } from "@phosphor-icons/react";
+import { XIcon } from "@phosphor-icons/react";
 import { cn } from "cn";
 import type { ReactNode } from "react";
 
@@ -8,82 +8,35 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { BranchStats } from "@/features/workspaces/components/branch-stats";
-import { StateIcon } from "@/features/workspaces/components/state-icon";
-import { useActiveClose } from "@/features/workspaces/lib/closing";
 import { type Dragged, dragProps } from "@/features/workspaces/lib/drag";
-import type { Changes, Status } from "@/generated/protocol";
 
 interface Props {
   item: Dragged | undefined;
   active: boolean;
   icon: ReactNode;
   title: string;
-  status?: Status | undefined;
   model?: string | null | undefined;
-  place?: Place | undefined;
-  branch?: string | null | undefined;
-  changes?: Changes | null | undefined;
   onClose?: (() => void) | undefined;
 }
 
-interface Place {
-  label: string;
-  path: string;
-}
-
-export function TileBar({
-  item,
-  active,
-  icon,
-  title,
-  status,
-  model,
-  place,
-  branch,
-  changes,
-  onClose,
-}: Props) {
-  useActiveClose(active, onClose);
-
+export function TileBar({ item, active, icon, title, model, onClose }: Props) {
   return (
     <header
       {...(item ? dragProps(item) : {})}
       className={cn(
-        "@container flex h-8 shrink-0 items-center gap-2 border-b px-2 font-mono type-caption",
+        "@container flex h-8 shrink-0 items-center gap-2 px-2 font-mono type-caption",
         item && "cursor-grab active:cursor-grabbing",
         !active && "text-muted-foreground",
       )}
     >
       {icon}
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="truncate">{title}</span>
-        {status && <StateIcon status={status} />}
-        {model && (
-          <span className="hidden shrink-0 text-muted-foreground @lg:inline">
-            {model}
-          </span>
-        )}
-      </div>
-      {place && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <span className="max-w-1/3 min-w-0 shrink-0 truncate text-muted-foreground" />
-            }
-          >
-            {place.label}
-          </TooltipTrigger>
-          <TooltipContent>{place.path}</TooltipContent>
-        </Tooltip>
-      )}
-      {branch && (
-        <span className="flex max-w-1/3 min-w-0 shrink-0 items-center gap-2">
-          <GitBranchIcon aria-label="Branch" className="size-4 shrink-0" />
-          <span className="truncate">{branch}</span>
+      <span className="truncate">{title}</span>
+      <span className="flex-1" />
+      {model && (
+        <span className="hidden shrink-0 text-muted-foreground @lg:inline">
+          {model}
         </span>
       )}
-      <BranchStats changes={changes} />
       {onClose && (
         <Tooltip>
           <TooltipTrigger

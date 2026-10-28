@@ -13,6 +13,7 @@ import {
   selectWorkspace,
 } from "@/features/workspaces/lib/tiles";
 import type {
+  ArrangeWorkspaceParams,
   MoveTileParams,
   PlaceTerminalParams,
   Workspace,
@@ -132,6 +133,39 @@ export function useMoveTile() {
     },
     onSettled: (_, __, { machine }) =>
       queries.invalidateQueries(workspacesQuery(machine)),
+  });
+}
+
+function reorder(
+  workspaces: Workspace[] | undefined,
+  { workspace, before }: ArrangeWorkspaceParams,
+) {
+  const moving = workspaces?.find(({ id }) => id === workspace);
+  if (!workspaces || !moving) {
+    return workspaces;
+  }
+
+  const target = workspaces.find(({ id }) => id === before) ?? null;
+
+  return arranged(workspaces, moving, target);
+}
+
+export function useArrangeWorkspace(machine: Machine) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ArrangeWorkspaceParams) =>
+      machine.client.call("workspaces.arrange", params),
+    onMutate: async (params) => {
+      await queries.cancelQueries(workspacesQuery(machine));
+      queries.setQueryData(workspacesQuery(machine).queryKey, (current) =>
+        reorder(current, params),
+      );
+    },
+    onError: (error) => {
+      failed(queries, machine, "Could not move the workspace", error);
+    },
+    onSettled: () => queries.invalidateQueries(workspacesQuery(machine)),
   });
 }
 

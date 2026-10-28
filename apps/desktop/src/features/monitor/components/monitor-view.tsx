@@ -1,5 +1,5 @@
 import { BatteryMediumIcon } from "@phosphor-icons/react";
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
@@ -10,7 +10,7 @@ import { TerminalLoads } from "@/features/monitor/components/terminal-loads";
 import { useLatency } from "@/features/monitor/hooks/use-latency";
 import { type Reading, useSamples } from "@/features/monitor/hooks/use-samples";
 import { bytes, millis, percent } from "@/features/monitor/lib/format";
-import { recent } from "@/features/monitor/lib/peaks";
+import { recent } from "@/features/monitor/lib/recent";
 import type { Workspace } from "@/generated/protocol";
 import { ConnectionError } from "@/lib/client";
 import type { Machine } from "@/lib/machines";
@@ -20,9 +20,10 @@ const LIVE = 60_000;
 interface Props {
   machine: Machine;
   workspaces: Workspace[];
+  picker: ReactNode;
 }
 
-export function MonitorView({ machine, workspaces }: Props) {
+export function MonitorView({ machine, workspaces, picker }: Props) {
   const reading = useSamples(machine);
   const samples = reading.data ?? [];
   const latency = useLatency(machine).data ?? [];
@@ -66,6 +67,7 @@ export function MonitorView({ machine, workspaces }: Props) {
   return (
     <ScrollArea className="h-full">
       <div className="@container flex flex-col gap-6 p-4">
+        {picker}
         <div className="grid gap-4 @xl:grid-cols-2">
           <LiveChart
             label="CPU used"

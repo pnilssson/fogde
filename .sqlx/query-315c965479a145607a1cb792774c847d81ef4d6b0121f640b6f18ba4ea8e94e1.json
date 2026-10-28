@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO workspaces (folder, identity, position)\n         VALUES (?, ?, (SELECT COALESCE(MAX(position) + 1, 0) FROM workspaces))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "315c965479a145607a1cb792774c847d81ef4d6b0121f640b6f18ba4ea8e94e1"
+}

@@ -23,13 +23,14 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { BranchStats } from "@/features/workspaces/components/branch-stats";
 import {
   type RowsProps,
   ViewRows,
 } from "@/features/workspaces/components/view-rows";
 import { RemoveWorktree } from "@/features/workspaces/components/remove-worktree";
 import { useRemoval } from "@/features/workspaces/hooks/use-worktrees";
-import { checkoutName } from "@/features/workspaces/lib/checkouts";
+import { changesOf, checkoutName } from "@/features/workspaces/lib/checkouts";
 import type { View } from "@/features/workspaces/lib/selection";
 import type { Checkout } from "@/generated/protocol";
 import { shortcuts } from "@/lib/shortcuts";
@@ -77,6 +78,7 @@ export function WorktreeItem({ checkout, current, down, ...props }: Props) {
         >
           <GitBranchIcon />
           <span className="min-w-0 flex-1 truncate">{name}</span>
+          <BranchStats changes={changesOf(workspace, checkout)} />
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onClick={start}>

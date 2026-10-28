@@ -21,11 +21,15 @@ export function StatsSettings() {
   const save = useSaveSetting(
     statsQuery,
     (next: Stats) => callOwn("stats.set", next),
-    "Could not save the tile bar settings",
+    "Could not save the branch settings",
   );
 
   return (
-    <SettingsSection id="tile-bar-heading" title="Tile bar">
+    <SettingsSection
+      id="branch-heading"
+      title="Branches"
+      hint="Shows how each branch differs beside it in the sidebar."
+    >
       {rows.map(({ key, label }) => (
         <SettingsRow key={key} label={label} labelled>
           <Switch

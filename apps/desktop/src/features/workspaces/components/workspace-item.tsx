@@ -1,8 +1,4 @@
-import {
-  DotsThreeIcon,
-  FolderIcon,
-  FolderOpenIcon,
-} from "@phosphor-icons/react";
+import { DotsThreeIcon } from "@phosphor-icons/react";
 import { cn } from "cn";
 import { useState } from "react";
 
@@ -30,12 +26,20 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { BranchStats } from "@/features/workspaces/components/branch-stats";
 import { DeleteWorkspace } from "@/features/workspaces/components/delete-workspace";
 import { NewWorktree } from "@/features/workspaces/components/new-worktree";
 import { StateIcon } from "@/features/workspaces/components/state-icon";
 import { WorkspaceTree } from "@/features/workspaces/components/workspace-tree";
-import { mainCheckout } from "@/features/workspaces/lib/checkouts";
+import { changesOf, mainCheckout } from "@/features/workspaces/lib/checkouts";
 import { setOpen, useOpen } from "@/features/workspaces/lib/layouts";
+import { beforeOf, changes } from "@/features/workspaces/lib/order";
+import {
+  hoverWorkspace,
+  reorderProps,
+  useMoving,
+  useOverWorkspace,
+} from "@/features/workspaces/lib/reorder";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
 import { attention } from "@/features/workspaces/lib/status";
 import type { Workspace } from "@/generated/protocol";
@@ -47,8 +51,10 @@ interface Props {
   workspace: Workspace;
   view: View | undefined;
   down: boolean;
+  siblings: string[];
   onSelect: (view: View, terminal?: Selection) => void;
   onStart: (view: View, folder: string) => void;
+  onArrange: (workspace: string, before: string | null) => void;
 }
 
 export function WorkspaceItem({
@@ -56,15 +62,24 @@ export function WorkspaceItem({
   workspace,
   view,
   down,
+  siblings,
   onSelect,
   onStart,
+  onArrange,
 }: Props) {
   const place = { machine: machine.id, id: workspace.id };
   const current = view !== undefined && view.checkout === undefined;
   const open = useOpen(place);
   const [deleting, setDeleting] = useState(false);
   const [naming, setNaming] = useState(false);
-  const repo = mainCheckout(workspace) !== undefined;
+  const main = mainCheckout(workspace);
+  const dragging = useMoving();
+  const over = useOverWorkspace(workspace.id);
+  const index = siblings.indexOf(workspace.id);
+  const moving =
+    dragging?.machine === machine.id && dragging.id !== workspace.id
+      ? dragging.id
+      : undefined;
 
   const start = () => {
     onStart(place, workspace.folder);
@@ -78,13 +93,74 @@ export function WorkspaceItem({
     setDeleting(true);
   };
 
+  const raise = () => {
+    onArrange(workspace.id, siblings[index - 1] ?? null);
+  };
+
+  const lower = () => {
+    onArrange(workspace.id, siblings[index + 2] ?? null);
+  };
+
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem
+      onDragOver={(event) => {
+        if (!moving) {
+          return;
+        }
+
+        const row = event.currentTarget
+          .querySelector("[data-heading]")
+          ?.getBoundingClientRect();
+        const edge =
+          row && event.clientY < row.top + row.height / 2 ? "above" : "below";
+        const before = beforeOf(siblings, moving, workspace.id, edge);
+        if (!changes(siblings, moving, before)) {
+          hoverWorkspace(undefined);
+          return;
+        }
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        hoverWorkspace({ id: workspace.id, edge });
+      }}
+      onDragLeave={(event) => {
+        if (
+          event.relatedTarget instanceof Node &&
+          event.currentTarget.contains(event.relatedTarget)
+        ) {
+          return;
+        }
+
+        hoverWorkspace(undefined);
+      }}
+      onDrop={(event) => {
+        if (!moving || !over) {
+          return;
+        }
+
+        event.preventDefault();
+        onArrange(moving, beforeOf(siblings, moving, workspace.id, over));
+        hoverWorkspace(undefined);
+      }}
+    >
+      {moving && over && (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-x-0 h-0.5 rounded-full bg-sidebar-ring",
+            over === "above"
+              ? "-top-0.5 -translate-y-1/2"
+              : "-bottom-0.5 translate-y-1/2",
+          )}
+        />
+      )}
       <Collapsible open={open}>
         <ContextMenu disabled={down}>
           <ContextMenuTrigger
             render={
               <SidebarMenuButton
+                data-heading
+                {...(down ? {} : reorderProps(place))}
                 isActive={view !== undefined}
                 aria-expanded={open}
                 onClick={() => {
@@ -99,7 +175,6 @@ export function WorkspaceItem({
               />
             }
           >
-            {open ? <FolderOpenIcon /> : <FolderIcon />}
             <span
               className={cn(
                 "min-w-0 flex-1 truncate",
@@ -108,6 +183,12 @@ export function WorkspaceItem({
             >
               {workspace.name}
             </span>
+            {main?.branch && (
+              <span className="max-w-1/3 min-w-0 shrink-0 truncate font-mono type-caption text-muted-foreground">
+                {main.branch}
+              </span>
+            )}
+            {main && <BranchStats changes={changesOf(workspace, main)} />}
             {!open && !down && (
               <StateIcon status={attention(workspace.terminals)} />
             )}
@@ -121,7 +202,7 @@ export function WorkspaceItem({
                     <Keys letter={shortcuts.tile} />
                   </ContextMenuShortcut>
                 </ContextMenuItem>
-                {repo && (
+                {main && (
                   <ContextMenuItem onClick={branch}>
                     New worktree
                   </ContextMenuItem>
@@ -129,6 +210,16 @@ export function WorkspaceItem({
                 <ContextMenuSeparator />
               </>
             )}
+            <ContextMenuItem disabled={index <= 0} onClick={raise}>
+              Move up
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={index === siblings.length - 1}
+              onClick={lower}
+            >
+              Move down
+            </ContextMenuItem>
+            <ContextMenuSeparator />
             <ContextMenuItem variant="destructive" onClick={remove}>
               Delete
             </ContextMenuItem>
@@ -155,7 +246,7 @@ export function WorkspaceItem({
                       <Keys letter={shortcuts.tile} />
                     </DropdownMenuShortcut>
                   </DropdownMenuItem>
-                  {repo && (
+                  {main && (
                     <DropdownMenuItem onClick={branch}>
                       New worktree
                     </DropdownMenuItem>
@@ -163,6 +254,16 @@ export function WorkspaceItem({
                   <DropdownMenuSeparator />
                 </>
               )}
+              <DropdownMenuItem disabled={index <= 0} onClick={raise}>
+                Move up
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={index === siblings.length - 1}
+                onClick={lower}
+              >
+                Move down
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={remove}>
                 Delete
               </DropdownMenuItem>

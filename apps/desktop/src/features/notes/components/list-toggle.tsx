@@ -18,7 +18,7 @@ export function ListToggle() {
         render={
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             aria-label={label}
             onClick={toggleList}
           />

@@ -42,7 +42,7 @@ export function UsageMeters({ machines }: Props) {
   }
 
   return (
-    <ul className="flex items-center gap-2" aria-label="Usage left">
+    <ul className="flex flex-col" aria-label="Usage left">
       {current.map(({ agent, windows, shown }) => (
         <li key={agent}>
           <Meter agent={agent} windows={windows} shown={shown} now={now} />
@@ -70,14 +70,14 @@ function Meter({ agent, windows, shown, now }: MeterProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="text-muted-foreground"
+            className="w-full justify-start px-2 text-muted-foreground"
             aria-label={`${agents[agent].short}: ${lines.join(", ")}`}
           />
         }
       >
         <AgentIcon agent={agent} />
-        <Progress.Root value={left} aria-hidden>
-          <ProgressTrack className="h-1 w-12">
+        <Progress.Root value={left} aria-hidden className="flex-1">
+          <ProgressTrack className="h-1">
             <ProgressIndicator className="rounded-full bg-muted-foreground" />
           </ProgressTrack>
         </Progress.Root>
@@ -86,7 +86,7 @@ function Meter({ agent, windows, shown, now }: MeterProps) {
           <span>{remaining(shown, now)}</span>
         </span>
       </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-none flex-col items-start">
+      <TooltipContent side="right" className="max-w-none flex-col items-start">
         {lines.map((line) => (
           <span key={line}>{line}</span>
         ))}

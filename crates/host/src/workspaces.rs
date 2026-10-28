@@ -14,8 +14,8 @@ use futures_util::future::join_all;
 use protocol::rpc::Failure;
 use protocol::terminals::Terminal;
 use protocol::workspaces::{
-    Checkout, CreateWorkspace, DeleteWorkspace, ListWorkspaces, PlaceTerminal, PlaceTerminalParams,
-    Workspace,
+    ArrangeWorkspace, ArrangeWorkspaceParams, Checkout, CreateWorkspace, DeleteWorkspace,
+    ListWorkspaces, PlaceTerminal, PlaceTerminalParams, Workspace,
 };
 use sqlx::SqlitePool;
 
@@ -28,6 +28,7 @@ pub fn register(router: &mut Router) {
     router.add::<CreateWorkspace>();
     router.add::<DeleteWorkspace>();
     router.add::<PlaceTerminal>();
+    router.add::<ArrangeWorkspace>();
     tiles::register(router);
 }
 
@@ -123,6 +124,23 @@ impl Handler for PlaceTerminal {
             params.checkout.as_deref(),
         )
         .await
+    }
+}
+
+impl Handler for ArrangeWorkspace {
+    const ORDERED: bool = true;
+
+    async fn handle(session: &Session, params: ArrangeWorkspaceParams) -> Result<(), Failure> {
+        store::reorder(
+            pool(session).await?,
+            &params.workspace,
+            params.before.as_deref(),
+        )
+        .await
+        .map_err(failure)?;
+        watch::announce(&session.shared);
+
+        Ok(())
     }
 }
 

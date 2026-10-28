@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { noteQuery, notesQuery } from "@/features/notes/api/notes";
+import { ListToggle } from "@/features/notes/components/list-toggle";
 import { NameDialog } from "@/features/notes/components/name-dialog";
 import { NoteEditor } from "@/features/notes/components/note-editor";
 import { NotesTree } from "@/features/notes/components/notes-tree";
@@ -36,10 +37,11 @@ import { report } from "@/lib/report";
 interface Props {
   machine: Machine;
   note: string | undefined;
+  picker: ReactNode;
   onOpen: (note: string) => void;
 }
 
-export function NotesView({ machine, note, onOpen }: Props) {
+export function NotesView({ machine, note, picker, onOpen }: Props) {
   const list = useQuery(notesQuery(machine));
   const order = useOrder();
   const browsing = useListShown();
@@ -82,6 +84,7 @@ export function NotesView({ machine, note, onOpen }: Props) {
       {browsing && (
         <aside className="flex w-64 min-w-0 shrink-0 flex-col border-r">
           <div className="flex h-8 shrink-0 items-center gap-1 px-2">
+            <ListToggle />
             <Action
               label="New note"
               icon={<FilePlusIcon />}
@@ -97,6 +100,8 @@ export function NotesView({ machine, note, onOpen }: Props) {
               }}
             />
             <SortMenu />
+            <span className="flex-1" />
+            {picker}
           </div>
           <ScrollArea className="min-h-0 flex-1">
             <NotesTree
@@ -135,7 +140,13 @@ export function NotesView({ machine, note, onOpen }: Props) {
           />
         </aside>
       )}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        {!browsing && (
+          <div className="absolute top-0 left-2 z-10 flex h-8 items-center gap-1">
+            <ListToggle />
+            {picker}
+          </div>
+        )}
         {open ? (
           <Shown
             machine={machine}

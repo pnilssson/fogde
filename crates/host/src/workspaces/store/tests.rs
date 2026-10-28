@@ -147,3 +147,65 @@ async fn rejects_unknown_workspaces() {
         Err(Error::Missing)
     ));
 }
+
+async fn folders(pool: &SqlitePool) -> Vec<String> {
+    list(pool, &[])
+        .await
+        .unwrap()
+        .workspaces
+        .into_iter()
+        .map(|workspace| workspace.folder)
+        .collect()
+}
+
+#[tokio::test]
+async fn reordering_moves_a_workspace_before_another() {
+    let pool = db::memory().await;
+    let app = create(&pool, "/repos/app", None).await.unwrap();
+    create(&pool, "/repos/api", None).await.unwrap();
+    let web = create(&pool, "/repos/web", None).await.unwrap();
+
+    reorder(&pool, &web.id, Some(&app.id)).await.unwrap();
+
+    assert_eq!(
+        folders(&pool).await,
+        ["/repos/web", "/repos/app", "/repos/api"]
+    );
+}
+
+#[tokio::test]
+async fn reordering_without_a_neighbour_moves_a_workspace_to_the_end() {
+    let pool = db::memory().await;
+    let app = create(&pool, "/repos/app", None).await.unwrap();
+    create(&pool, "/repos/api", None).await.unwrap();
+
+    reorder(&pool, &app.id, None).await.unwrap();
+
+    assert_eq!(folders(&pool).await, ["/repos/api", "/repos/app"]);
+}
+
+#[tokio::test]
+async fn new_workspaces_go_after_reordered_ones() {
+    let pool = db::memory().await;
+    let app = create(&pool, "/repos/app", None).await.unwrap();
+    create(&pool, "/repos/api", None).await.unwrap();
+    reorder(&pool, &app.id, None).await.unwrap();
+
+    create(&pool, "/repos/web", None).await.unwrap();
+
+    assert_eq!(
+        folders(&pool).await,
+        ["/repos/api", "/repos/app", "/repos/web"]
+    );
+}
+
+#[tokio::test]
+async fn reordering_a_deleted_workspace_fails() {
+    let pool = db::memory().await;
+    let app = create(&pool, "/repos/app", None).await.unwrap();
+    delete(&pool, &app.id).await.unwrap();
+
+    let result = reorder(&pool, &app.id, None).await;
+
+    assert!(matches!(result, Err(Error::Missing)));
+}

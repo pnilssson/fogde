@@ -19,3 +19,15 @@ export function working(workspace: Workspace, checkout: string) {
     (terminal) => terminal.checkout === checkout && busy(terminal.status),
   );
 }
+
+export function changesOf(workspace: Workspace, checkout: Checkout) {
+  const path = checkout.main ? null : checkout.path;
+  const terminal = workspace.terminals.find(
+    (each) =>
+      each.checkout === path &&
+      each.branch === checkout.branch &&
+      each.changes !== null,
+  );
+
+  return terminal?.changes;
+}

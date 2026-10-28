@@ -26,6 +26,8 @@ import {
 import { useNewWorkspace } from "@/features/workspaces/components/new-workspace";
 import { WorkspaceItem } from "@/features/workspaces/components/workspace-item";
 import { useStatus } from "@/features/workspaces/hooks/use-terminals";
+import { useArrangeWorkspace } from "@/features/workspaces/hooks/use-workspaces";
+import { changes } from "@/features/workspaces/lib/order";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
@@ -51,6 +53,8 @@ export function MachineGroup({
   const down = status.disconnected || status.failed;
   const loading = workspaces.isPending && !down;
   const newWorkspace = useNewWorkspace(machine);
+  const arrange = useArrangeWorkspace(machine);
+  const ids = workspaces.data?.map(({ id }) => id) ?? [];
 
   const create = () => {
     void newWorkspace.start();
@@ -137,8 +141,14 @@ export function MachineGroup({
                 : undefined
             }
             down={down}
+            siblings={ids}
             onSelect={onSelect}
             onStart={onStart}
+            onArrange={(workspace, before) => {
+              if (changes(ids, workspace, before)) {
+                arrange.mutate({ workspace, before });
+              }
+            }}
           />
         ))}
       </SidebarMenu>

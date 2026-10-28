@@ -1,18 +1,14 @@
 import {
   GearSixIcon,
-  LayoutIcon,
   PaletteIcon,
+  SidebarSimpleIcon,
   SlidersHorizontalIcon,
 } from "@phosphor-icons/react";
 import { type ReactNode, useState } from "react";
 
 import { Keys } from "@/components/keys";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarMenu,
@@ -21,6 +17,11 @@ import {
 } from "@/components/ui/sidebar";
 import { AccessibilitySettings } from "@/features/settings/components/accessibility-settings";
 import { AppearanceSettings } from "@/features/settings/components/appearance-settings";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { MachineNav } from "@/features/settings/components/machine-nav";
 import { MachinePage } from "@/features/settings/components/machine-page";
 import { MonitorSettings } from "@/features/settings/components/monitor-settings";
@@ -31,7 +32,7 @@ import { useMachines } from "@/hooks/use-machines";
 import { setSettingsOpen, useSettingsOpen } from "@/lib/settings-open";
 import { shortcuts } from "@/lib/shortcuts";
 
-type Page = "general" | "appearance" | "bars" | { machine: string };
+type Page = "general" | "appearance" | "sidebar" | { machine: string };
 
 const pages = [
   {
@@ -52,9 +53,9 @@ const pages = [
     content: <AppearanceSettings />,
   },
   {
-    page: "bars",
-    label: "Bars",
-    icon: LayoutIcon,
+    page: "sidebar",
+    label: "Sidebar",
+    icon: SidebarSimpleIcon,
     content: (
       <>
         <StatsSettings />
@@ -84,13 +85,26 @@ export function SettingsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setSettingsOpen}>
-      <DialogTrigger
-        render={<SidebarMenuButton className="text-muted-foreground" />}
-      >
-        <GearSixIcon />
-        <span className="min-w-0 flex-1 truncate">Settings</span>
-        <Keys letter={shortcuts.settings} />
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Settings"
+              onClick={() => {
+                setSettingsOpen(true);
+              }}
+            />
+          }
+        >
+          <GearSixIcon />
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          Settings
+          <Keys letter={shortcuts.settings} />
+        </TooltipContent>
+      </Tooltip>
       <DialogContent className="flex h-144 max-h-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-3xl">
         <ScrollArea className="w-52 shrink-0 border-r">
           <nav aria-label="Settings" className="flex flex-col gap-4 p-2">

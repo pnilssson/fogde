@@ -1,19 +1,14 @@
-import { NotebookIcon, PulseIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarHeader,
   SidebarMenu,
-  SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { UpdateItem } from "@/components/update-item";
 import { MachineGroup } from "@/features/workspaces/components/machine-group";
-import { PageItem } from "@/features/workspaces/components/page-item";
-import { SearchItem } from "@/features/workspaces/components/search-item";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
 
@@ -22,7 +17,7 @@ interface Props {
   selected: View | undefined;
   onSelect: (view: View, terminal?: Selection) => void;
   onStart: (view: View, folder: string) => void;
-  settings: ReactNode;
+  meters: ReactNode;
 }
 
 export function WorkspaceSidebar({
@@ -30,39 +25,12 @@ export function WorkspaceSidebar({
   selected,
   onSelect,
   onStart,
-  settings,
+  meters,
 }: Props) {
   const { setOpenMobile } = useSidebar();
 
   return (
-    <Sidebar className="absolute h-full">
-      <SidebarHeader>
-        <SidebarMenu>
-          <SearchItem
-            onOpen={() => {
-              setOpenMobile(false);
-            }}
-          />
-          <PageItem
-            page="notes"
-            machine={selected?.machine}
-            icon={<NotebookIcon />}
-            label="Notes"
-            onOpen={() => {
-              setOpenMobile(false);
-            }}
-          />
-          <PageItem
-            page="monitor"
-            machine={selected?.machine}
-            icon={<PulseIcon />}
-            label="Monitor"
-            onOpen={() => {
-              setOpenMobile(false);
-            }}
-          />
-        </SidebarMenu>
-      </SidebarHeader>
+    <Sidebar className="absolute h-full group-data-[side=left]:border-r-0">
       <SidebarContent className="gap-4 pt-2">
         {groups.map(({ machine, workspaces }) => (
           <MachineGroup
@@ -81,10 +49,10 @@ export function WorkspaceSidebar({
           />
         ))}
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="gap-0">
+        {meters}
         <SidebarMenu>
           <UpdateItem />
-          <SidebarMenuItem>{settings}</SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>

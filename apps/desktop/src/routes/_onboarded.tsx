@@ -4,7 +4,8 @@ import { useEffect } from "react";
 
 import { Pages } from "@/app/pages";
 
-import { StatusBar } from "@/components/status-bar";
+import { SidebarToggle } from "@/components/sidebar-toggle";
+import { TitleBar } from "@/components/title-bar";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { useAgents } from "@/features/agents/hooks/use-agents";
 import { onboardedQuery } from "@/features/onboarding/api/onboarding";
@@ -14,6 +15,8 @@ import { UsageMeters } from "@/features/usage/components/usage-meters";
 import { PaletteNotes } from "@/features/notes/components/palette-notes";
 import { useNotesChanges } from "@/features/notes/hooks/use-notes-changes";
 import { CommandPalette } from "@/features/workspaces/components/command-palette";
+import { PageTabs } from "@/features/workspaces/components/page-tabs";
+import { SearchButton } from "@/features/workspaces/components/search-button";
 import { WorkspaceSidebar } from "@/features/workspaces/components/workspace-sidebar";
 import { useAttention } from "@/features/workspaces/hooks/use-attention";
 import { useCheckouts } from "@/features/workspaces/hooks/use-checkouts";
@@ -84,6 +87,16 @@ export const Route = createFileRoute("/_onboarded")({
     return (
       <WorkspaceContext value={{ groups, workspace }}>
         <div className="flex h-full min-h-0 flex-col">
+          <TitleBar
+            start={
+              <>
+                <SidebarToggle />
+                <PageTabs machine={workspace?.machine} />
+              </>
+            }
+            center={<SearchButton />}
+            end={<SettingsDialog />}
+          />
           <div className="relative flex min-h-0 flex-1">
             <WorkspaceSidebar
               groups={groups}
@@ -101,9 +114,19 @@ export const Route = createFileRoute("/_onboarded")({
                 selectWorkspace(next);
                 openStart(folder);
               }}
-              settings={<SettingsDialog />}
+              meters={
+                <>
+                  <UsageMeters machines={machines} />
+                  <MonitorMeters
+                    machines={machines}
+                    onOpen={(machine) => {
+                      openPage("monitor", machine.id);
+                    }}
+                  />
+                </>
+              }
             />
-            <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-surface-3">
+            <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-transparent px-2 pb-2">
               <div
                 className={cn(
                   "flex min-h-0 flex-1 flex-col",
@@ -114,23 +137,12 @@ export const Route = createFileRoute("/_onboarded")({
                 <Outlet />
               </div>
               {page && (
-                <div className="absolute inset-0">
+                <div className="absolute inset-0 px-2 pb-2">
                   <Pages groups={groups} workspace={workspace} />
                 </div>
               )}
             </SidebarInset>
           </div>
-          <StatusBar
-            start={
-              <MonitorMeters
-                machines={machines}
-                onOpen={(machine) => {
-                  openPage("monitor", machine.id);
-                }}
-              />
-            }
-            end={<UsageMeters machines={machines} />}
-          />
           <CommandPalette notes={(props) => <PaletteNotes {...props} />} />
         </div>
       </WorkspaceContext>

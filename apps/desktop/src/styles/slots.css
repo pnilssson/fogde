@@ -42,7 +42,7 @@
 
 .dockview-theme-fogde {
   --dv-group-view-background-color: transparent;
-  --dv-separator-border: var(--border);
+  --dv-separator-border: transparent;
   --dv-sash-color: transparent;
   --dv-active-sash-color: var(--border);
   --dv-drag-over-background-color: color-mix(
@@ -52,6 +52,12 @@
   );
   --dv-drag-over-border-color: var(--border);
   --dv-border-radius: var(--radius-xl);
+}
+
+.dockview-theme-fogde .dv-groupview {
+  background-color: var(--surface-3);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-2);
 }
 
 .terminal-view .xterm-viewport {
@@ -106,4 +112,33 @@
 
 [data-sidebar="menu-sub-button"] > svg {
   color: inherit;
+}
+
+[data-slot="tabs-list"] {
+  height: auto;
+  gap: 0.25rem;
+  padding: 0;
+  background-color: transparent;
+}
+
+[data-slot="tabs-trigger"] {
+  height: 2rem;
+  padding-inline: 0.75rem;
+  color: var(--muted-foreground);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  font-weight: 400;
+}
+
+[data-slot="tabs-trigger"]:is(:hover, [data-active]) {
+  color: var(--sidebar-accent-foreground);
+}
+
+[data-slot="tabs-trigger"][data-active] {
+  background-color: var(--surface-3);
+  box-shadow: var(--shadow-2);
+}
+
+[data-slot="tabs-trigger"][data-active]:not(:focus-visible) {
+  border-color: transparent;
 }

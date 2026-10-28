@@ -5,9 +5,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 
-import { SidebarToggle } from "@/components/sidebar-toggle";
 import { TitleBar } from "@/components/title-bar";
-import { Separator } from "@/components/ui/separator";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 export const Route = createRootRouteWithContext<{ queries: QueryClient }>()({
@@ -19,8 +17,7 @@ export const Route = createRootRouteWithContext<{ queries: QueryClient }>()({
 
     return (
       <SidebarProvider className="h-screen min-h-0 flex-col">
-        <TitleBar>{onboarded && <SidebarToggle />}</TitleBar>
-        {onboarded && <Separator />}
+        {!onboarded && <TitleBar />}
         <div className="min-h-0 flex-1">
           <Outlet />
         </div>

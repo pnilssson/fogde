@@ -1,42 +1,12 @@
-import { XIcon } from "@phosphor-icons/react";
 import { type ReactNode, useEffect, useRef } from "react";
-
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import type { Machine } from "@/lib/machines";
 
 interface Props {
   title: string;
-  machine: Machine;
-  machines: Machine[];
-  onMachine: (machine: string) => void;
   onClose: () => void;
-  leading?: ReactNode;
-  actions?: ReactNode;
   children: ReactNode;
 }
 
-export function PageFrame({
-  title,
-  machine,
-  machines,
-  onMachine,
-  onClose,
-  leading,
-  actions,
-  children,
-}: Props) {
+export function PageFrame({ title, onClose, children }: Props) {
   const frame = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -65,52 +35,10 @@ export function PageFrame({
     <section
       ref={frame}
       aria-label={title}
-      className="flex h-full min-h-0 flex-col"
+      className="relative h-full min-h-0 overflow-hidden rounded-xl bg-surface-3 shadow-surface-2"
     >
-      <header className="flex h-8 shrink-0 items-center gap-2 border-b px-2">
-        {leading}
-        <h1 className="truncate type-caption">{title}</h1>
-        {machines.length > 1 && (
-          <Select
-            items={machines.map(({ id, name }) => ({ label: name, value: id }))}
-            value={machine.id}
-            onValueChange={(next) => {
-              if (next) {
-                onMachine(next);
-              }
-            }}
-          >
-            <SelectTrigger size="sm" aria-label="Machine">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {machines.map(({ id, name }) => (
-                <SelectItem key={id} value={id}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <span className="flex-1" />
-        {actions}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={`Close ${title}`}
-                onClick={onClose}
-              />
-            }
-          >
-            <XIcon />
-          </TooltipTrigger>
-          <TooltipContent>Close</TooltipContent>
-        </Tooltip>
-      </header>
-      <div className="relative min-h-0 flex-1">{children}</div>
+      <h1 className="sr-only">{title}</h1>
+      {children}
     </section>
   );
 }

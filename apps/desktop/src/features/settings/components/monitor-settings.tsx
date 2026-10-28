@@ -33,7 +33,7 @@ export function MonitorSettings() {
     <SettingsSection
       id="monitor-heading"
       title="Monitoring"
-      hint="Shows what Fogde uses on one machine in the status bar."
+      hint="Shows what Fogde uses on one machine beside Monitor in the sidebar."
     >
       <SettingsRow label="Machine" labelled>
         <Select

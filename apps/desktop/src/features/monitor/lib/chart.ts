@@ -5,7 +5,7 @@ export type Range = [number, number];
 const TICK_GAP = 36;
 const EDGE = 16;
 
-export function extent(values: number[]): Range {
+function extent(values: number[]): Range {
   if (values.length === 0) {
     return [0, 1];
   }

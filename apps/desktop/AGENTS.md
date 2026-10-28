@@ -9,7 +9,7 @@
 ## UI
 
 - Show loading with a spinner or skeleton, whichever fits the content.
-- Show each state in one place; never repeat it across the sidebar, main area and status bar.
+- Show each state in one place; never repeat it across the top bar, sidebar and main area.
 - Show validation errors under their input and every other error as a toast.
 - Never use a middle dot (·) as a separator; write the relation in words ("app on Hetzner VPS") or separate with layout.
 - Use tooltips only for icon-only controls or information not visible elsewhere; never repeat visible text.

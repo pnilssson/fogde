@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id, folder, identity FROM workspaces ORDER BY id",
+  "query": "SELECT id, folder, identity FROM workspaces ORDER BY position, id",
   "describe": {
     "columns": [
       {
@@ -46,5 +46,5 @@
       true
     ]
   },
-  "hash": "dd75268152fc5d22d574b2854d794d84f42628a5fa42cb79de86b954a4c83feb"
+  "hash": "b174924b8b1ac3763481fab10f1f4aafa2e63aba82b6b49d5f07031b03d67c68"
 }

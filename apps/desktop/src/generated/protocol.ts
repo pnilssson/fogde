@@ -14,6 +14,8 @@ export type AgentState = "missing" | "signedOut" | "signedIn";
 
 export type AgentStatus = { agent: Agent, state: AgentState, };
 
+export type ArrangeWorkspaceParams = { workspace: string, before: string | null, };
+
 export type Bar = { machine: MachineId, metrics: Array<Metric>, };
 
 export type Base = { name: string, behind: number, };
@@ -224,6 +226,7 @@ export type Methods = {
   "usage.getShown": { params: null; result: Shown };
   "usage.list": { params: null; result: Array<Usage> };
   "usage.setShown": { params: Shown; result: null };
+  "workspaces.arrange": { params: ArrangeWorkspaceParams; result: null };
   "workspaces.create": { params: string; result: Workspace };
   "workspaces.delete": { params: string; result: null };
   "workspaces.list": { params: null; result: Array<Workspace> };

@@ -84,7 +84,7 @@ export function NotesTree({ machine, root, note, actions }: Props) {
   };
 
   return (
-    <SidebarMenu className="p-2">
+    <SidebarMenu>
       <Rows
         folder={root}
         nested={false}

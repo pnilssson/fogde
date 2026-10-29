@@ -4,19 +4,18 @@ import {
 } from "@phosphor-icons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { cn } from "cn";
+import { useEffect, useRef } from "react";
 
+import { BarTitle } from "@/components/bar-title";
+import { Bar, Layer } from "@/components/frame";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import {
-  SidebarGroup,
-  SidebarGroupAction,
-  SidebarGroupLabel,
-  SidebarMenu,
-} from "@/components/ui/sidebar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { SidebarGroupAction, SidebarMenu } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
@@ -32,7 +31,7 @@ import type { Selection, View } from "@/features/workspaces/lib/selection";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
-const action = "static w-7 text-muted-foreground";
+const action = "static w-8 text-muted-foreground";
 
 interface Props {
   machine: Machine;
@@ -40,6 +39,8 @@ interface Props {
   selected: View | undefined;
   onSelect: (view: View, terminal?: Selection) => void;
   onStart: (view: View, folder: string) => void;
+  height: number | undefined;
+  onMeasure: (machine: string, height: number) => void;
 }
 
 export function MachineGroup({
@@ -48,7 +49,11 @@ export function MachineGroup({
   selected,
   onSelect,
   onStart,
+  height,
+  onMeasure,
 }: Props) {
+  const bar = useRef<HTMLElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const status = useStatus(machine, workspaces);
   const down = status.disconnected || status.failed;
   const loading = workspaces.isPending && !down;
@@ -60,18 +65,40 @@ export function MachineGroup({
     void newWorkspace.start();
   };
 
+  useEffect(() => {
+    const top = bar.current;
+    const rows = content.current;
+    if (!top || !rows) {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      onMeasure(machine.id, top.offsetHeight + rows.offsetHeight);
+    });
+    observer.observe(top);
+    observer.observe(rows);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [machine.id, onMeasure]);
+
   return (
-    <SidebarGroup className="py-0">
-      <div className="flex items-center">
+    <Layer
+      aria-label={machine.name}
+      style={height === undefined ? undefined : { height }}
+      className={height === undefined ? "flex-1" : "shrink-0"}
+    >
+      <Bar ref={bar}>
         <ContextMenu disabled={down || loading}>
           <ContextMenuTrigger
             render={
-              <SidebarGroupLabel
-                className={cn("min-w-0 flex-1 gap-2", down && "opacity-50")}
+              <div
+                className={cn("flex min-w-0 flex-1", down && "opacity-50")}
               />
             }
           >
-            <span className="truncate">{machine.name}</span>
+            <BarTitle title={machine.name} muted />
           </ContextMenuTrigger>
           <ContextMenuContent>
             <ContextMenuItem onClick={create}>New workspace</ContextMenuItem>
@@ -127,31 +154,36 @@ export function MachineGroup({
             <TooltipContent side="right">New workspace</TooltipContent>
           </Tooltip>
         )}
-      </div>
+      </Bar>
       {newWorkspace.dialog}
-      <SidebarMenu className={cn(down && "opacity-50")}>
-        {workspaces.data?.map((workspace) => (
-          <WorkspaceItem
-            key={workspace.id}
-            machine={machine}
-            workspace={workspace}
-            view={
-              selected?.machine === machine.id && selected.id === workspace.id
-                ? selected
-                : undefined
-            }
-            down={down}
-            siblings={ids}
-            onSelect={onSelect}
-            onStart={onStart}
-            onArrange={(workspace, before) => {
-              if (changes(ids, workspace, before)) {
-                arrange.mutate({ workspace, before });
-              }
-            }}
-          />
-        ))}
-      </SidebarMenu>
-    </SidebarGroup>
+      <ScrollArea className="min-h-0 flex-1">
+        <div ref={content} className="px-2 pb-2">
+          <SidebarMenu className={cn(down && "opacity-50")}>
+            {workspaces.data?.map((workspace) => (
+              <WorkspaceItem
+                key={workspace.id}
+                machine={machine}
+                workspace={workspace}
+                view={
+                  selected?.machine === machine.id &&
+                  selected.id === workspace.id
+                    ? selected
+                    : undefined
+                }
+                down={down}
+                siblings={ids}
+                onSelect={onSelect}
+                onStart={onStart}
+                onArrange={(workspace, before) => {
+                  if (changes(ids, workspace, before)) {
+                    arrange.mutate({ workspace, before });
+                  }
+                }}
+              />
+            ))}
+          </SidebarMenu>
+        </div>
+      </ScrollArea>
+    </Layer>
   );
 }

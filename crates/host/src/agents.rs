@@ -129,7 +129,7 @@ impl Handler for InstallAgent {
 }
 
 async fn github(session: &Session) -> Result<bool, Failure> {
-    let accounts = session.gh().await?.accounts().await.map_err(failure)?;
+    let accounts = session.shared.accounts().await.map_err(failure)?;
 
     Ok(!accounts.is_empty())
 }

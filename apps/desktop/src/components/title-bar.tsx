@@ -22,11 +22,10 @@ const { inset, controls, bare } = chrome[frame.platform];
 interface Props {
   start?: ReactNode;
   center?: ReactNode;
-  end?: ReactNode;
 }
 
-export function TitleBar({ start, center, end }: Props) {
-  if (bare && !start && !center && !end) {
+export function TitleBar({ start, center }: Props) {
+  if (bare && !start && !center) {
     return null;
   }
 
@@ -44,7 +43,6 @@ export function TitleBar({ start, center, end }: Props) {
       <div className="flex items-center">{center}</div>
       <div className="flex h-full min-w-0 items-center">
         <div data-tauri-drag-region className="h-full flex-1" />
-        {end && <div className="flex items-center gap-2 px-2">{end}</div>}
         {controls && (
           <div className="flex h-full shrink-0">
             <Control label="Minimize" onClick={() => void current.minimize()}>

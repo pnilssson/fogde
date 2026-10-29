@@ -52,7 +52,7 @@ export function Storage({ machine, workspaces, disk }: Props) {
       </div>
       <ul className="flex flex-col type-body">
         {rows.map((row) => (
-          <li key={row.path} className="flex items-center gap-2 py-1">
+          <li key={row.path} className="flex h-8 items-center gap-2">
             <GitBranchIcon className="size-4 shrink-0" />
             <span className="truncate">
               {row.branch ?? folderName(row.path)}

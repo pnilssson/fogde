@@ -52,9 +52,9 @@ const theme = EditorView.theme({
     lineHeight: "inherit",
   },
   ".cm-content": {
-    maxWidth: "calc(65ch + 64px)",
+    maxWidth: "65ch",
     margin: "0 auto",
-    padding: "24px 32px",
+    padding: "0 0 8px",
     caretColor: "var(--foreground)",
   },
   ".cm-cursor": { borderLeftColor: "var(--foreground)" },

@@ -7,6 +7,8 @@
 @import "./styles/theme.css";
 @import "./styles/slots.css";
 @import "./styles/motion.css";
+@import "./styles/rendered.css";
+@import "./styles/diff.css";
 
 @custom-variant dark (&:is(.dark *));
 

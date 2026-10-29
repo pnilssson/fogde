@@ -1648,7 +1648,9 @@ name = "github"
 version = "0.1.0"
 dependencies = [
  "download",
+ "git",
  "process",
+ "protocol",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -1875,6 +1877,7 @@ dependencies = [
  "github",
  "herdr-client",
  "hex",
+ "interprocess",
  "notify-debouncer-mini",
  "protocol",
  "remote",

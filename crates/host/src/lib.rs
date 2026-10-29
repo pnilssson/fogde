@@ -1,5 +1,6 @@
 mod accessibility;
 mod agents;
+mod checkouts;
 #[cfg(unix)]
 mod daemon;
 mod db;

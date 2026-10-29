@@ -85,7 +85,7 @@ lines:
 
     const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" })
       .split("\n")
-      .filter((file) => sources.test(file) && existsSync(file) && !file.startsWith("apps/desktop/src/components/ui/"));
+      .filter((file) => sources.test(file) && existsSync(file) && !file.startsWith("apps/desktop/src/components/ui/") && !file.startsWith("apps/desktop/src/generated/"));
 
     const long = files
       .map((file) => ({ file, count: readFileSync(file, "utf8").trimEnd().split("\n").length }))

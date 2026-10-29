@@ -1,11 +1,17 @@
 import type { Terminal } from "@xterm/xterm";
 
+import type { Viewport } from "@/generated/protocol";
 import type { Client } from "@/lib/client";
 
 const reset = "\x1bc";
 const nowrap = "\x1b[?7l";
 
-export function showFrames(client: Client, id: string, terminal: Terminal) {
+export function showFrames(
+  client: Client,
+  id: string,
+  terminal: Terminal,
+  drawn: (viewport: Viewport | null) => void,
+) {
   let open = true;
   let rendering = Promise.resolve();
 
@@ -28,7 +34,12 @@ export function showFrames(client: Client, id: string, terminal: Terminal) {
           if (frame.full) {
             terminal.write(reset + nowrap);
           }
-          terminal.write(decode(frame.data), resolve);
+          terminal.write(decode(frame.data), () => {
+            if (open) {
+              drawn(frame.viewport);
+            }
+            resolve();
+          });
         }),
     );
   });

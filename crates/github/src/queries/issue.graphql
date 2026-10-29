@@ -1,0 +1,22 @@
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      id
+      number
+      title
+      url
+      state
+      createdAt
+      body
+      bodyHTML
+      viewerCanUpdate
+      author { login }
+      labels(first: 50) { nodes { name color } }
+      assignees(first: 50) { nodes { login } }
+      comments(last: 100) { nodes { id url createdAt bodyHTML author { login } } }
+      closedByPullRequestsReferences(first: 20, includeClosedPrs: true) {
+        nodes { number title url state }
+      }
+    }
+  }
+}

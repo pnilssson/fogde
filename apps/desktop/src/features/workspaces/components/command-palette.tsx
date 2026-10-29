@@ -37,8 +37,7 @@ import {
 import type { RenderPaletteNotes } from "@/features/workspaces/lib/slot";
 import type { Checkout, Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
-import { closePage, openNote } from "@/lib/page";
-import { setSettingsOpen } from "@/lib/settings-open";
+import { closePage, openNote, openPage } from "@/lib/page";
 import { shortcuts } from "@/lib/shortcuts";
 
 type Run = (action: () => void) => void;
@@ -259,7 +258,7 @@ function Commands({
           value="Settings"
           onSelect={() => {
             run(() => {
-              setSettingsOpen(true);
+              openPage("settings");
             });
           }}
         >

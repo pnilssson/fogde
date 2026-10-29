@@ -1,8 +1,11 @@
 use std::time::Duration;
 
-use herdr_client::{Client, Error, Event, Scrollback, Subscription};
+use herdr_client::{Client, Error, Event, Pane, Point, Scrollback, Subscription};
 use protocol::rpc::{Failure, Message, SERVER_ERROR};
-use protocol::terminals::{ScrolledEvent, SeekTerminal, SeekTerminalParams, TerminalScrolled};
+use protocol::terminals::{
+    ReadSelection, ScrolledEvent, SeekTerminal, SeekTerminalParams, SelectionParams,
+    TerminalScrolled, TextPoint, Viewport,
+};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
@@ -16,18 +19,41 @@ impl Handler for SeekTerminal {
 
     async fn handle(session: &Session, params: SeekTerminalParams) -> Result<(), Failure> {
         let client = session.herdr().await?.client();
-        let pane = client
-            .panes()
-            .await
-            .map_err(failure)?
-            .into_iter()
-            .find(|pane| pane.workspace == params.id)
-            .ok_or_else(|| Failure::new(SERVER_ERROR, "the terminal is gone"))?;
+        let pane = pane(&client, &params.id).await?;
 
         client
             .scroll_pane(&pane.id, u64::from(params.offset))
             .await
             .map_err(failure)
+    }
+}
+
+impl Handler for ReadSelection {
+    async fn handle(session: &Session, params: SelectionParams) -> Result<String, Failure> {
+        let client = session.herdr().await?.client();
+        let pane = pane(&client, &params.id).await?;
+
+        client
+            .selection(&pane.id, point(params.start), point(params.end))
+            .await
+            .map_err(failure)
+    }
+}
+
+async fn pane(client: &Client, id: &str) -> Result<Pane, Failure> {
+    client
+        .panes()
+        .await
+        .map_err(failure)?
+        .into_iter()
+        .find(|pane| pane.workspace == id)
+        .ok_or_else(|| Failure::new(SERVER_ERROR, "the terminal is gone"))
+}
+
+fn point(point: TextPoint) -> Point {
+    Point {
+        row: point.row,
+        column: point.column,
     }
 }
 
@@ -90,11 +116,17 @@ async fn listen(
 fn send(outgoing: &mpsc::UnboundedSender<Message>, id: &str, scrollback: Scrollback) {
     if let Some(message) = notification::<ScrolledEvent>(TerminalScrolled {
         id: id.to_owned(),
+        viewport: viewport(scrollback),
+    }) {
+        let _ = outgoing.send(message);
+    }
+}
+
+pub fn viewport(scrollback: Scrollback) -> Viewport {
+    Viewport {
         offset: clamp(scrollback.offset),
         max: clamp(scrollback.max),
         rows: clamp(scrollback.rows),
-    }) {
-        let _ = outgoing.send(message);
     }
 }
 

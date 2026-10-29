@@ -25,9 +25,9 @@ export function SettingsSection({
   children,
 }: SectionProps) {
   return (
-    <section className="flex flex-col gap-1" aria-labelledby={id}>
+    <section className="flex flex-col" aria-labelledby={id}>
       <div className="flex h-8 items-center gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-1">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <h2 id={id} className="min-w-0 truncate type-title">
             {title}
           </h2>

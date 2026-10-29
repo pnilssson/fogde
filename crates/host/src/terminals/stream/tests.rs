@@ -51,12 +51,110 @@ fn open(dir: &Path, name: &str, frames: u16, idle: bool) -> herdr_client::Termin
     .unwrap()
 }
 
-fn keys(dir: &Path) -> mpsc::UnboundedSender<Key> {
-    press(Client::new(&dir.join("herdr.sock")), "w1:p1".to_owned())
+fn client(dir: &Path) -> Client {
+    Client::new(&dir.join("herdr.sock"))
 }
 
 fn wire(message: Message) -> Value {
     serde_json::to_value(message).unwrap()
+}
+
+const PANE: &str = r#"{"id":"fogde","result":{"type":"pane_info","pane":{"pane_id":"w1:p1","terminal_id":"term_65f00b8f910ea1","workspace_id":"w1","tab_id":"w1:t1","focused":true,"cwd":"C:\\repos\\app\\","terminal_title":"C:\\WINDOWS\\system32\\cmd.exe - echo  line 5994","terminal_title_stripped":"C:\\WINDOWS\\system32\\cmd.exe - echo  line 5994","agent_status":"unknown","scroll":{"offset_from_bottom":0,"max_offset_from_bottom":507,"viewport_rows":40},"revision":166}}}"#;
+
+fn serve(dir: &Path, reply: Option<&'static str>) {
+    use interprocess::local_socket::ListenerOptions;
+    use interprocess::local_socket::tokio::prelude::*;
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+    let listener = ListenerOptions::new()
+        .name(name(&dir.join("herdr.sock")))
+        .create_tokio()
+        .unwrap();
+    tokio::spawn(async move {
+        let mut held = Vec::new();
+        loop {
+            let (reader, mut writer) = listener.accept().await.unwrap().split();
+            let mut request = String::new();
+            BufReader::new(reader)
+                .read_line(&mut request)
+                .await
+                .unwrap();
+            match reply {
+                Some(reply) => writer
+                    .write_all(format!("{reply}\n").as_bytes())
+                    .await
+                    .unwrap(),
+                None => held.push(writer),
+            }
+        }
+    });
+}
+
+#[cfg(unix)]
+fn name(socket: &Path) -> interprocess::local_socket::Name<'_> {
+    use interprocess::local_socket::{GenericFilePath, ToFsName};
+
+    socket.to_fs_name::<GenericFilePath>().unwrap()
+}
+
+#[cfg(windows)]
+fn name(socket: &Path) -> interprocess::local_socket::Name<'_> {
+    use interprocess::local_socket::{GenericNamespaced, ToNsName};
+
+    socket
+        .as_os_str()
+        .to_ns_name::<GenericNamespaced>()
+        .unwrap()
+}
+
+#[tokio::test]
+async fn each_frame_carries_where_herdr_had_scrolled_when_it_drew() {
+    let dir = tempfile::tempdir().unwrap();
+    serve(dir.path(), Some(PANE));
+    let stream = open(dir.path(), "herdr", 1, true);
+    let (_controls, receiver) = mpsc::unbounded_channel();
+    let (frames, mut queued) = mpsc::channel(4);
+    tokio::spawn(watch(
+        stream,
+        client(dir.path()),
+        "w1:p1".to_owned(),
+        "w1".to_owned(),
+        receiver,
+        frames,
+        None,
+    ));
+
+    let frame = wire(queued.recv().await.unwrap());
+
+    assert_eq!(
+        frame["params"]["viewport"],
+        json!({"offset": 0, "max": 507, "rows": 40})
+    );
+}
+
+#[tokio::test]
+async fn a_herdr_that_never_says_where_it_scrolled_still_gets_its_frames_drawn() {
+    let dir = tempfile::tempdir().unwrap();
+    serve(dir.path(), None);
+    let stream = open(dir.path(), "herdr", 1, true);
+    let (_controls, receiver) = mpsc::unbounded_channel();
+    let (frames, mut queued) = mpsc::channel(4);
+    tokio::spawn(watch(
+        stream,
+        client(dir.path()),
+        "w1:p1".to_owned(),
+        "w1".to_owned(),
+        receiver,
+        frames,
+        None,
+    ));
+
+    let frame = tokio::time::timeout(Duration::from_secs(5), queued.recv())
+        .await
+        .expect("the frame waited for herdr")
+        .unwrap();
+
+    assert_eq!(wire(frame)["params"]["viewport"], Value::Null);
 }
 
 #[tokio::test]
@@ -67,7 +165,8 @@ async fn a_client_that_falls_behind_holds_herdr_back_without_losing_frames() {
     let (frames, mut queued) = mpsc::channel(4);
     tokio::spawn(watch(
         stream,
-        keys(dir.path()),
+        client(dir.path()),
+        "w1:p1".to_owned(),
         "w1".to_owned(),
         receiver,
         frames,
@@ -106,7 +205,8 @@ async fn idle_terminals_never_hold_back_a_busy_one() {
         let stream = open(dir.path(), name, 0, true);
         tokio::spawn(watch(
             stream,
-            keys(dir.path()),
+            client(dir.path()),
+            "w1:p1".to_owned(),
             name.to_owned(),
             receiver,
             frames.clone(),
@@ -119,7 +219,8 @@ async fn idle_terminals_never_hold_back_a_busy_one() {
     let stream = open(dir.path(), "busy", 3, true);
     tokio::spawn(watch(
         stream,
-        keys(dir.path()),
+        client(dir.path()),
+        "w1:p1".to_owned(),
         "busy".to_owned(),
         receiver,
         frames,
@@ -147,7 +248,8 @@ async fn a_key_that_fails_to_send_leaves_the_terminal_open() {
     let (frames, mut queued) = mpsc::channel(4);
     tokio::spawn(watch(
         stream,
-        keys(dir.path()),
+        client(dir.path()),
+        "w1:p1".to_owned(),
         "w1".to_owned(),
         receiver,
         frames,
@@ -171,7 +273,8 @@ async fn the_first_frame_tells_the_agent_it_can_start() {
     let (attached, ready) = oneshot::channel();
     tokio::spawn(watch(
         stream,
-        keys(dir.path()),
+        client(dir.path()),
+        "w1:p1".to_owned(),
         "w1".to_owned(),
         receiver,
         frames,

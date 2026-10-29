@@ -27,7 +27,7 @@ impl Method for SetReposFolder {
     type Result = ();
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
 pub struct Repo {
     pub host: String,
     pub owner: String,

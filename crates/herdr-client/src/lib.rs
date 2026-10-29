@@ -5,6 +5,8 @@ mod events;
 mod herdr;
 mod install;
 mod pane;
+mod scroll;
+mod selection;
 mod terminal;
 mod workspace;
 
@@ -12,6 +14,8 @@ pub use client::Client;
 pub use error::Error;
 pub use events::{Event, Events, Subscription};
 pub use herdr::Herdr;
-pub use pane::{Key, Pane, Process, Scrollback, Session, Status};
+pub use pane::{Key, Pane, Process, Session, Status};
+pub use scroll::Scrollback;
+pub use selection::Point;
 pub use terminal::{Frame, Scroll, Terminal};
 pub use workspace::Workspace;

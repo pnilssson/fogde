@@ -159,8 +159,12 @@ async fn untracked(root: &Path) -> u32 {
     total
 }
 
+pub(crate) fn binary(bytes: &[u8]) -> bool {
+    bytes[..bytes.len().min(BINARY_PROBE)].contains(&0)
+}
+
 fn count_lines(bytes: &[u8]) -> Option<u32> {
-    if bytes[..bytes.len().min(BINARY_PROBE)].contains(&0) {
+    if binary(bytes) {
         return None;
     }
 

@@ -24,6 +24,9 @@ pub enum Error {
     #[error("there is already a folder at {}", .0.display())]
     Exists(PathBuf),
 
+    #[error("{0}")]
+    Invalid(String),
+
     #[error("the GitHub CLI failed: {0}")]
     Gh(String),
 

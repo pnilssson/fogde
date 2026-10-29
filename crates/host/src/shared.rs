@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError};
 
 use github::Gh;
 use herdr_client::Herdr;
@@ -37,6 +37,7 @@ pub struct Shared {
     tools: PathBuf,
     gh: OnceCell<Gh>,
     herdr: OnceCell<Herdr>,
+    hosts: std::sync::Mutex<Vec<String>>,
 }
 
 impl Shared {
@@ -62,6 +63,7 @@ impl Shared {
             codex: Mutex::default(),
             gh: OnceCell::new(),
             herdr: OnceCell::new(),
+            hosts: std::sync::Mutex::default(),
         };
         let images = shared.images();
         tokio::spawn(async move { terminals::prune(&images).await });
@@ -71,6 +73,23 @@ impl Shared {
 
     pub async fn gh(&self) -> Result<&Gh, github::Error> {
         self.gh.get_or_try_init(|| Gh::locate(&self.tools)).await
+    }
+
+    pub async fn accounts(&self) -> Result<Vec<github::Account>, github::Error> {
+        let accounts = self.gh().await?.accounts().await?;
+        *self.hosts.lock().unwrap_or_else(PoisonError::into_inner) = accounts
+            .iter()
+            .map(|account| account.host.clone())
+            .collect();
+
+        Ok(accounts)
+    }
+
+    pub fn hosts(&self) -> Vec<String> {
+        self.hosts
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
     pub async fn herdr(&self) -> Result<&Herdr, herdr_client::Error> {

@@ -1,0 +1,10 @@
+query($owner: String!, $name: String!, $review: String!, $mine: String!, $assigned: String!) {
+  repository(owner: $owner, name: $name) {
+    pullRequests(first: 50, states: [OPEN], orderBy: { field: UPDATED_AT, direction: DESC }) {
+      nodes { ...listedPull }
+    }
+  }
+  review: search(query: $review, type: ISSUE, first: 50) { nodes { ...listedPull } }
+  mine: search(query: $mine, type: ISSUE, first: 50) { nodes { ...listedPull } }
+  assigned: search(query: $assigned, type: ISSUE, first: 50) { nodes { ...listedPull } }
+}

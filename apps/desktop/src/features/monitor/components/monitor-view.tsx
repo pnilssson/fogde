@@ -1,8 +1,10 @@
 import { BatteryMediumIcon } from "@phosphor-icons/react";
 import { type ReactNode, useEffect } from "react";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Spinner } from "@/components/ui/spinner";
+import { Body, Main, Scroll } from "@/components/frame";
+import { Labelled } from "@/components/labelled";
+import { PageBar } from "@/components/page-bar";
+import { TileStatus } from "@/components/tile-status";
 import { toast } from "@/components/ui/toast";
 import { LiveChart } from "@/features/monitor/components/live-chart";
 import { Storage } from "@/features/monitor/components/storage";
@@ -46,14 +48,16 @@ export function MonitorView({ machine, workspaces, picker }: Props) {
   }, [failure]);
 
   if (!latest) {
-    if (failure !== undefined) {
-      return null;
-    }
-
     return (
-      <div className="flex h-full items-center justify-center">
-        <Spinner />
-      </div>
+      <>
+        <PageBar>
+          {picker}
+          <span className="flex-1" />
+        </PageBar>
+        {failure === undefined && (
+          <TileStatus notice="Reading the machine…" busy fill />
+        )}
+      </>
     );
   }
 
@@ -65,45 +69,57 @@ export function MonitorView({ machine, workspaces, picker }: Props) {
   const { memory } = latest;
 
   return (
-    <ScrollArea className="h-full">
-      <div className="@container flex flex-col gap-6 p-4">
+    <>
+      <PageBar>
         {picker}
-        <div className="grid gap-4 @xl:grid-cols-2">
-          <LiveChart
-            label="CPU used"
-            points={series(({ cpu }) => cpu)}
-            format={percent}
-          />
-          <LiveChart
-            label="Memory used"
-            points={series((reading) => reading.memory.used)}
-            format={bytes}
-            detail={`${bytes(memory.used)} of ${bytes(memory.total)}`}
-          />
-          {latency.length > 0 && (
-            <LiveChart
-              label="Latency"
-              points={recent(latency, LIVE).map((ping) => ({
-                time: ping.time,
-                value: ping.millis,
-              }))}
-              format={millis}
-            />
-          )}
-        </div>
         {latest.battery && (
-          <p className="flex items-center gap-2 type-body">
-            <BatteryMediumIcon className="size-4 shrink-0" />
-            <span>Battery drain</span>
-            <span className="ml-auto font-mono tabular-nums">
-              {latest.battery.watts.toFixed(1)} W,{" "}
-              {percent(latest.battery.drain)} per hour
-            </span>
-          </p>
+          <span className="flex min-w-0 items-center gap-2">
+            <BatteryMediumIcon aria-hidden className="size-4 shrink-0" />
+            <Labelled
+              label="Battery drain"
+              value={`${latest.battery.watts.toFixed(1)} W, ${percent(latest.battery.drain)} per hour`}
+            />
+          </span>
         )}
-        <TerminalLoads samples={samples} workspaces={workspaces} />
-        <Storage machine={machine} workspaces={workspaces} disk={latest.disk} />
-      </div>
-    </ScrollArea>
+        <span className="flex-1" />
+      </PageBar>
+      <Body>
+        <Main>
+          <Scroll>
+            <div className="@container flex flex-col gap-4">
+              <div className="grid gap-2 @xl:grid-cols-2">
+                <LiveChart
+                  label="CPU used"
+                  points={series(({ cpu }) => cpu)}
+                  format={percent}
+                />
+                <LiveChart
+                  label="Memory used"
+                  points={series((reading) => reading.memory.used)}
+                  format={bytes}
+                  detail={`${bytes(memory.used)} of ${bytes(memory.total)}`}
+                />
+                {latency.length > 0 && (
+                  <LiveChart
+                    label="Latency"
+                    points={recent(latency, LIVE).map((ping) => ({
+                      time: ping.time,
+                      value: ping.millis,
+                    }))}
+                    format={millis}
+                  />
+                )}
+              </div>
+              <TerminalLoads samples={samples} workspaces={workspaces} />
+              <Storage
+                machine={machine}
+                workspaces={workspaces}
+                disk={latest.disk}
+              />
+            </div>
+          </Scroll>
+        </Main>
+      </Body>
+    </>
   );
 }

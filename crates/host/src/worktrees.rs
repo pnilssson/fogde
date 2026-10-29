@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::worktrees::{
@@ -34,6 +34,40 @@ impl Handler for CreateWorktree {
             .await
             .unwrap_or_else(|| path.display().to_string()))
     }
+}
+
+pub struct Tree {
+    pub main: PathBuf,
+    pub path: PathBuf,
+    pub fresh: bool,
+}
+
+pub async fn for_pull(worktrees: &Path, root: &Path, number: u32) -> Result<Tree, Failure> {
+    let main = crate::workspaces::checkouts(root)
+        .await
+        .into_iter()
+        .find(|checkout| checkout.main)
+        .map_or_else(|| root.to_owned(), |checkout| PathBuf::from(checkout.path));
+    let project = main
+        .file_name()
+        .ok_or_else(|| Failure::new(SERVER_ERROR, "choose a repository folder"))?;
+    let path = worktrees.join(project).join(format!("pr-{number}"));
+    if let Some(existing) = listed(&main, &path).await {
+        return Ok(Tree {
+            main,
+            path: PathBuf::from(existing),
+            fresh: false,
+        });
+    }
+
+    git::add_detached(&main, &path).await.map_err(failure)?;
+    let path = listed(&main, &path).await.map_or(path, PathBuf::from);
+
+    Ok(Tree {
+        main,
+        path,
+        fresh: true,
+    })
 }
 
 async fn listed(repo: &Path, path: &Path) -> Option<String> {
@@ -141,6 +175,27 @@ mod tests {
                 .map(|checkout| checkout.path)
                 .find(|checkout| !checkout.ends_with("app"))
         );
+    }
+
+    #[tokio::test]
+    async fn a_pull_checked_out_again_reuses_its_worktree() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("app");
+        fs::create_dir(&repo).await.unwrap();
+        run(&repo, &["init", "--quiet", "--initial-branch", "main"]).await;
+        run(
+            &repo,
+            &["commit", "--quiet", "--allow-empty", "-m", "first"],
+        )
+        .await;
+        let worktrees = dir.path().join("worktrees");
+
+        let first = for_pull(&worktrees, &repo, 7).await.unwrap();
+        let again = for_pull(&worktrees, &repo, 7).await.unwrap();
+
+        assert!(first.fresh);
+        assert!(!again.fresh);
+        assert_eq!(again.path, first.path);
     }
 
     #[test]

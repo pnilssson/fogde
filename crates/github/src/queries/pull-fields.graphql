@@ -1,0 +1,31 @@
+fragment listedPull on PullRequest {
+  number
+  title
+  url
+  state
+  updatedAt
+  isDraft
+  headRefName
+  headRepositoryOwner { login }
+  baseRefName
+  reviewDecision
+  additions
+  deletions
+  author { login }
+  labels(first: 20) { nodes { name color } }
+  comments { totalCount }
+  commits(last: 1) {
+    nodes {
+      commit {
+        statusCheckRollup {
+          state
+          contexts {
+            totalCount
+            checkRunCountsByState { state count }
+            statusContextCountsByState { state count }
+          }
+        }
+      }
+    }
+  }
+}

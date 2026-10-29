@@ -15,15 +15,13 @@ import { useFlash } from "@/features/terminals/hooks/use-flash";
 import { useScrolled } from "@/features/terminals/hooks/use-scrolled";
 import { appearance } from "@/features/terminals/lib/appearance";
 import { handleClipboard } from "@/features/terminals/lib/clipboard";
-import { clickThrough } from "@/features/terminals/lib/click";
 import { showFrames } from "@/features/terminals/lib/frames";
 import { handleKeys } from "@/features/terminals/lib/keys";
+import { handleMouse } from "@/features/terminals/lib/mouse";
 import { openLinks } from "@/features/terminals/lib/links";
 import { report } from "@/lib/report";
-import { copyOnSelect } from "@/features/terminals/lib/selection";
 import { measure, observeSize, same } from "@/features/terminals/lib/size";
 import { watchTerminal } from "@/features/terminals/lib/watch";
-import { scrollOnWheel } from "@/features/terminals/lib/wheel";
 import { accessibilityQuery } from "@/lib/accessibility";
 import { type Args, ConnectionError, type Method } from "@/lib/client";
 import type { Machine } from "@/lib/machines";
@@ -144,7 +142,6 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       show();
     };
 
-    const stopFrames = showFrames(client, id, terminal);
     const stopEnded = client.listen("terminals.ended", (ended) => {
       if (ended.id !== id) {
         return;
@@ -186,8 +183,15 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       request("Could not send your input", "terminals.input", { id, data });
     }
 
+    const selection = handleMouse(terminal, element, {
+      client,
+      id,
+      request,
+      copied: copy,
+    });
+    const stopFrames = showFrames(client, id, terminal, selection.drawn);
     const typing = terminal.onData(send);
-    handleKeys(terminal, (key) => {
+    handleKeys(terminal, selection, (key) => {
       request("Could not send your input", "terminals.key", { id, key });
     });
     const stopClipboard = handleClipboard(element, {
@@ -203,25 +207,12 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
         report("Could not paste", error);
       },
     });
-    scrollOnWheel(terminal, element, (scroll) => {
-      request("Could not scroll the terminal", "terminals.scroll", {
-        id,
-        ...scroll,
-      });
-    });
     seek.current = (offset) => {
       request("Could not scroll the terminal", "terminals.seek", {
         id,
         offset,
       });
     };
-    const stopClick = clickThrough(terminal, element, (position) => {
-      request("Could not send your click", "terminals.click", {
-        id,
-        ...position,
-      });
-    });
-    const stopCopy = copyOnSelect(terminal, element, copy);
     const focusing = panel.onWillFocus(() => {
       terminal.focus();
     });
@@ -256,8 +247,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       stopEnded();
       typing.dispose();
       stopClipboard();
-      stopCopy();
-      stopClick();
+      selection.dispose();
       focusing.dispose();
       resizing();
       theming.disconnect();
@@ -282,7 +272,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
           retry.current();
         }}
       />
-      <div className="terminal-view relative min-h-0 flex-1 p-2 type-code">
+      <div className="terminal-view relative min-h-0 flex-1 px-2 pb-2 type-code">
         <div
           ref={container}
           className="flex size-full flex-col justify-center"

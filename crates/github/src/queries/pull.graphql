@@ -1,0 +1,58 @@
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    mergeCommitAllowed
+    squashMergeAllowed
+    rebaseMergeAllowed
+    pullRequest(number: $number) {
+      id
+      number
+      title
+      url
+      state
+      createdAt
+      body
+      bodyHTML
+      viewerCanUpdate
+      isDraft
+      headRefName
+      headRepositoryOwner { login }
+      headRefOid
+      baseRefName
+      isCrossRepository
+      reviewDecision
+      mergeStateStatus
+      additions
+      deletions
+      changedFiles
+      author { login }
+      labels(first: 50) { nodes { name color } }
+      assignees(first: 50) { nodes { login } }
+      reviewRequests(first: 50) { nodes { requestedReviewer { ... on User { login } } } }
+      comments(last: 100) { nodes { id url createdAt bodyHTML author { login } } }
+      reviews(last: 100) { nodes { id url state submittedAt bodyHTML author { login } } }
+      closingIssuesReferences(first: 20) { nodes { number title url state } }
+      files(first: 100) { nodes { path additions deletions } }
+      commits(last: 1) {
+        nodes {
+          commit {
+            statusCheckRollup {
+              contexts(first: 100) {
+                nodes {
+                  __typename
+                  ... on CheckRun {
+                    name
+                    status
+                    conclusion
+                    detailsUrl
+                    checkSuite { workflowRun { databaseId } }
+                  }
+                  ... on StatusContext { context state targetUrl }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -8,7 +8,7 @@ use crate::agents::Agent;
 
 pub use events::{
     EndedEvent, FailedEvent, FrameEvent, ScrolledEvent, StateEvent, TerminalEnded, TerminalFailed,
-    TerminalFrame, TerminalScrolled,
+    TerminalFrame, TerminalScrolled, Viewport,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
@@ -132,6 +132,19 @@ pub struct SeekTerminalParams {
     pub offset: u32,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, TS)]
+pub struct TextPoint {
+    pub row: u32,
+    pub column: u16,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct SelectionParams {
+    pub id: String,
+    pub start: TextPoint,
+    pub end: TextPoint,
+}
+
 pub const IMAGE_LIMIT: usize = 10 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, TS)]
@@ -228,6 +241,14 @@ impl Method for SeekTerminal {
     const NAME: &'static str = "terminals.seek";
     type Params = SeekTerminalParams;
     type Result = ();
+}
+
+pub struct ReadSelection;
+
+impl Method for ReadSelection {
+    const NAME: &'static str = "terminals.selection";
+    type Params = SelectionParams;
+    type Result = String;
 }
 
 pub struct PasteImage;

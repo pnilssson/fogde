@@ -3,7 +3,7 @@ import type { Terminal } from "@xterm/xterm";
 import { cell } from "@/features/terminals/lib/cell";
 import type { ScrollTerminalParams } from "@/generated/protocol";
 
-type Scroll = Omit<ScrollTerminalParams, "id">;
+export type Scroll = Omit<ScrollTerminalParams, "id">;
 
 export function scrollOnWheel(
   terminal: Terminal,

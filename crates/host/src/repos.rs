@@ -50,7 +50,7 @@ impl Handler for ListRepos {
         let found = found?;
         let folder = folder.map_err(failure)?;
 
-        let cloned = join_all(found.iter().map(|repo| repo.cloned_in(&folder))).await;
+        let cloned = join_all(found.iter().map(|repo| github::cloned(repo, &folder))).await;
 
         Ok(found
             .into_iter()
@@ -67,10 +67,9 @@ impl Handler for ListRepos {
 
 impl Handler for CloneRepo {
     async fn handle(session: &Session, repo: Repo) -> Result<(), Failure> {
-        let repo = github::Repo {
+        let repo = Repo {
             host: github::host(&repo.host).map_err(failure)?,
-            owner: repo.owner,
-            name: repo.name,
+            ..repo
         };
         let folder = session.shared.repos().await.map_err(failure)?;
 

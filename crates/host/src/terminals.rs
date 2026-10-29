@@ -15,9 +15,9 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use futures_util::future::join_all;
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::terminals::{
-    ClickTerminal, CloseTerminal, CreateTerminal, CreateTerminalParams, PasteImage, ResizeTerminal,
-    ScrollTerminal, SeekTerminal, Status, Terminal, TerminalInput, TerminalKey, UnwatchTerminal,
-    ViewTerminal, WatchTerminal, WatchTerminalParams,
+    ClickTerminal, CloseTerminal, CreateTerminal, CreateTerminalParams, PasteImage, ReadSelection,
+    ResizeTerminal, ScrollTerminal, SeekTerminal, Status, Terminal, TerminalInput, TerminalKey,
+    UnwatchTerminal, ViewTerminal, WatchTerminal, WatchTerminalParams,
 };
 use tokio::sync::mpsc;
 
@@ -75,6 +75,7 @@ pub fn register(router: &mut Router) {
     router.add::<ScrollTerminal>();
     router.add::<ClickTerminal>();
     router.add::<SeekTerminal>();
+    router.add::<ReadSelection>();
     router.add::<PasteImage>();
     router.add::<ViewTerminal>();
 }

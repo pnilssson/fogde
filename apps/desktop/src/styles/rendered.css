@@ -1,0 +1,80 @@
+@layer components {
+  .rendered {
+    overflow-wrap: anywhere;
+  }
+
+  .rendered > * + * {
+    margin-top: --spacing(2);
+  }
+
+  .rendered :is(h1, h2, h3, h4, h5, h6) {
+    @apply type-title;
+    margin-top: --spacing(4);
+  }
+
+  .rendered a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .rendered :is(ul, ol) {
+    padding-left: --spacing(8);
+  }
+
+  .rendered ul {
+    list-style: disc;
+  }
+
+  .rendered ol {
+    list-style: decimal;
+  }
+
+  .rendered li.task-list-item {
+    list-style: none;
+  }
+
+  .rendered code {
+    @apply type-code;
+    border-radius: var(--radius-sm);
+    background: var(--muted);
+    padding-inline: --spacing(1);
+  }
+
+  .rendered pre {
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    background: var(--muted);
+    padding: --spacing(2) --spacing(4);
+  }
+
+  .rendered pre code {
+    background: none;
+    padding: 0;
+  }
+
+  .rendered blockquote {
+    border-left: 2px solid var(--border);
+    padding-left: --spacing(4);
+    color: var(--muted-foreground);
+  }
+
+  .rendered img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .rendered table {
+    display: block;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+
+  .rendered :is(th, td) {
+    border: 1px solid var(--border);
+    padding: --spacing(2) --spacing(4);
+  }
+
+  .rendered details > summary {
+    cursor: pointer;
+  }
+}

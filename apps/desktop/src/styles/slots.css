@@ -116,14 +116,14 @@
 
 [data-slot="tabs-list"] {
   height: auto;
-  gap: 0.25rem;
+  gap: 0.5rem;
   padding: 0;
   background-color: transparent;
 }
 
 [data-slot="tabs-trigger"] {
   height: 2rem;
-  padding-inline: 0.75rem;
+  padding-inline: 0.5rem;
   color: var(--muted-foreground);
   font-size: var(--text-body);
   line-height: var(--text-body--line-height);

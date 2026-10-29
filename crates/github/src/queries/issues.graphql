@@ -1,0 +1,7 @@
+query($owner: String!, $name: String!, $states: [IssueState!]) {
+  repository(owner: $owner, name: $name) {
+    issues(first: 50, states: $states, orderBy: { field: UPDATED_AT, direction: DESC }) {
+      nodes { ...listedIssue }
+    }
+  }
+}

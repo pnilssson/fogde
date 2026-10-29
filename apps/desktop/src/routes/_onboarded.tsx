@@ -6,11 +6,10 @@ import { Pages } from "@/app/pages";
 
 import { SidebarToggle } from "@/components/sidebar-toggle";
 import { TitleBar } from "@/components/title-bar";
-import { SidebarInset } from "@/components/ui/sidebar";
+import { Shell } from "@/components/shell";
 import { useAgents } from "@/features/agents/hooks/use-agents";
 import { onboardedQuery } from "@/features/onboarding/api/onboarding";
 import { MonitorMeters } from "@/features/monitor/components/monitor-meters";
-import { SettingsDialog } from "@/features/settings/components/settings-dialog";
 import { UsageMeters } from "@/features/usage/components/usage-meters";
 import { PaletteNotes } from "@/features/notes/components/palette-notes";
 import { useNotesChanges } from "@/features/notes/hooks/use-notes-changes";
@@ -34,7 +33,7 @@ import { selectWorkspace, show } from "@/features/workspaces/lib/tiles";
 import { useMachines } from "@/hooks/use-machines";
 import { useRetryOnReturn } from "@/hooks/use-retry-on-return";
 import { entryId, machinesQuery } from "@/lib/machines";
-import { closePage, leavePage, openPage, usePage } from "@/lib/page";
+import { closePage, isFull, leavePage, openPage, usePage } from "@/lib/page";
 
 export const Route = createFileRoute("/_onboarded")({
   beforeLoad: async ({ context }) => {
@@ -62,6 +61,7 @@ export const Route = createFileRoute("/_onboarded")({
     const stored = useTiles((tiles) => tiles.workspace);
     const workspace = resolveWorkspace(groups, stored);
     const page = usePage();
+    const full = isFull(page);
 
     useRetryOnReturn(machines);
     useAttention(machines);
@@ -95,38 +95,41 @@ export const Route = createFileRoute("/_onboarded")({
               </>
             }
             center={<SearchButton />}
-            end={<SettingsDialog />}
           />
-          <div className="relative flex min-h-0 flex-1">
-            <WorkspaceSidebar
-              groups={groups}
-              selected={workspace}
-              onSelect={(next, selection) => {
-                selectWorkspace(next);
-                leavePage(() => {
-                  if (selection) {
-                    show(selection);
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <Shell
+              away={full}
+              side={
+                <WorkspaceSidebar
+                  groups={groups}
+                  selected={workspace}
+                  onSelect={(next, selection) => {
+                    selectWorkspace(next);
+                    leavePage(() => {
+                      if (selection) {
+                        show(selection);
+                      }
+                    });
+                  }}
+                  onStart={(next, folder) => {
+                    closePage();
+                    selectWorkspace(next);
+                    openStart(folder);
+                  }}
+                  meters={
+                    <>
+                      <UsageMeters machines={machines} />
+                      <MonitorMeters
+                        machines={machines}
+                        onOpen={(machine) => {
+                          openPage("monitor", machine.id);
+                        }}
+                      />
+                    </>
                   }
-                });
-              }}
-              onStart={(next, folder) => {
-                closePage();
-                selectWorkspace(next);
-                openStart(folder);
-              }}
-              meters={
-                <>
-                  <UsageMeters machines={machines} />
-                  <MonitorMeters
-                    machines={machines}
-                    onOpen={(machine) => {
-                      openPage("monitor", machine.id);
-                    }}
-                  />
-                </>
+                />
               }
-            />
-            <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-transparent px-2 pb-2">
+            >
               <div
                 className={cn(
                   "flex min-h-0 flex-1 flex-col",
@@ -136,12 +139,17 @@ export const Route = createFileRoute("/_onboarded")({
               >
                 <Outlet />
               </div>
-              {page && (
+              {page === "monitor" && (
                 <div className="absolute inset-0 px-2 pb-2">
                   <Pages groups={groups} workspace={workspace} />
                 </div>
               )}
-            </SidebarInset>
+            </Shell>
+            {full && (
+              <div className="absolute inset-0 z-20 flex flex-col">
+                <Pages groups={groups} workspace={workspace} />
+              </div>
+            )}
           </div>
           <CommandPalette notes={(props) => <PaletteNotes {...props} />} />
         </div>

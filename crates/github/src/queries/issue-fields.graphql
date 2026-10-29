@@ -1,0 +1,10 @@
+fragment listedIssue on Issue {
+  number
+  title
+  url
+  state
+  updatedAt
+  author { login }
+  labels(first: 20) { nodes { name color } }
+  comments { totalCount }
+}

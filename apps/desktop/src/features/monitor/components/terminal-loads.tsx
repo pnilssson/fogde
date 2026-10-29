@@ -51,7 +51,7 @@ export function TerminalLoads({ samples, workspaces }: Props) {
         {rows.map(({ terminal, workspace, load }) => (
           <li
             key={terminal.id}
-            className="col-span-full grid grid-cols-subgrid items-center py-1"
+            className="col-span-full grid h-8 grid-cols-subgrid items-center"
           >
             <div className="flex min-w-0 items-center gap-2">
               {terminal.agent ? (

@@ -12,14 +12,21 @@ pub struct TerminalFrame {
     pub rows: u16,
     pub full: bool,
     pub data: String,
+    pub viewport: Option<Viewport>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct Viewport {
+    pub offset: u32,
+    pub max: u32,
+    pub rows: u32,
 }
 
 #[derive(Clone, Debug, Serialize, TS)]
 pub struct TerminalScrolled {
     pub id: String,
-    pub offset: u32,
-    pub max: u32,
-    pub rows: u32,
+    #[serde(flatten)]
+    pub viewport: Viewport,
 }
 
 #[derive(Clone, Debug, Serialize, TS)]

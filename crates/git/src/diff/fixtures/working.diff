@@ -1,0 +1,62 @@
+diff --git a/added.txt b/added.txt
+new file mode 100644
+index 0000000..92d5444
+--- /dev/null
++++ b/added.txt
+@@ -0,0 +1 @@
++fresh
+diff --git a/app.txt b/app.txt
+index 4cb29ea..f04eb26 100644
+--- a/app.txt
++++ b/app.txt
+@@ -1,3 +1,3 @@
+ one
+-two
++2
+ three
+diff --git a/gone.txt b/gone.txt
+deleted file mode 100644
+index 286c5f5..0000000
+--- a/gone.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-gone
+diff --git a/logo.png b/logo.png
+index f584f40..6bf43ff 100644
+Binary files a/logo.png and b/logo.png differ
+diff --git a/old.txt b/new.txt
+similarity index 71%
+rename from old.txt
+rename to new.txt
+index 2f06fc5..0d74b8f 100644
+--- a/old.txt
++++ b/new.txt
+@@ -2,4 +2,4 @@ keep
+ this
+ file
+ here
+-please
++please!
+diff --git a/spaced name.txt b/spaced name.txt
+index 587be6b..e25f181 100644
+--- a/spaced name.txt	
++++ b/spaced name.txt	
+@@ -1 +1 @@
+-x
++y
+\ No newline at end of file
+diff --git "a/tab\tname.txt" "b/tab\tname.txt"
+index 587be6b..975fbec 100644
+--- "a/tab\tname.txt"
++++ "b/tab\tname.txt"
+@@ -1 +1 @@
+-x
++y
+diff --git a/win.txt b/win.txt
+index b33a815..81eab25 100644
+--- a/win.txt
++++ b/win.txt
+@@ -1,2 +1,2 @@
+ crlf
+-line
++changed

@@ -1,21 +1,16 @@
 use std::path::Path;
 use std::process::Stdio;
 
+use protocol::repos::Repo;
 use serde::Deserialize;
 use tokio::fs;
 
 use crate::Error;
 use crate::gh::{Gh, failure, spawn_error};
+use crate::remote::{remote, same, segment};
 
 const REPOS: &str =
     "user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member";
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Repo {
-    pub host: String,
-    pub owner: String,
-    pub name: String,
-}
 
 #[derive(Deserialize)]
 struct Entry {
@@ -68,34 +63,18 @@ impl Gh {
     }
 }
 
-impl Repo {
-    pub async fn cloned_in(&self, into: &Path) -> bool {
-        let path = into.join(&self.name);
-        if !fs::metadata(&path).await.is_ok_and(|m| m.is_dir()) {
-            return false;
-        }
-
-        let Ok(output) = process::command("git")
-            .arg("-C")
-            .arg(&path)
-            .args(["remote", "get-url", "origin"])
-            .stdin(Stdio::null())
-            .output()
-            .await
-        else {
-            return false;
-        };
-
-        output.status.success()
-            && remote(String::from_utf8_lossy(&output.stdout).trim())
-                .is_some_and(|remote| self.matches(&remote))
+pub async fn cloned(repo: &Repo, into: &Path) -> bool {
+    let path = into.join(&repo.name);
+    if !fs::metadata(&path).await.is_ok_and(|m| m.is_dir()) {
+        return false;
     }
 
-    fn matches(&self, other: &Self) -> bool {
-        self.host.eq_ignore_ascii_case(&other.host)
-            && self.owner.eq_ignore_ascii_case(&other.owner)
-            && self.name.eq_ignore_ascii_case(&other.name)
-    }
+    git::remotes(&path)
+        .await
+        .into_iter()
+        .find(|found| found.name == "origin")
+        .and_then(|origin| remote(&origin.url))
+        .is_some_and(|origin| same(repo, &origin))
 }
 
 fn pages(host: &str, output: &[u8]) -> Result<Vec<Repo>, Error> {
@@ -116,35 +95,6 @@ fn visible(host: &str, entries: Vec<Entry>) -> impl Iterator<Item = Repo> {
             owner: entry.owner.login,
             name: entry.name,
         })
-}
-
-fn remote(url: &str) -> Option<Repo> {
-    let (authority, path) = match url.split_once("://") {
-        Some((_, rest)) => rest.split_once('/')?,
-        None => url.split_once(':')?,
-    };
-    let host = authority.rsplit('@').next()?.split(':').next()?;
-    let path = path.trim_end_matches('/');
-    let path = path.strip_suffix(".git").unwrap_or(path);
-    let (owner, name) = path.split_once('/')?;
-    if host.is_empty() || !segment(owner) || !segment(name) {
-        return None;
-    }
-
-    Some(Repo {
-        host: host.to_owned(),
-        owner: owner.to_owned(),
-        name: name.to_owned(),
-    })
-}
-
-fn segment(name: &str) -> bool {
-    !name.is_empty()
-        && name != "."
-        && name != ".."
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
 }
 
 #[cfg(test)]
@@ -173,34 +123,10 @@ mod tests {
     }
 
     #[test]
-    fn reads_remotes() {
-        let hello = repo("github.com", "octocat", "hello-world");
-        for url in [
-            "https://github.com/octocat/hello-world.git",
-            "https://user:secret@github.com/octocat/hello-world",
-            "git@github.com:octocat/hello-world.git",
-            "ssh://git@github.com:22/octocat/hello-world.git",
-        ] {
-            assert_eq!(remote(url), Some(hello.clone()), "{url}");
-        }
-        assert_eq!(remote("C:\\Users\\dev\\app"), None);
-        assert_eq!(remote("https://github.com/octocat"), None);
-    }
-
-    #[test]
     fn matches_remotes_regardless_of_case() {
         let hello = repo("github.com", "octocat", "hello-world");
 
-        assert!(hello.matches(&repo("GitHub.com", "OctoCat", "Hello-World")));
-        assert!(!hello.matches(&repo("github.com", "fork", "hello-world")));
-    }
-
-    #[test]
-    fn accepts_only_plain_names() {
-        assert!(segment("my.app-2_x"));
-        assert!(!segment(".."));
-        assert!(!segment("a/b"));
-        assert!(!segment("a\\b"));
-        assert!(!segment(""));
+        assert!(same(&hello, &repo("GitHub.com", "OctoCat", "Hello-World")));
+        assert!(!same(&hello, &repo("github.com", "fork", "hello-world")));
     }
 }

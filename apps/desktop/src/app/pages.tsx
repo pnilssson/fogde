@@ -3,10 +3,12 @@ import { useEffect, useRef } from "react";
 
 import { CopiedNotice } from "@/components/copied-notice";
 import { MachinePicker } from "@/components/machine-picker";
-import { PageFrame } from "@/components/page-frame";
+import { FullPage, PageFrame } from "@/components/page-frame";
+import { GitHubView } from "@/features/github/components/github-view";
 import { MonitorView } from "@/features/monitor/components/monitor-view";
 import { notesQuery } from "@/features/notes/api/notes";
 import { NotesView } from "@/features/notes/components/notes-view";
+import { SettingsView } from "@/features/settings/components/settings-view";
 import { copyPath, usePathCopied } from "@/features/notes/lib/copy";
 import { inDialog } from "@/features/workspaces/hooks/use-shortcuts";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
@@ -38,6 +40,14 @@ export function Pages({ groups, workspace }: Props) {
     return null;
   }
 
+  if (page === "settings") {
+    return (
+      <FullPage title="Settings">
+        <SettingsView />
+      </FullPage>
+    );
+  }
+
   const machine =
     machines.find(({ id }) => id === wanted) ??
     machines.find(({ id }) => id === workspace?.machine) ??
@@ -52,19 +62,31 @@ export function Pages({ groups, workspace }: Props) {
     onMachine: (next: string) => {
       openPage(page, next);
     },
-    onClose: showTiles,
   };
+
+  const workspaces =
+    groups.find((group) => group.machine.id === machine.id)?.workspaces.data ??
+    [];
+
+  if (page === "github") {
+    return (
+      <GitHubPage
+        key={machine.id}
+        {...frame}
+        workspaces={workspaces}
+        current={
+          workspace?.machine === machine.id
+            ? workspaces.find(({ id }) => id === workspace.id)
+            : undefined
+        }
+      />
+    );
+  }
 
   return page === "notes" ? (
     <NotesPage key={machine.id} {...frame} />
   ) : (
-    <MonitorPage
-      {...frame}
-      workspaces={
-        groups.find((group) => group.machine.id === machine.id)?.workspaces
-          .data ?? []
-      }
-    />
+    <MonitorPage {...frame} workspaces={workspaces} />
   );
 }
 
@@ -72,10 +94,9 @@ interface FrameProps {
   machine: Machine;
   machines: Machine[];
   onMachine: (machine: string) => void;
-  onClose: () => void;
 }
 
-function NotesPage({ onClose, ...picker }: FrameProps) {
+function NotesPage(picker: FrameProps) {
   const { machine } = picker;
   const note = useShownNote(machine.id);
   const list = useQuery(notesQuery(machine));
@@ -93,7 +114,7 @@ function NotesPage({ onClose, ...picker }: FrameProps) {
   );
 
   return (
-    <PageFrame title="Notes" onClose={onClose}>
+    <FullPage title="Notes">
       <NotesView
         machine={machine}
         note={note}
@@ -103,21 +124,37 @@ function NotesPage({ onClose, ...picker }: FrameProps) {
         }}
       />
       <CopiedNotice copied={copied} label="Path copied" />
-    </PageFrame>
+    </FullPage>
+  );
+}
+
+function GitHubPage({
+  workspaces,
+  current,
+  ...picker
+}: FrameProps & { workspaces: Workspace[]; current: Workspace | undefined }) {
+  return (
+    <FullPage title="GitHub">
+      <GitHubView
+        machine={picker.machine}
+        workspaces={workspaces}
+        current={current}
+        picker={<MachinePicker {...picker} />}
+      />
+    </FullPage>
   );
 }
 
 function MonitorPage({
   workspaces,
-  onClose,
   ...picker
 }: FrameProps & { workspaces: Workspace[] }) {
   return (
-    <PageFrame title="Monitor" onClose={onClose}>
+    <PageFrame title="Monitor" onClose={showTiles}>
       <MonitorView
         machine={picker.machine}
         workspaces={workspaces}
-        picker={<MachinePicker {...picker} />}
+        picker={<MachinePicker {...picker} named />}
       />
     </PageFrame>
   );

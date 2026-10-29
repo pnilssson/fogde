@@ -78,7 +78,7 @@ export function TerminalScrollbar({ scroll, onSeek }: Props) {
     <div
       ref={track}
       aria-hidden
-      className="pointer-events-none absolute inset-y-2 right-0 w-2"
+      className="pointer-events-none absolute top-0 right-0 bottom-2 w-2"
       style={style}
     >
       <div

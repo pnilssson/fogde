@@ -2,7 +2,10 @@ import { FilePlusIcon, FolderPlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Bar, Body, Layer, Main, SideScroll } from "@/components/frame";
+import { PageShell } from "@/components/shell";
+import { IconAction } from "@/components/icon-action";
+import { PageBar } from "@/components/page-bar";
 import {
   Empty,
   EmptyDescription,
@@ -10,14 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { TileStatus } from "@/components/tile-status";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { noteQuery, notesQuery } from "@/features/notes/api/notes";
-import { ListToggle } from "@/features/notes/components/list-toggle";
 import { NameDialog } from "@/features/notes/components/name-dialog";
 import { NoteEditor } from "@/features/notes/components/note-editor";
 import { NotesTree } from "@/features/notes/components/notes-tree";
@@ -26,7 +22,6 @@ import {
   type Entry,
   useNoteFiles,
 } from "@/features/notes/hooks/use-note-files";
-import { useListShown } from "@/features/notes/lib/list";
 import { view } from "@/features/notes/lib/recent";
 import { useOrder } from "@/features/notes/lib/sort";
 import { buildTree } from "@/features/notes/lib/tree";
@@ -44,7 +39,6 @@ interface Props {
 export function NotesView({ machine, note, picker, onOpen }: Props) {
   const list = useQuery(notesQuery(machine));
   const order = useOrder();
-  const browsing = useListShown();
   const [creating, setCreating] = useState(false);
   const [kind, setKind] = useState<Entry>("note");
   const [parent, setParent] = useState<string>();
@@ -56,19 +50,27 @@ export function NotesView({ machine, note, picker, onOpen }: Props) {
 
   useReported("Could not open the notes folder", list.error);
 
-  if (list.isError) {
+  if (list.isError || !list.data || !tree) {
     return (
-      <TileStatus
-        notice="Could not open the notes folder"
-        retry="Try again"
-        onRetry={() => {
-          void list.refetch();
-        }}
-      />
+      <PageShell>
+        <PageBar>
+          <span className="flex-1" />
+          {picker}
+        </PageBar>
+        {list.isError ? (
+          <TileStatus
+            notice="Could not open the notes folder"
+            retry="Try again"
+            fill
+            onRetry={() => {
+              void list.refetch();
+            }}
+          />
+        ) : (
+          <TileStatus notice="Opening notes…" busy fill />
+        )}
+      </PageShell>
     );
-  }
-  if (!list.data || !tree) {
-    return <TileStatus notice="Opening notes…" busy />;
   }
 
   const open = list.data.notes.find(({ path }) => path === note);
@@ -80,19 +82,18 @@ export function NotesView({ machine, note, picker, onOpen }: Props) {
   };
 
   return (
-    <div className="flex h-full min-h-0">
-      {browsing && (
-        <aside className="flex w-64 min-w-0 shrink-0 flex-col border-r">
-          <div className="flex h-8 shrink-0 items-center gap-1 px-2">
-            <ListToggle />
-            <Action
+    <PageShell
+      side={
+        <Layer aria-label="Notes list" className="flex-1">
+          <Bar>
+            <IconAction
               label="New note"
               icon={<FilePlusIcon />}
               onClick={() => {
                 create("note", open?.folder ?? root);
               }}
             />
-            <Action
+            <IconAction
               label="New folder"
               icon={<FolderPlusIcon />}
               onClick={() => {
@@ -100,10 +101,8 @@ export function NotesView({ machine, note, picker, onOpen }: Props) {
               }}
             />
             <SortMenu />
-            <span className="flex-1" />
-            {picker}
-          </div>
-          <ScrollArea className="min-h-0 flex-1">
+          </Bar>
+          <SideScroll>
             <NotesTree
               machine={machine.id}
               root={tree}
@@ -118,59 +117,60 @@ export function NotesView({ machine, note, picker, onOpen }: Props) {
                 },
               }}
             />
-          </ScrollArea>
-          <NameDialog
-            open={creating}
-            title={kind === "folder" ? "New folder" : "New note"}
-            action="Create"
-            busy="Creating…"
-            placeholder={kind === "folder" ? "specs" : "Login flow"}
-            onOpenChange={setCreating}
-            onSubmit={async (name) => {
-              const path = await files.create.mutateAsync({
-                kind,
-                parent: parent ?? root,
-                name,
-              });
-              setCreating(false);
-              if (kind === "note") {
-                onOpen(path);
+          </SideScroll>
+        </Layer>
+      }
+    >
+      <PageBar>
+        <span className="flex-1" />
+        {picker}
+      </PageBar>
+      <Body>
+        <Main>
+          {open ? (
+            <Shown
+              machine={machine}
+              note={open}
+              notes={list.data.notes}
+              onOpen={onOpen}
+            />
+          ) : files.rename.isPending ? null : note ? (
+            <Message
+              title="This note was moved or deleted"
+              description="Pick another note from the list."
+            />
+          ) : (
+            <Message
+              title="No note open"
+              description={
+                list.data.notes.length > 0
+                  ? "Pick a note from the list."
+                  : `Notes you add to ${list.data.root} show here.`
               }
-            }}
-          />
-        </aside>
-      )}
-      <div className="relative flex min-w-0 flex-1 flex-col">
-        {!browsing && (
-          <div className="absolute top-0 left-2 z-10 flex h-8 items-center gap-1">
-            <ListToggle />
-            {picker}
-          </div>
-        )}
-        {open ? (
-          <Shown
-            machine={machine}
-            note={open}
-            notes={list.data.notes}
-            onOpen={onOpen}
-          />
-        ) : files.rename.isPending ? null : note ? (
-          <Message
-            title="This note was moved or deleted"
-            description="Pick another note from the list."
-          />
-        ) : (
-          <Message
-            title="No note open"
-            description={
-              list.data.notes.length > 0
-                ? "Pick a note from the list."
-                : `Notes you add to ${list.data.root} show here.`
-            }
-          />
-        )}
-      </div>
-    </div>
+            />
+          )}
+        </Main>
+      </Body>
+      <NameDialog
+        open={creating}
+        title={kind === "folder" ? "New folder" : "New note"}
+        action="Create"
+        busy="Creating…"
+        placeholder={kind === "folder" ? "specs" : "Login flow"}
+        onOpenChange={setCreating}
+        onSubmit={async (name) => {
+          const path = await files.create.mutateAsync({
+            kind,
+            parent: parent ?? root,
+            name,
+          });
+          setCreating(false);
+          if (kind === "note") {
+            onOpen(path);
+          }
+        }}
+      />
+    </PageShell>
   );
 }
 
@@ -194,6 +194,7 @@ function Shown({ machine, note, notes, onOpen }: ShownProps) {
       <TileStatus
         notice="Could not read the note"
         retry="Try again"
+        fill
         onRetry={() => {
           void text.refetch();
         }}
@@ -201,7 +202,7 @@ function Shown({ machine, note, notes, onOpen }: ShownProps) {
     );
   }
   if (text.data === undefined) {
-    return <TileStatus notice="Opening note…" busy />;
+    return <TileStatus notice="Opening note…" busy fill />;
   }
 
   return (
@@ -215,32 +216,6 @@ function Shown({ machine, note, notes, onOpen }: ShownProps) {
         onOpen={onOpen}
       />
     </div>
-  );
-}
-
-interface ActionProps {
-  label: string;
-  icon: ReactNode;
-  onClick: () => void;
-}
-
-function Action({ label, icon, onClick }: ActionProps) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={label}
-            onClick={onClick}
-          />
-        }
-      >
-        {icon}
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
   );
 }
 

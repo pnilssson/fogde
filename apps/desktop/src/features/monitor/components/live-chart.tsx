@@ -14,7 +14,7 @@ export function LiveChart({ label, points, format, detail }: Props) {
   const latest = points.at(-1)?.value ?? 0;
 
   return (
-    <figure className="flex min-w-0 flex-col gap-2 rounded-xl bg-surface-2 p-4">
+    <figure className="flex min-w-0 flex-col gap-2 rounded-lg bg-surface-4 p-2 shadow-surface-1">
       <figcaption className="flex items-baseline justify-between gap-2">
         <span className="type-body">{label}</span>
         <span className="font-mono type-caption text-muted-foreground tabular-nums">

@@ -1,4 +1,4 @@
-import { SidebarSimpleIcon } from "@phosphor-icons/react";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -6,12 +6,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { toggleList, useListShown } from "@/features/notes/lib/list";
 
-export function ListToggle() {
-  const shown = useListShown();
-  const label = shown ? "Hide notes list" : "Show notes list";
+interface Props {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+}
 
+export function IconAction({ label, icon, onClick }: Props) {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -20,11 +22,11 @@ export function ListToggle() {
             variant="ghost"
             size="icon-sm"
             aria-label={label}
-            onClick={toggleList}
+            onClick={onClick}
           />
         }
       >
-        <SidebarSimpleIcon weight={shown ? "fill" : "regular"} />
+        {icon}
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>

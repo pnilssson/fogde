@@ -1,16 +1,18 @@
 use std::future;
 use std::pin::Pin;
+use std::time::Duration;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use herdr_client::{Client, Key};
+use herdr_client::{Client, Frame, Key};
 use protocol::rpc::{Failure, Message, SERVER_ERROR};
 use protocol::terminals::{
     ClickTerminalParams, EndedEvent, FrameEvent, ScrollTerminalParams, Size, TerminalEnded,
-    TerminalFrame, WatchTerminalParams,
+    TerminalFrame, Viewport, WatchTerminalParams,
 };
 use tokio::sync::mpsc::{self, OwnedPermit, error::SendError};
 use tokio::sync::oneshot;
+use tokio::time;
 
 use crate::rpc::{cancelled, failure, notification};
 use crate::session::Session;
@@ -18,6 +20,8 @@ use crate::session::Session;
 use super::{herdr, launch};
 
 mod scroll;
+
+const WAIT: Duration = Duration::from_millis(200);
 
 pub enum Control {
     Input(Vec<u8>),
@@ -27,7 +31,11 @@ pub enum Control {
     Click(ClickTerminalParams),
 }
 
-type Slot = Pin<Box<dyn Future<Output = Result<OwnedPermit<Message>, SendError<()>>> + Send>>;
+type Reserved = (
+    Result<OwnedPermit<Message>, SendError<()>>,
+    Option<Viewport>,
+);
+type Slot = Pin<Box<dyn Future<Output = Reserved> + Send>>;
 
 pub async fn open(session: &Session, params: WatchTerminalParams) -> Result<(), Failure> {
     let herdr = session.herdr().await?;
@@ -55,7 +63,6 @@ pub async fn open(session: &Session, params: WatchTerminalParams) -> Result<(), 
     }
     watches.insert(params.id.clone(), controls);
     drop(watches);
-    let keys = press(herdr.client(), pane.id.clone());
     let attached = session.terminals.launches.holds(&params.id).then(|| {
         let (attached, ready) = oneshot::channel();
         let launches = session.terminals.launches.clone();
@@ -76,7 +83,8 @@ pub async fn open(session: &Session, params: WatchTerminalParams) -> Result<(), 
     });
     let watching = tokio::spawn(watch(
         stream,
-        keys,
+        herdr.client(),
+        pane.id.clone(),
         params.id.clone(),
         receiver,
         session.frames.clone(),
@@ -108,20 +116,22 @@ fn press(client: Client, pane: String) -> mpsc::UnboundedSender<Key> {
 
 async fn watch(
     mut stream: herdr_client::Terminal,
-    keys: mpsc::UnboundedSender<Key>,
+    client: Client,
+    pane: String,
     id: String,
     mut controls: mpsc::UnboundedReceiver<Control>,
     frames: mpsc::Sender<Message>,
     mut attached: Option<oneshot::Sender<()>>,
 ) {
+    let keys = press(client.clone(), pane.clone());
     let mut pending = None;
     let mut slot: Option<Slot> = None;
 
     let error = loop {
         tokio::select! {
-            permit = reserved(&mut slot) => {
+            (permit, viewport) = reserved(&mut slot) => {
                 slot = None;
-                match (permit, pending.take()) {
+                match (permit, pending.take().and_then(|frame| message(&id, frame, viewport))) {
                     (Ok(permit), Some(message)) => {
                         permit.send(message);
                     }
@@ -134,16 +144,8 @@ async fn watch(
                     if let Some(attached) = attached.take() {
                         let _ = attached.send(());
                     }
-                    pending = notification::<FrameEvent>(TerminalFrame {
-                        id: id.clone(),
-                        cols: frame.width,
-                        rows: frame.height,
-                        full: frame.full,
-                        data: STANDARD.encode(frame.bytes),
-                    });
-                    if pending.is_some() {
-                        slot = Some(Box::pin(frames.clone().reserve_owned()));
-                    }
+                    pending = Some(frame);
+                    slot = Some(Box::pin(reserve(client.clone(), pane.clone(), frames.clone())));
                 }
                 Err(error) => break error,
             },
@@ -170,6 +172,7 @@ async fn watch(
 
     tracing::info!(%error, %id, "terminal stream ended");
     drop(slot);
+    let drawn = pending.and_then(|frame| message(&id, frame, None));
     let ended = notification::<EndedEvent>(TerminalEnded {
         id,
         error: match error {
@@ -177,14 +180,45 @@ async fn watch(
             error => Some(error.to_string()),
         },
     });
-    for message in pending.into_iter().chain(ended) {
+    for message in drawn.into_iter().chain(ended) {
         if frames.send(message).await.is_err() {
             return;
         }
     }
 }
 
-async fn reserved(slot: &mut Option<Slot>) -> Result<OwnedPermit<Message>, SendError<()>> {
+fn message(id: &str, frame: Frame, viewport: Option<Viewport>) -> Option<Message> {
+    notification::<FrameEvent>(TerminalFrame {
+        id: id.to_owned(),
+        cols: frame.width,
+        rows: frame.height,
+        full: frame.full,
+        data: STANDARD.encode(frame.bytes),
+        viewport,
+    })
+}
+
+async fn reserve(client: Client, pane: String, frames: mpsc::Sender<Message>) -> Reserved {
+    let (scrollback, permit) = tokio::join!(
+        time::timeout(WAIT, client.scrollback(&pane)),
+        frames.reserve_owned()
+    );
+    let viewport = match scrollback {
+        Ok(Ok(scrollback)) => scrollback.map(scroll::viewport),
+        Ok(Err(error)) => {
+            tracing::debug!(%error, %pane, "could not read where the terminal is scrolled");
+            None
+        }
+        Err(_) => {
+            tracing::debug!(%pane, "Herdr was slow to say where the terminal is scrolled");
+            None
+        }
+    };
+
+    (permit, viewport)
+}
+
+async fn reserved(slot: &mut Option<Slot>) -> Reserved {
     match slot {
         Some(reserving) => reserving.await,
         None => future::pending().await,

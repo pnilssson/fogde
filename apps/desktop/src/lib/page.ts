@@ -3,7 +3,7 @@ import { createStore } from "zustand/vanilla";
 
 import { moved, onRename } from "@/lib/note-renames";
 
-export type Page = "notes" | "monitor";
+export type Page = "github" | "notes" | "settings" | "monitor";
 
 interface State {
   page: Page | undefined;
@@ -38,8 +38,12 @@ export function useShownNote(machine: string) {
   return useStore(pages, ({ notes }) => notes[machine]);
 }
 
-export function openPage(page: Page, machine: string | undefined) {
-  pages.setState({ page, machine });
+export function isFull(page: Page | undefined) {
+  return page !== undefined && page !== "monitor";
+}
+
+export function openPage(page: Page, machine?: string) {
+  pages.setState(machine === undefined ? { page } : { page, machine });
 }
 
 export function openNote(machine: string, note: string) {
@@ -64,6 +68,6 @@ export function leavePage(then: () => void) {
   requestAnimationFrame(then);
 }
 
-export function pageOpen() {
-  return pages.getState().page !== undefined;
+export function currentPage() {
+  return pages.getState().page;
 }

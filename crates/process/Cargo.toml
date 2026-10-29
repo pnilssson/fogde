@@ -6,7 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-tokio = { workspace = true, features = ["process"] }
+tokio = { workspace = true, features = ["io-util", "macros", "process"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["io-util", "macros", "process", "rt", "time"] }

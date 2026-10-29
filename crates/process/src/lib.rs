@@ -1,9 +1,13 @@
+mod feed;
+
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 use std::process::Stdio;
 
 use tokio::process::Command;
+
+pub use feed::feed;
 
 pub fn command(program: impl AsRef<OsStr>) -> Command {
     let mut command = hidden(program);

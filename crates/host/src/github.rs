@@ -1,3 +1,6 @@
+mod actions;
+mod items;
+
 use github::SignIn;
 use protocol::github::{Account, CancelSignIn, FinishSignIn, GetAccounts, SignInCode, StartSignIn};
 use protocol::rpc::{Failure, SERVER_ERROR};
@@ -16,11 +19,13 @@ pub fn register(router: &mut Router) {
     router.add::<StartSignIn>();
     router.add::<FinishSignIn>();
     router.add::<CancelSignIn>();
+    items::register(router);
+    actions::register(router);
 }
 
 impl Handler for GetAccounts {
     async fn handle(session: &Session, (): ()) -> Result<Vec<Account>, Failure> {
-        let accounts = session.gh().await?.accounts().await.map_err(failure)?;
+        let accounts = session.shared.accounts().await.map_err(failure)?;
 
         Ok(accounts
             .into_iter()

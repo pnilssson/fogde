@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { UnicodeGraphemesAddon } from "@xterm/addon-unicode-graphemes";
 import { Terminal } from "@xterm/xterm";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { showFrames } from "@/features/terminals/lib/frames";
 import type { TerminalFrame } from "@/generated/protocol";
@@ -10,7 +10,7 @@ import type { Client } from "@/lib/client";
 const cols = 4;
 const rows = 2;
 
-function view() {
+function view(drawn: () => void = () => undefined) {
   const terminal = new Terminal({ allowProposedApi: true, cols, rows });
   terminal.loadAddon(new UnicodeGraphemesAddon());
   let send: (frame: TerminalFrame) => void = () => undefined;
@@ -20,11 +20,12 @@ function view() {
       return () => undefined;
     },
   } as unknown as Client;
-  showFrames(client, "w1", terminal);
+  const stop = showFrames(client, "w1", terminal, drawn);
 
   return {
+    stop,
     frame: (data: string, full = false) => {
-      send({ id: "w1", cols, rows, full, data: encode(data) });
+      send({ id: "w1", cols, rows, full, data: encode(data), viewport: null });
     },
     row: (index: number) =>
       terminal.buffer.active.getLine(index)?.translateToString(true),
@@ -50,4 +51,18 @@ test("a character too wide for the last column stays on its row", async () => {
 
   await expect.poll(() => row(0)).toBe("qbcd");
   expect(row(1)).toBe("wxyz");
+});
+
+test("a frame still being written when the pane closes is not reported drawn", async () => {
+  const drawn = vi.fn();
+  const { frame, stop } = view(drawn);
+  frame("ab", true);
+  await Promise.resolve();
+
+  stop();
+  await new Promise((resolve) => {
+    setTimeout(resolve, 20);
+  });
+
+  expect(drawn).not.toHaveBeenCalled();
 });

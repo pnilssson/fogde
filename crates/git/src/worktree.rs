@@ -59,6 +59,31 @@ pub async fn add_worktree(repo: &Path, path: &Path, branch: &str) -> Result<(), 
     Err(error)
 }
 
+pub async fn add_detached(repo: &Path, path: &Path) -> Result<(), Error> {
+    git(
+        repo,
+        [
+            OsStr::new("worktree"),
+            OsStr::new("add"),
+            OsStr::new("--detach"),
+            path.as_os_str(),
+            OsStr::new("HEAD"),
+        ],
+    )
+    .await?;
+
+    let Err(error) = include::copy(repo, path).await else {
+        return Ok(());
+    };
+    undo(repo, path, None).await;
+
+    Err(error)
+}
+
+pub async fn discard_worktree(repo: &Path, path: &Path) {
+    undo(repo, path, None).await;
+}
+
 pub async fn remove_worktree(repo: &Path, path: &Path) -> Result<Option<String>, Error> {
     let branch = git(path, ["symbolic-ref", "--quiet", "--short", "HEAD"])
         .await

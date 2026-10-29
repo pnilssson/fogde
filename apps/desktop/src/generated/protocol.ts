@@ -22,11 +22,33 @@ export type Base = { name: string, behind: number, };
 
 export type Battery = { watts: number, drain: number, };
 
+export type Branch = { name: string, worktree: string | null, remote: boolean, date: string, };
+
+export type ChangeKind = "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" | "conflicted";
+
 export type Changes = { added: number, removed: number, base: Base | null, upstream: Divergence | null, };
+
+export type Check = { name: string, state: CheckState, url: string | null, run: number | null, };
+
+export type CheckState = "pending" | "success" | "failure" | "skipped" | "neutral";
 
 export type Checkout = { path: string, branch: string | null, main: boolean, };
 
+export type CheckoutPullParams = { path: string, repo: Repo, number: number, worktree: boolean, };
+
+export type CheckoutStatus = { path: string, repo: Repo | null, branch: string | null, upstream: string | null, ahead: number, behind: number, files: Array<FileChange>, truncated: boolean, owner: string | null, pull: number | null, fetched: number | null, last: LastCommit | null, };
+
+export type ChecksState = "pending" | "success" | "failure";
+
+export type ChecksSummary = { state: ChecksState, passed: number, failed: number, total: number, };
+
 export type ClickTerminalParams = { id: string, column: number, row: number, };
+
+export type Comment = { id: string, author: string | null, html: string, created: string, url: string, verdict: Verdict | null, };
+
+export type CommentParams = { repo: Repo, number: number, body: string, };
+
+export type CommitParams = { path: string, paths: Array<string>, message: string, };
 
 export type Connection = { url: string, token: string, };
 
@@ -36,9 +58,29 @@ export type CreateTerminalParams = { workspace: string, folder: string, agent: A
 
 export type CreateWorktreeParams = { repo: string, name: string, };
 
+export type Detail = { id: string, number: number, title: string, url: string, state: ItemState, author: string | null, created: string, body: string, html: string, labels: Array<Label>, assignees: Array<string>, editable: boolean, comments: Array<Comment>, linked: Array<Linked>, pull: PullDetail | null, };
+
+export type Diff = { base: string | null, files: Array<FileDiff>, truncated: boolean, };
+
+export type DiffParams = { path: string, scope: DiffScope, };
+
+export type DiffScope = "uncommitted" | "branch";
+
 export type Disk = { free: number, total: number, };
 
 export type Divergence = { ahead: number, behind: number, };
+
+export type DraftParams = { repo: Repo, id: string, draft: boolean, };
+
+export type EditParams = { repo: Repo, number: number, pull: boolean, title: string, body: string, };
+
+export type FileChange = { path: string, from: string | null, change: ChangeKind, };
+
+export type FileDiff = { path: string, from: string | null, change: ChangeKind, added: number, removed: number, patch: string | null, binary: boolean, large: boolean, };
+
+export type FileStat = { path: string, added: number, removed: number, };
+
+export type Filter = "open" | "closed";
 
 export type FinishAgentSignInParams = { agent: Agent, code: string | null, };
 
@@ -50,7 +92,23 @@ export type Frame = { platform: Platform, translucent: boolean, };
 
 export type Image = "png" | "jpeg" | "gif" | "webp";
 
+export type ItemParams = { repo: Repo, number: number, };
+
+export type ItemState = "open" | "closed" | "merged";
+
 export type Key = "shiftEnter" | "ctrlEnter";
+
+export type Label = { name: string, color: string, };
+
+export type LabelsParams = { repo: Repo, number: number, labels: Array<string>, };
+
+export type LastCommit = { sha: string, subject: string, date: string, undoable: boolean, };
+
+export type Linked = { number: number, title: string, url: string, state: ItemState, };
+
+export type ListParams = { repo: Repo, filter: Filter, };
+
+export type Listed = { number: number, title: string, url: string, state: ItemState, author: string | null, labels: Array<Label>, comments: number, updated: string, section: Section, pull: PullSummary | null, };
 
 export type Load = { id: string, cpu: number, memory: number, };
 
@@ -62,9 +120,19 @@ export type Material = "translucent" | "solid";
 
 export type Memory = { used: number, total: number, };
 
+export type MergeMethod = "merge" | "squash" | "rebase";
+
+export type MergeParams = { repo: Repo, number: number, method: MergeMethod, sha: string, delete: boolean, };
+
+export type MergeState = "clean" | "behind" | "blocked" | "conflicts" | "draft" | "unstable" | "unknown";
+
 export type Metric = "cpu" | "memory" | "battery" | "latency";
 
 export type MoveTileParams = { tile: string, before: string | null, };
+
+export type NewIssueParams = { repo: Repo, title: string, body: string, };
+
+export type NewPullParams = { path: string, repo: Repo, title: string, body: string, base: string, draft: boolean, };
 
 export type Note = { name: string, path: string, folder: string, modified: number, created: number, };
 
@@ -76,9 +144,15 @@ export type Notifications = { enabled: boolean, sound: boolean, };
 
 export type PasteImageParams = { id: string, image: Image, data: string, };
 
+export type PeopleParams = { repo: Repo, number: number, add: Array<string>, remove: Array<string>, };
+
 export type PlaceTerminalParams = { terminal: string, workspace: string, checkout: string | null, };
 
 export type Platform = "windows" | "macos" | "linux";
+
+export type PullDetail = { draft: boolean, head: string, owner: string | null, sha: string, base: string, cross: boolean, review: ReviewState | null, merge: MergeState, methods: Array<MergeMethod>, reviewers: Array<string>, checks: Array<Check>, files: Array<FileStat>, added: number, removed: number, changed: number, };
+
+export type PullSummary = { draft: boolean, head: string, owner: string | null, base: string, review: ReviewState | null, checks: ChecksSummary | null, added: number, removed: number, };
 
 export type RemoteRepo = { host: string, owner: string, name: string, cloned: boolean, };
 
@@ -90,6 +164,16 @@ export type RenameNoteParams = { path: string, name: string, };
 
 export type Repo = { host: string, owner: string, name: string, };
 
+export type RepoOptions = { labels: Array<Label>, people: Array<string>, branch: string | null, };
+
+export type RerunParams = { repo: Repo, run: number, };
+
+export type ReviewEvent = "approve" | "changes" | "comment";
+
+export type ReviewParams = { repo: Repo, number: number, event: ReviewEvent, body: string, };
+
+export type ReviewState = "approved" | "changes" | "required";
+
 export type Sample = { at: number, cpu: number, memory: Memory, disk: Disk | null, battery: Battery | null, terminals: Array<Load>, };
 
 export type SamplesParams = { since: number, };
@@ -98,7 +182,11 @@ export type Scroll = "up" | "down";
 
 export type ScrollTerminalParams = { id: string, direction: Scroll, lines: number, column: number, row: number, };
 
+export type Section = "review" | "mine" | "assigned" | "other";
+
 export type SeekTerminalParams = { id: string, offset: number, };
+
+export type SelectionParams = { id: string, start: TextPoint, end: TextPoint, };
 
 export type ServerCheck = { "state": "ready" } | { "state": "untrusted", fingerprint: string, } | { "state": "keyRejected", keys: Array<SshKey>, };
 
@@ -120,9 +208,13 @@ export type Span = "session" | "week" | "month";
 
 export type SshKey = { name: string, fingerprint: string, };
 
+export type StateParams = { repo: Repo, number: number, pull: boolean, open: boolean, };
+
 export type Stats = { behind: boolean, lines: boolean, upstream: boolean, };
 
 export type Status = "idle" | "working" | "blocked" | "done";
+
+export type SwitchParams = { path: string, branch: string, };
 
 export type Terminal = { id: string, name: string, agent: Agent | null, model: string | null, status: Status, folder: string, branch: string | null, changes: Changes | null, checkout: string | null, };
 
@@ -130,7 +222,7 @@ export type TerminalEnded = { id: string, error: string | null, };
 
 export type TerminalFailed = { id: string, agent: Agent, error: string, };
 
-export type TerminalFrame = { id: string, cols: number, rows: number, full: boolean, data: string, };
+export type TerminalFrame = { id: string, cols: number, rows: number, full: boolean, data: string, viewport: Viewport | null, };
 
 export type TerminalInputParams = { id: string, data: string, };
 
@@ -140,9 +232,17 @@ export type TerminalScrolled = { id: string, offset: number, max: number, rows: 
 
 export type TerminalState = { id: string, name: string, agent: Agent | null, model: string | null, status: Status, folder: string, branch: string | null, changes: Changes | null, };
 
+export type TextPoint = { row: number, column: number, };
+
 export type Theme = "system" | "light" | "dark";
 
+export type UndoParams = { path: string, sha: string, };
+
 export type Usage = { agent: Agent, windows: Array<Window>, at: number, };
+
+export type Verdict = "approved" | "changes" | "commented" | "dismissed";
+
+export type Viewport = { offset: number, max: number, rows: number, };
 
 export type WatchTerminalParams = { id: string, size: Size, };
 
@@ -162,13 +262,41 @@ export type Methods = {
   "agents.install": { params: Agent; result: null };
   "agents.list": { params: null; result: Array<AgentStatus> };
   "agents.startSignIn": { params: Agent; result: AgentPrompt };
+  "checkouts.branches": { params: string; result: Array<Branch> };
+  "checkouts.commit": { params: CommitParams; result: null };
+  "checkouts.diff": { params: DiffParams; result: Diff };
+  "checkouts.fetch": { params: string; result: null };
+  "checkouts.pull": { params: string; result: null };
+  "checkouts.push": { params: string; result: null };
+  "checkouts.status": { params: Array<string>; result: Array<CheckoutStatus> };
+  "checkouts.switch": { params: SwitchParams; result: null };
+  "checkouts.undo": { params: UndoParams; result: null };
   "folders.create": { params: CreateFolderParams; result: Folder };
   "folders.list": { params: string; result: Folders };
   "folders.remove": { params: string; result: null };
   "github.accounts": { params: null; result: Array<Account> };
   "github.cancelSignIn": { params: null; result: null };
+  "github.checkoutPull": { params: CheckoutPullParams; result: string };
+  "github.comment": { params: CommentParams; result: null };
+  "github.edit": { params: EditParams; result: null };
   "github.finishSignIn": { params: null; result: null };
+  "github.issue": { params: ItemParams; result: Detail };
+  "github.issues": { params: ListParams; result: Array<Listed> };
+  "github.merge": { params: MergeParams; result: null };
+  "github.newIssue": { params: NewIssueParams; result: number };
+  "github.newPull": { params: NewPullParams; result: number };
+  "github.options": { params: Repo; result: RepoOptions };
+  "github.pull": { params: ItemParams; result: Detail };
+  "github.pulls": { params: ListParams; result: Array<Listed> };
+  "github.rerun": { params: RerunParams; result: null };
+  "github.review": { params: ReviewParams; result: null };
+  "github.setAssignees": { params: PeopleParams; result: null };
+  "github.setDraft": { params: DraftParams; result: null };
+  "github.setLabels": { params: LabelsParams; result: null };
+  "github.setReviewers": { params: PeopleParams; result: null };
+  "github.setState": { params: StateParams; result: null };
   "github.startSignIn": { params: string; result: SignInCode };
+  "github.updateBranch": { params: ItemParams; result: null };
   "health.ping": { params: null; result: null };
   "machines.addComputer": { params: null; result: null };
   "machines.connect": { params: MachineId; result: null };
@@ -216,6 +344,7 @@ export type Methods = {
   "terminals.resize": { params: WatchTerminalParams; result: null };
   "terminals.scroll": { params: ScrollTerminalParams; result: null };
   "terminals.seek": { params: SeekTerminalParams; result: null };
+  "terminals.selection": { params: SelectionParams; result: string };
   "terminals.unwatch": { params: string; result: null };
   "terminals.view": { params: string | null; result: null };
   "terminals.watch": { params: WatchTerminalParams; result: null };

@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use git::{add_worktree, clean, heads, remove_merged_branch, remove_worktree, worktrees};
+use git::{
+    add_detached, add_worktree, clean, discard_worktree, heads, remove_merged_branch,
+    remove_worktree, worktrees,
+};
 use tokio::fs;
 use tokio::process::Command;
 
@@ -271,4 +274,22 @@ async fn heads_follow_branch_switches_in_reftable_repos() {
         .unwrap();
 
     assert_ne!(heads(&repo).await, before);
+}
+
+#[tokio::test]
+async fn adds_a_detached_worktree_and_discards_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = repo(dir.path(), &[]).await.unwrap();
+    let review = dir.path().join("worktrees").join("pr-42");
+
+    add_detached(&repo, &review).await.unwrap();
+
+    let listed = worktrees(&repo).await.unwrap();
+    assert_eq!(listed.len(), 2);
+    assert_eq!(listed[1].branch, None);
+
+    discard_worktree(&repo, &review).await;
+
+    assert_eq!(worktrees(&repo).await.unwrap().len(), 1);
+    assert!(!review.exists());
 }

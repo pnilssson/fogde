@@ -44,5 +44,8 @@ pub fn spawn_error(error: io::Error) -> Error {
 }
 
 pub fn failure(output: &[u8]) -> Error {
-    Error::Gh(String::from_utf8_lossy(output).trim().to_owned())
+    let text = String::from_utf8_lossy(output);
+    let text = text.trim();
+
+    Error::Gh(text.strip_prefix("gh: ").unwrap_or(text).to_owned())
 }

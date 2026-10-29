@@ -4,7 +4,7 @@ use serde::de::IgnoredAny;
 use serde::{Deserialize, Serialize};
 
 use crate::client::Empty;
-use crate::{Client, Error};
+use crate::{Client, Error, Scrollback};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct Pane {
@@ -24,16 +24,6 @@ pub struct Pane {
     pub stripped: Option<String>,
     #[serde(rename = "scroll")]
     pub scrollback: Option<Scrollback>,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
-pub struct Scrollback {
-    #[serde(rename = "offset_from_bottom")]
-    pub offset: u64,
-    #[serde(rename = "max_offset_from_bottom")]
-    pub max: u64,
-    #[serde(rename = "viewport_rows")]
-    pub rows: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
@@ -89,19 +79,6 @@ impl Client {
         Ok(())
     }
 
-    pub async fn scroll_pane(&self, pane: &str, offset: u64) -> Result<(), Error> {
-        self.request::<IgnoredAny>(
-            "pane.scroll",
-            Scroll {
-                pane_id: pane,
-                offset_from_bottom: offset,
-            },
-        )
-        .await?;
-
-        Ok(())
-    }
-
     pub async fn shell(&self, pane: &str) -> Result<Option<u32>, Error> {
         let info: Info = self
             .request("pane.process_info", Target { pane_id: pane })
@@ -135,8 +112,8 @@ struct Info {
 }
 
 #[derive(Serialize)]
-struct Target<'a> {
-    pane_id: &'a str,
+pub(crate) struct Target<'a> {
+    pub(crate) pane_id: &'a str,
 }
 
 #[derive(Deserialize)]
@@ -144,12 +121,6 @@ struct ProcessInfo {
     shell_pid: Option<u32>,
     #[serde(default)]
     foreground_processes: Vec<Process>,
-}
-
-#[derive(Serialize)]
-struct Scroll<'a> {
-    pane_id: &'a str,
-    offset_from_bottom: u64,
 }
 
 #[derive(Serialize)]
@@ -234,20 +205,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(info.process_info.foreground_processes, []);
-    }
-
-    #[test]
-    fn writes_scroll() {
-        let scroll = serde_json::to_value(Scroll {
-            pane_id: "w3:p1",
-            offset_from_bottom: 12,
-        })
-        .unwrap();
-
-        assert_eq!(
-            scroll,
-            serde_json::json!({"pane_id": "w3:p1", "offset_from_bottom": 12})
-        );
     }
 
     #[test]

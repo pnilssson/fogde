@@ -1,3 +1,4 @@
+import { BarTitle } from "@/components/bar-title";
 import {
   Select,
   SelectContent,
@@ -11,11 +12,17 @@ interface Props {
   machine: Machine;
   machines: Machine[];
   onMachine: (machine: string) => void;
+  named?: boolean;
 }
 
-export function MachinePicker({ machine, machines, onMachine }: Props) {
+export function MachinePicker({
+  machine,
+  machines,
+  onMachine,
+  named = false,
+}: Props) {
   if (machines.length < 2) {
-    return null;
+    return named ? <BarTitle title={machine.name} muted /> : null;
   }
 
   return (
@@ -28,8 +35,8 @@ export function MachinePicker({ machine, machines, onMachine }: Props) {
         }
       }}
     >
-      <SelectTrigger size="sm" aria-label="Machine" className="w-fit">
-        <SelectValue />
+      <SelectTrigger size="sm" aria-label="Machine" className="w-fit min-w-0">
+        <SelectValue className="block truncate" />
       </SelectTrigger>
       <SelectContent>
         {machines.map(({ id, name }) => (

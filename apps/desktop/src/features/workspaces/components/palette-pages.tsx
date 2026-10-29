@@ -1,4 +1,4 @@
-import { NotebookIcon, PulseIcon } from "@phosphor-icons/react";
+import { GithubLogoIcon, NotebookIcon, PulseIcon } from "@phosphor-icons/react";
 
 import { CommandGroup, CommandItem } from "@/components/ui/command";
 import { openPage } from "@/lib/page";
@@ -11,6 +11,27 @@ interface Props {
 export function PalettePages({ machine, run }: Props) {
   return (
     <CommandGroup heading="Pages">
+      <CommandItem
+        value="GitHub"
+        keywords={[
+          "open",
+          "view",
+          "show",
+          "pull",
+          "requests",
+          "issues",
+          "commit",
+          "push",
+        ]}
+        onSelect={() => {
+          run(() => {
+            openPage("github", machine);
+          });
+        }}
+      >
+        <GithubLogoIcon />
+        GitHub
+      </CommandItem>
       <CommandItem
         value="Notes"
         keywords={["open", "view", "show"]}

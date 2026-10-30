@@ -1,5 +1,4 @@
 import {
-  PaletteIcon,
   SidebarSimpleIcon,
   SlidersHorizontalIcon,
 } from "@phosphor-icons/react";
@@ -24,7 +23,7 @@ import { UsageSettings } from "@/features/settings/components/usage-settings";
 import { useMachines } from "@/hooks/use-machines";
 import { closePage } from "@/lib/page";
 
-type Section = "general" | "appearance" | "sidebar" | { machine: string };
+type Section = "general" | "sidebar" | { machine: string };
 
 const sections = [
   {
@@ -33,16 +32,11 @@ const sections = [
     icon: SlidersHorizontalIcon,
     content: (
       <>
+        <AppearanceSettings />
         <NotificationSettings />
         <AccessibilitySettings />
       </>
     ),
-  },
-  {
-    section: "appearance",
-    label: "Appearance",
-    icon: PaletteIcon,
-    content: <AppearanceSettings />,
   },
   {
     section: "sidebar",

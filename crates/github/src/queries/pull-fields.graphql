@@ -6,6 +6,7 @@ fragment listedPull on PullRequest {
   updatedAt
   isDraft
   headRefName
+  headRefOid
   headRepositoryOwner { login }
   baseRefName
   reviewDecision

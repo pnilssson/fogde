@@ -1,0 +1,354 @@
+2026-10-27T20:12:42.7907989Z ##[group]Run taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283
+2026-10-27T20:12:42.7908705Z with:
+2026-10-27T20:12:42.7909527Z   tool: just,cargo-deny,cargo-shear,cargo-nextest,typos,zizmor,sqlx-cli
+2026-10-27T20:12:42.7910248Z   checksum: true
+2026-10-27T20:12:42.7910612Z   fallback: cargo-binstall
+2026-10-27T20:12:42.7911007Z env:
+2026-10-27T20:12:42.7911335Z   CACHE_ON_FAILURE: false
+2026-10-27T20:12:42.7911753Z   CARGO_INCREMENTAL: 0
+2026-10-27T20:12:42.7912364Z ##[endgroup]
+2026-10-27T20:12:42.8007442Z ##[start-action display=Run bail() {;id=__taiki-e_install-action.__run]
+2026-10-27T20:12:42.8153711Z ##[group]Run bail() {
+2026-10-27T20:12:42.8154242Z [36;1mbail() {[0m
+2026-10-27T20:12:42.8154772Z [36;1m  printf '::error::install-action: %s\n' "$*"[0m
+2026-10-27T20:12:42.8155397Z [36;1m  exit 1[0m
+2026-10-27T20:12:42.8155828Z [36;1m}[0m
+2026-10-27T20:12:42.8156682Z [36;1m# If /bin/sh is dash, environment variable containing % is not imported, but is fine[0m
+2026-10-27T20:12:42.8157870Z [36;1m# because it also means that it will not be exposed to subprocess.[0m
+2026-10-27T20:12:42.8158557Z [36;1mif /usr/bin/env | grep -Eq '^BASH_FUNC_'; then[0m
+2026-10-27T20:12:42.8159274Z [36;1m  bail 'bash function injection via BASH_FUNC_ environment variable is not allowed for security reasons'[0m
+2026-10-27T20:12:42.8159805Z [36;1mfi[0m
+2026-10-27T20:12:42.8160041Z [36;1mif ! command -v bash >/dev/null; then[0m
+2026-10-27T20:12:42.8160401Z [36;1m  if grep -Eq '^ID=alpine' /etc/os-release; then[0m
+2026-10-27T20:12:42.8160862Z [36;1m    printf '::group::Install packages required for install-action (bash)\n'[0m
+2026-10-27T20:12:42.8161301Z [36;1m    # NB: sync with apk_install in main.sh[0m
+2026-10-27T20:12:42.8161657Z [36;1m    if command -v sudo >/dev/null; then[0m
+2026-10-27T20:12:42.8162289Z [36;1m      sudo apk --no-cache add bash[0m
+2026-10-27T20:12:42.8162621Z [36;1m    elif command -v doas >/dev/null; then[0m
+2026-10-27T20:12:42.8162951Z [36;1m      doas apk --no-cache add bash[0m
+2026-10-27T20:12:42.8163229Z [36;1m    else[0m
+2026-10-27T20:12:42.8163457Z [36;1m      apk --no-cache add bash[0m
+2026-10-27T20:12:42.8163723Z [36;1m    fi[0m
+2026-10-27T20:12:42.8163946Z [36;1m    printf '::endgroup::\n'[0m
+2026-10-27T20:12:42.8164207Z [36;1m  else[0m
+2026-10-27T20:12:42.8164436Z [36;1m    bail 'this action requires bash'[0m
+2026-10-27T20:12:42.8164723Z [36;1m  fi[0m
+2026-10-27T20:12:42.8164910Z [36;1mfi[0m
+2026-10-27T20:12:42.8165191Z [36;1mbash --noprofile --norc "${GITHUB_ACTION_PATH:?}/main.sh"[0m
+2026-10-27T20:12:42.8169103Z shell: /usr/bin/env -u ENV -u BASH_ENV -u CDPATH -u SHELLOPTS -u BASHOPTS /bin/sh -eu {0}
+2026-10-27T20:12:42.8169537Z env:
+2026-10-27T20:12:42.8169736Z   CACHE_ON_FAILURE: false
+2026-10-27T20:12:42.8169973Z   CARGO_INCREMENTAL: 0
+2026-10-27T20:12:42.8170354Z   INPUT_TOOL: just,cargo-deny,cargo-shear,cargo-nextest,typos,zizmor,sqlx-cli
+2026-10-27T20:12:42.8170775Z   INPUT_CHECKSUM: true
+2026-10-27T20:12:42.8171021Z   INPUT_FALLBACK: cargo-binstall
+2026-10-27T20:12:42.8174291Z   DEFAULT_GITHUB_TOKEN: ***
+2026-10-27T20:12:42.8174730Z   ACTION_USER_AGENT: taiki-e/install-action (8cca0918f8471c33515202b73f56ab27f2bed283)
+2026-10-27T20:12:42.8175479Z   RUNNER_OS: Linux
+2026-10-27T20:12:42.8175854Z   RUNNER_ARCH: X64
+2026-10-27T20:12:42.8176205Z ##[endgroup]
+2026-10-27T20:12:42.8384139Z info: host platform: x86_64_linux
+2026-10-27T20:12:42.8585213Z info: installing just@latest
+2026-10-27T20:12:42.8877515Z info: downloading https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-unknown-linux-musl.tar.gz
+2026-10-27T20:12:42.9839200Z info: verifying sha256 checksum for just-1.59.0-x86_64-unknown-linux-musl.tar.gz
+2026-10-27T20:12:43.1000547Z info: just installed at /home/runner/.cargo/bin/just
+2026-10-27T20:12:43.1002237Z + just --version
+2026-10-27T20:12:43.1019824Z just 1.59.0
+2026-10-27T20:12:43.1025450Z 
+2026-10-27T20:12:43.1259457Z info: installing cargo-deny@latest
+2026-10-27T20:12:43.1466363Z info: downloading https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz
+2026-10-27T20:12:43.2703527Z info: verifying sha256 checksum for cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz
+2026-10-27T20:12:43.3757016Z info: cargo-deny installed at /home/runner/.cargo/bin/cargo-deny
+2026-10-27T20:12:43.3766124Z + cargo-deny deny --version
+2026-10-27T20:12:43.3769868Z cargo-deny 0.20.2
+2026-10-27T20:12:43.3800736Z 
+2026-10-27T20:12:43.4008002Z info: installing cargo-shear@latest
+2026-10-27T20:12:43.4219341Z info: downloading https://github.com/Boshen/cargo-shear/releases/download/v1.14.0/cargo-shear-x86_64-unknown-linux-musl.tar.gz
+2026-10-27T20:12:43.6127602Z info: verifying sha256 checksum for cargo-shear-x86_64-unknown-linux-musl.tar.gz
+2026-10-27T20:12:43.6536956Z info: cargo-shear installed at /home/runner/.cargo/bin/cargo-shear
+2026-10-27T20:12:43.6540561Z + cargo-shear shear --version
+2026-10-27T20:12:43.6548879Z Version: 1.14.0
+2026-10-27T20:12:43.6550972Z 
+2026-10-27T20:12:43.6551157Z 
+2026-10-27T20:12:43.6813218Z info: installing cargo-nextest@latest
+2026-10-27T20:12:43.7017005Z info: downloading https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.148/cargo-nextest-0.9.148-x86_64-unknown-linux-gnu.tar.gz
+2026-10-27T20:12:43.8215763Z info: verifying sha256 checksum for cargo-nextest-0.9.148-x86_64-unknown-linux-gnu.tar.gz
+2026-10-27T20:12:44.1026250Z info: cargo-nextest installed at /home/runner/.cargo/bin/cargo-nextest
+2026-10-27T20:12:44.1029123Z + cargo-nextest nextest --version
+2026-10-27T20:12:44.1057439Z cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)
+2026-10-27T20:12:44.1058133Z release: 0.9.148
+2026-10-27T20:12:44.1058852Z commit-hash: cd1d6d5467322dbc0d39a80cb671d000ac302798
+2026-10-27T20:12:44.1059573Z commit-date: 2026-10-07
+2026-10-27T20:12:44.1060187Z host: x86_64-unknown-linux-gnu
+2026-10-27T20:12:44.1061257Z 
+2026-10-27T20:12:44.1282992Z info: installing typos@latest
+2026-10-27T20:12:44.1490704Z info: downloading https://github.com/crate-ci/typos/releases/download/v1.51.1/typos-v1.51.1-x86_64-unknown-linux-musl.tar.gz
+2026-10-27T20:12:44.2624712Z info: verifying sha256 checksum for typos-v1.51.1-x86_64-unknown-linux-musl.tar.gz
+2026-10-27T20:12:44.4945670Z info: typos installed at /home/runner/.cargo/bin/typos
+2026-10-27T20:12:44.4952188Z + typos --version
+2026-10-27T20:12:44.5000273Z typos-cli 1.51.1
+2026-10-27T20:12:44.5009044Z 
+2026-10-27T20:12:44.5204341Z info: installing zizmor@latest
+2026-10-27T20:12:44.5395510Z info: downloading https://github.com/zizmorcore/zizmor/releases/download/v1.31.0/zizmor-x86_64-unknown-linux-gnu.tar.gz
+2026-10-27T20:12:44.7274279Z info: verifying sha256 checksum for zizmor-x86_64-unknown-linux-gnu.tar.gz
+2026-10-27T20:12:44.9205882Z info: zizmor installed at /home/runner/.cargo/bin/zizmor
+2026-10-27T20:12:44.9209201Z + zizmor --version
+2026-10-27T20:12:44.9233854Z zizmor 1.31.0
+2026-10-27T20:12:44.9240240Z 
+2026-10-27T20:12:44.9244461Z info: install-action does not support sqlx-cli (updating install-action might resolve this); fallback to cargo-binstall
+2026-10-27T20:12:44.9291733Z info: cargo-binstall already installed at /home/runner/.cargo/bin/cargo-binstall
+2026-10-27T20:12:44.9384434Z cargo-binstall:  INFO resolve: Resolving package: 'sqlx-cli'
+2026-10-27T20:12:46.5990867Z cargo-binstall:  INFO resolve: Verified signature for package 'sqlx-cli-0.9.0-x86_64-unknown-linux-gnu': timestamp:1779442776	file:sqlx-cli-0.9.0-x86_64-unknown-linux-gnu.tar.gz	hashed
+2026-10-27T20:12:46.5994556Z cargo-binstall:  WARN The package sqlx-cli v0.9.0 (x86_64-unknown-linux-gnu) has been downloaded from third-party source QuickInstall
+2026-10-27T20:12:46.5996738Z cargo-binstall:  INFO This will install the following binaries:
+2026-10-27T20:12:46.5998311Z cargo-binstall:  INFO   - cargo-sqlx => /home/runner/.cargo/bin/cargo-sqlx
+2026-10-27T20:12:46.5999904Z cargo-binstall:  INFO   - sqlx => /home/runner/.cargo/bin/sqlx
+2026-10-27T20:12:46.6000843Z cargo-binstall:  INFO Installing binaries...
+2026-10-27T20:12:46.6111699Z cargo-binstall:  INFO Done in 1.680746071s
+2026-10-27T20:12:46.6142304Z ##[end-action id=__taiki-e_install-action.__run;outcome=success;conclusion=success;duration_ms=3813]
+2026-10-27T20:12:46.6149486Z ##[start-action display=Run Set-StrictMode -Version Latest;id=__taiki-e_install-action.__run_2]
+2026-10-27T20:12:46.6155533Z ##[end-action id=__taiki-e_install-action.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-27T20:12:46.6189348Z ##[group]Run just check
+2026-10-27T20:12:46.6189645Z [36;1mjust check[0m
+2026-10-27T20:12:46.6253598Z shell: /usr/bin/bash -e {0}
+2026-10-27T20:12:46.6253875Z env:
+2026-10-27T20:12:46.6254085Z   CACHE_ON_FAILURE: false
+2026-10-27T20:12:46.6254340Z   CARGO_INCREMENTAL: 0
+2026-10-27T20:12:46.6254581Z ##[endgroup]
+2026-10-27T20:12:46.6370010Z cargo fmt --all --check
+2026-10-27T20:12:46.8382567Z cargo clippy --workspace --all-targets -- -D warnings
+2026-10-27T20:12:46.9236324Z     Updating crates.io index
+2026-10-27T20:12:48.8326287Z     Checking process v0.1.0 (/home/runner/work/app/app/crates/process)
+2026-10-27T20:12:48.8416494Z     Checking protocol v0.1.0 (/home/runner/work/app/app/crates/protocol)
+2026-10-27T20:12:48.8483874Z    Compiling app v0.1.0 (/home/runner/work/app/app/apps/desktop/src-tauri)
+2026-10-27T20:12:48.8793754Z     Checking download v0.1.0 (/home/runner/work/app/app/crates/download)
+2026-10-27T20:12:48.9673493Z     Checking git v0.1.0 (/home/runner/work/app/app/crates/git)
+2026-10-27T20:12:49.2678663Z     Checking herdr-client v0.1.0 (/home/runner/work/app/app/crates/herdr-client)
+2026-10-27T20:12:49.3583917Z     Checking github v0.1.0 (/home/runner/work/app/app/crates/github)
+2026-10-27T20:12:49.6103663Z     Checking remote v0.1.0 (/home/runner/work/app/app/crates/remote)
+2026-10-27T20:12:50.4374108Z     Checking agents v0.1.0 (/home/runner/work/app/app/crates/agents)
+2026-10-27T20:12:50.7673771Z     Checking shim v0.1.0 (/home/runner/work/app/app/crates/shim)
+2026-10-27T20:12:51.0774763Z     Checking host v0.1.0 (/home/runner/work/app/app/crates/host)
+2026-10-27T20:12:53.9788020Z     Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.09s
+2026-10-27T20:12:54.0221652Z npm run --prefix apps/desktop format:check
+2026-10-27T20:12:54.1233435Z 
+2026-10-27T20:12:54.1233874Z > format:check
+2026-10-27T20:12:54.1234301Z > prettier --check .
+2026-10-27T20:12:54.1234528Z 
+2026-10-27T20:12:54.2124355Z Checking formatting...
+2026-10-27T20:12:57.5986147Z All matched files use Prettier code style!
+2026-10-27T20:12:57.6563684Z npm run --prefix apps/desktop lint
+2026-10-27T20:12:57.7502442Z 
+2026-10-27T20:12:57.7502877Z > lint
+2026-10-27T20:12:57.7503253Z > eslint .
+2026-10-27T20:12:57.7503448Z 
+2026-10-27T20:13:15.7054130Z npm run --prefix apps/desktop typecheck
+2026-10-27T20:13:15.7970460Z 
+2026-10-27T20:13:15.7971004Z > typecheck
+2026-10-27T20:13:15.7971484Z > tsc -b
+2026-10-27T20:13:15.7971658Z 
+2026-10-27T20:13:22.3946190Z cargo nextest run --workspace
+2026-10-27T20:13:23.0066333Z    Compiling process v0.1.0 (/home/runner/work/app/app/crates/process)
+2026-10-27T20:13:23.0185299Z    Compiling protocol v0.1.0 (/home/runner/work/app/app/crates/protocol)
+2026-10-27T20:13:23.0286665Z    Compiling app v0.1.0 (/home/runner/work/app/app/apps/desktop/src-tauri)
+2026-10-27T20:13:23.1293151Z    Compiling download v0.1.0 (/home/runner/work/app/app/crates/download)
+2026-10-27T20:13:23.4284108Z    Compiling git v0.1.0 (/home/runner/work/app/app/crates/git)
+2026-10-27T20:13:23.7777212Z    Compiling github v0.1.0 (/home/runner/work/app/app/crates/github)
+2026-10-27T20:13:24.4253450Z    Compiling herdr-client v0.1.0 (/home/runner/work/app/app/crates/herdr-client)
+2026-10-27T20:13:24.5863446Z    Compiling agents v0.1.0 (/home/runner/work/app/app/crates/agents)
+2026-10-27T20:13:24.8213566Z    Compiling remote v0.1.0 (/home/runner/work/app/app/crates/remote)
+2026-10-27T20:13:25.8029768Z    Compiling host v0.1.0 (/home/runner/work/app/app/crates/host)
+2026-10-27T20:13:29.6271281Z    Compiling shim v0.1.0 (/home/runner/work/app/app/crates/shim)
+2026-10-27T20:13:38.5560812Z     Finished `test` profile [unoptimized + debuginfo] target(s) in 15.80s
+2026-10-27T20:13:38.6445210Z ────────────
+2026-10-27T20:13:38.6446103Z  Nextest run ID 99ca0e30-d56f-402d-8a15-b150f02cacad with nextest profile: default
+2026-10-27T20:13:38.6446966Z     Starting 220 tests across 17 binaries
+2026-10-27T20:13:38.6519930Z         PASS [   0.005s] (  1/220) agents limits::codex::tests::reads_codex_errors
+2026-10-27T20:13:38.6524792Z         PASS [   0.007s] (  2/220) agents limits::claude::tests::skips_claude_plans_without_limits
+2026-10-27T20:13:38.6550496Z         PASS [   0.008s] (  3/220) agents limits::claude::tests::reads_claude_limits
+2026-10-27T20:13:38.6551782Z         PASS [   0.009s] (  4/220) agents limits::claude::tests::reads_claude_errors
+2026-10-27T20:13:38.6560788Z         PASS [   0.006s] (  5/220) agents limits::codex::tests::reads_codex_limits
+2026-10-27T20:13:38.6584422Z         PASS [   0.007s] (  6/220) agents limits::codex::tests::skips_other_messages
+2026-10-27T20:13:38.6605892Z         PASS [   0.008s] (  7/220) agents model::claude::tests::finds_a_shortened_project_folder
+2026-10-27T20:13:38.6619489Z         PASS [   0.007s] (  8/220) agents model::claude::tests::ignores_a_session_left_by_an_earlier_process_with_the_same_id
+2026-10-27T20:13:38.6630260Z         PASS [   0.007s] (  9/220) agents model::claude::tests::ignores_processes_without_a_session
+2026-10-27T20:13:38.6683416Z         PASS [   0.007s] ( 10/220) agents model::claude::tests::names_models_as_claude_code_shows_them
+2026-10-27T20:13:38.6713407Z         PASS [   0.006s] ( 11/220) agents model::claude::tests::names_the_project_folder_as_claude_does
+2026-10-27T20:13:38.6722609Z         PASS [   0.007s] ( 12/220) agents model::claude::tests::reads_the_model_of_the_last_reply
+2026-10-27T20:13:38.6730038Z         PASS [   0.007s] ( 13/220) agents model::claude::tests::shows_nothing_before_the_first_reply
+2026-10-27T20:13:38.6737334Z         PASS [   0.008s] ( 14/220) agents model::claude::tests::skips_subagent_and_synthetic_replies
+2026-10-27T20:13:38.6993115Z         PASS [   0.026s] ( 15/220) agents model::codex::tests::shows_nothing_for_a_session_on_the_shared_server
+2026-10-27T20:13:38.7030843Z         PASS [   0.037s] ( 16/220) agents model::codex::tests::follows_the_session_a_new_chat_starts
+2026-10-27T20:13:38.7057891Z         PASS [   0.035s] ( 17/220) agents model::codex::tests::prefers_the_terminal_session_over_a_nested_codex_run
+2026-10-27T20:13:38.7073155Z         PASS [   0.008s] ( 18/220) agents model::codex::tests::shows_nothing_without_codex_databases
+2026-10-27T20:13:38.7084484Z         PASS [   0.040s] ( 19/220) agents model::codex::tests::ignores_subagents_and_sessions_idle_since_before_the_process
+2026-10-27T20:13:38.7126408Z         PASS [   0.007s] ( 20/220) agents model::copilot::tests::ignores_a_lock_left_by_an_earlier_process_with_the_same_id
+2026-10-27T20:13:38.7137198Z         PASS [   0.007s] ( 21/220) agents model::copilot::tests::prefers_the_session_of_the_foreground_process_over_its_children
+2026-10-27T20:13:38.7160080Z         PASS [   0.008s] ( 22/220) agents model::copilot::tests::reads_the_model_of_the_session_the_process_holds
+2026-10-27T20:13:38.7195958Z         PASS [   0.007s] ( 23/220) agents model::copilot::tests::shows_nothing_before_the_first_reply_or_for_other_processes
+2026-10-27T20:13:38.7232987Z         PASS [   0.008s] ( 24/220) agents model::copilot::tests::skips_usage_the_agent_started_itself
+2026-10-27T20:13:38.7280120Z         PASS [   0.006s] ( 25/220) agents signin::tests::reads_claude_link
+2026-10-27T20:13:38.7339715Z         PASS [   0.016s] ( 26/220) agents model::tail::tests::finds_the_last_match_across_chunks
+2026-10-27T20:13:38.7341119Z         PASS [   0.014s] ( 27/220) agents model::tail::tests::reads_a_line_longer_than_a_chunk
+2026-10-27T20:13:38.7354223Z         PASS [   0.007s] ( 28/220) agents signin::tests::reads_codex_device_code
+2026-10-27T20:13:38.7357239Z         PASS [   0.033s] ( 29/220) agents model::codex::tests::tells_apart_two_sessions_started_together_in_one_folder
+2026-10-27T20:13:38.7387184Z         PASS [   0.006s] ( 30/220) agents signin::tests::reads_links_wrapped_as_hyperlinks
+2026-10-27T20:13:38.7411743Z         PASS [   0.006s] ( 31/220) agents status::tests::reads_codex_status
+2026-10-27T20:13:38.7418868Z         PASS [   0.006s] ( 32/220) download tests::hashes_like_sha256sum
+2026-10-27T20:13:38.7435836Z         PASS [   0.010s] ( 33/220) agents status::tests::reads_claude_status
+2026-10-27T20:13:38.7469638Z         PASS [   0.006s] ( 34/220) git changes::tests::counts_lines_with_or_without_a_final_newline
+2026-10-27T20:13:38.7485165Z         PASS [   0.007s] ( 35/220) git changes::tests::sums_text_lines_and_skips_binary_files
+2026-10-27T20:13:38.7500937Z         PASS [   0.008s] ( 36/220) git head::tests::finds_the_branch_from_any_folder_inside_a_repo
+2026-10-27T20:13:38.7521794Z         PASS [   0.009s] ( 37/220) git head::tests::follows_a_linked_worktree_to_its_own_head
+2026-10-27T20:13:38.7546928Z         PASS [   0.006s] ( 38/220) git head::tests::reads_branches_commits_and_reftable_markers
+2026-10-27T20:13:38.7593399Z         PASS [   0.014s] ( 39/220) git head::tests::reads_a_real_repository
+2026-10-27T20:13:38.7600407Z         PASS [   0.006s] ( 40/220) git worktree::tests::reads_windows_line_endings
+2026-10-27T20:13:38.7655071Z         PASS [   0.006s] ( 41/220) git worktree::tests::reads_worktrees_and_skips_unusable_ones
+2026-10-27T20:13:38.7874316Z         PASS [   0.037s] ( 42/220) git head::tests::shares_one_common_folder_between_a_repo_and_its_worktrees
+2026-10-27T20:13:38.8010214Z         PASS [   0.041s] ( 43/220) git::changes counts_an_untracked_file_whose_name_starts_with_a_space
+2026-10-27T20:13:38.8428111Z         PASS [   0.077s] ( 44/220) git::changes counts_from_the_last_commit_when_main_shares_no_history
+2026-10-27T20:13:38.8443017Z         PASS [   0.043s] ( 45/220) git::changes counts_uncommitted_lines_without_a_remote
+2026-10-27T20:13:38.9104593Z         PASS [   0.065s] ( 46/220) git::worktrees a_worktree_git_refuses_to_remove_is_not_clean
+2026-10-27T20:13:38.9105849Z         PASS [   0.065s] ( 47/220) git::worktrees copies_ignored_files_listed_in_worktreeinclude
+2026-10-27T20:13:38.9654912Z         PASS [   0.054s] ( 48/220) git::worktrees heads_change_when_worktrees_come_go_or_switch_branch
+2026-10-27T20:13:38.9724427Z         PASS [   0.065s] ( 49/220) git::worktrees copies_the_env_file_without_a_worktreeinclude
+2026-10-27T20:13:38.9984163Z         PASS [   0.035s] ( 50/220) git::worktrees heads_follow_branch_switches_in_reftable_repos
+2026-10-27T20:13:39.0077487Z         PASS [   0.219s] ( 51/220) git::changes counts_the_branch_against_main_and_its_upstream
+2026-10-27T20:13:39.0200797Z         PASS [   0.013s] ( 52/220) git::worktrees reports_a_folder_that_is_not_a_repo
+2026-10-27T20:13:39.0730894Z         PASS [   0.321s] ( 53/220) git run::tests::reads_output_while_writing_input
+2026-10-27T20:13:39.0778807Z         PASS [   0.079s] ( 54/220) git::worktrees removes_a_merged_branch
+2026-10-27T20:13:39.0813095Z         PASS [   0.107s] ( 55/220) git::worktrees keeps_a_branch_with_new_commits_and_reuses_it
+2026-10-27T20:13:39.0841354Z         PASS [   0.006s] ( 56/220) github account::tests::normalises_hosts
+2026-10-27T20:13:39.0873706Z         PASS [   0.006s] ( 57/220) github account::tests::reads_no_accounts
+2026-10-27T20:13:39.0902927Z         PASS [   0.006s] ( 58/220) github account::tests::reads_signed_in_accounts
+2026-10-27T20:13:39.0915732Z         PASS [   0.006s] ( 59/220) github copilot::tests::converts_reset_dates
+2026-10-27T20:13:39.0959507Z         PASS [   0.006s] ( 60/220) github copilot::tests::prefers_premium_requests_on_paid_plans
+2026-10-27T20:13:39.0983744Z         PASS [   0.006s] ( 61/220) github copilot::tests::reads_the_free_plan_chat_quota
+2026-10-27T20:13:39.1034445Z         PASS [   0.005s] ( 62/220) github install::tests::pins_this_platform
+2026-10-27T20:13:39.1050309Z         PASS [   0.007s] ( 63/220) github copilot::tests::skips_unlimited_quotas
+2026-10-27T20:13:39.1091662Z         PASS [   0.006s] ( 64/220) github repo::tests::accepts_only_plain_names
+2026-10-27T20:13:39.1112977Z         PASS [   0.006s] ( 65/220) github repo::tests::matches_remotes_regardless_of_case
+2026-10-27T20:13:39.1163574Z         PASS [   0.094s] ( 66/220) git::worktrees reuses_a_name_after_its_worktree_is_removed
+2026-10-27T20:13:39.1166387Z         PASS [   0.006s] ( 67/220) github repo::tests::reads_every_page_and_skips_archived_repos
+2026-10-27T20:13:39.1193098Z         PASS [   0.006s] ( 68/220) github repo::tests::reads_remotes
+2026-10-27T20:13:39.1208183Z         PASS [   0.006s] ( 69/220) github signin::tests::reads_code_and_url_from_gh
+2026-10-27T20:13:39.1222805Z         PASS [   0.006s] ( 70/220) herdr-client agent::tests::writes_start_with_agent_arguments
+2026-10-27T20:13:39.1275239Z         PASS [   0.007s] ( 71/220) herdr-client client::tests::rejects_other_request_id
+2026-10-27T20:13:39.1288125Z         PASS [   0.006s] ( 72/220) herdr-client client::tests::reports_closed_connection
+2026-10-27T20:13:39.1326751Z         PASS [   0.059s] ( 73/220) git::worktrees skips_nested_repositories
+2026-10-27T20:13:39.1337533Z         PASS [   0.006s] ( 74/220) herdr-client client::tests::reports_missing_server
+2026-10-27T20:13:39.1342385Z         PASS [   0.005s] ( 75/220) herdr-client client::tests::returns_herdr_error
+2026-10-27T20:13:39.1385757Z         PASS [   0.005s] ( 76/220) herdr-client events::tests::reads_events
+2026-10-27T20:13:39.1390779Z         PASS [   0.006s] ( 77/220) herdr-client client::tests::returns_result
+2026-10-27T20:13:39.1401202Z         PASS [   0.006s] ( 78/220) herdr-client events::tests::reads_scroll_changes
+2026-10-27T20:13:39.1443371Z         PASS [   0.006s] ( 79/220) herdr-client events::tests::reports_lost_events
+2026-10-27T20:13:39.1447747Z         PASS [   0.004s] ( 80/220) herdr-client herdr::tests::writes_the_chosen_shell_as_an_escaped_string
+2026-10-27T20:13:39.1449813Z         PASS [   0.006s] ( 81/220) herdr-client events::tests::writes_subscriptions
+2026-10-27T20:13:39.1490509Z         PASS [   0.005s] ( 82/220) herdr-client install::tests::pins_this_platform
+2026-10-27T20:13:39.1501227Z         PASS [   0.006s] ( 83/220) herdr-client pane::tests::reads_a_pane_without_foreground_processes
+2026-10-27T20:13:39.1506652Z         PASS [   0.006s] ( 84/220) herdr-client pane::tests::reads_agent_and_shell_panes
+2026-10-27T20:13:39.1546082Z         PASS [   0.005s] ( 85/220) herdr-client pane::tests::reads_foreground_processes
+2026-10-27T20:13:39.1553207Z         PASS [   0.004s] ( 86/220) herdr-client pane::tests::reads_the_shell_process
+2026-10-27T20:13:39.1560916Z         PASS [   0.006s] ( 87/220) herdr-client pane::tests::reads_session_path
+2026-10-27T20:13:39.1593974Z         PASS [   0.005s] ( 88/220) herdr-client pane::tests::treats_new_status_as_unknown
+2026-10-27T20:13:39.1611065Z         PASS [   0.005s] ( 89/220) herdr-client pane::tests::writes_scroll
+2026-10-27T20:13:39.1616600Z         PASS [   0.006s] ( 90/220) herdr-client pane::tests::writes_send_keys
+2026-10-27T20:13:39.1649018Z         PASS [   0.005s] ( 91/220) herdr-client terminal::tests::reads_closed_and_ignores_new_records
+2026-10-27T20:13:39.1660954Z         PASS [   0.005s] ( 92/220) herdr-client terminal::tests::reads_frame
+2026-10-27T20:13:39.1663114Z         PASS [   0.005s] ( 93/220) herdr-client terminal::tests::writes_controls
+2026-10-27T20:13:39.1706329Z         PASS [   0.004s] ( 94/220) herdr-client workspace::tests::reads_created_workspace
+2026-10-27T20:13:39.1713520Z         PASS [   0.006s] ( 95/220) herdr-client workspace::tests::gives_panes_the_env
+2026-10-27T20:13:39.1720088Z         PASS [   0.006s] ( 96/220) herdr-client workspace::tests::reads_workspace_list
+2026-10-27T20:13:39.1769129Z         PASS [   0.005s] ( 97/220) host folders::tests::compares_folders_by_their_parts
+2026-10-27T20:13:39.1782850Z         PASS [   0.007s] ( 98/220) host folders::tests::accepts_folders_to_create_but_not_files
+2026-10-27T20:13:39.1798643Z         PASS [   0.009s] ( 99/220) host daemon::binary::tests::keeps_a_stable_link_across_updates
+2026-10-27T20:13:39.1839436Z         PASS [   0.007s] (100/220) host folders::tests::creates_one_named_folder_inside_its_parent
+2026-10-27T20:13:39.1860478Z         PASS [   0.008s] (101/220) host folders::tests::lists_visible_folders_from_the_nearest_existing_one
+2026-10-27T20:13:39.1874167Z         PASS [   0.007s] (102/220) host folders::tests::removes_only_empty_folders
+2026-10-27T20:13:39.1900051Z         PASS [   0.006s] (103/220) host folders::tests::requires_a_full_path
+2026-10-27T20:13:39.2107572Z         PASS [   0.024s] (104/220) host machines::store::tests::adding_the_computer_again_connects_it
+2026-10-27T20:13:39.2144853Z         PASS [   0.027s] (105/220) host machines::store::tests::keeps_a_name_until_it_is_cleared
+2026-10-27T20:13:39.2150744Z         PASS [   0.025s] (106/220) host machines::store::tests::keeps_one_entry_per_server
+2026-10-27T20:13:39.2259708Z         PASS [   0.111s] (107/220) herdr-client agent::tests::starts_an_agent_once_the_shell_is_ready
+2026-10-27T20:13:39.2372718Z         PASS [   0.027s] (108/220) host machines::store::tests::keeps_one_machine_connected
+2026-10-27T20:13:39.2408646Z         PASS [   0.023s] (109/220) host machines::store::tests::lists_the_computer_first_and_once
+2026-10-27T20:13:39.2412517Z         PASS [   0.025s] (110/220) host machines::store::tests::refuses_to_connect_a_removed_machine
+2026-10-27T20:13:39.2455758Z         PASS [   0.008s] (111/220) host monitor::sizes::tests::adds_up_nested_files
+2026-10-27T20:13:39.2464956Z         PASS [   0.009s] (112/220) host monitor::sizes::tests::does_not_follow_links
+2026-10-27T20:13:39.2477908Z         PASS [   0.008s] (113/220) host monitor::sizes::tests::leaves_nested_checkouts_to_themselves
+2026-10-27T20:13:39.2533438Z         PASS [   0.007s] (114/220) host monitor::tests::keeps_the_latest_samples
+2026-10-27T20:13:39.2545788Z         PASS [   0.009s] (115/220) host monitor::sizes::tests::skips_missing_folders
+2026-10-27T20:13:39.2547143Z         PASS [   0.028s] (116/220) host machines::store::tests::remembers_a_disconnected_server
+2026-10-27T20:13:39.2553520Z         PASS [   0.007s] (117/220) host monitor::tests::stops_when_nobody_reads
+2026-10-27T20:13:39.2618493Z         PASS [   0.008s] (118/220) host notes::files::tests::creates_notes_and_folders_inside_the_notes_folder
+2026-10-27T20:13:39.2638426Z         PASS [   0.009s] (119/220) host notes::files::tests::deletes_a_folder_into_the_trash_folder
+2026-10-27T20:13:39.2656449Z         PASS [   0.010s] (120/220) host notes::files::tests::renames_a_folder_with_its_notes_without_replacing_another
+2026-10-27T20:13:39.2679967Z         PASS [   0.010s] (121/220) host notes::files::tests::deletes_a_note_into_the_trash_folder
+2026-10-27T20:13:39.2701814Z         PASS [   0.006s] (122/220) host notes::tests::ignores_changes_in_dot_folders
+2026-10-27T20:13:39.2735743Z         PASS [   0.011s] (123/220) host notes::files::tests::renames_a_note_in_its_folder_without_replacing_another
+2026-10-27T20:13:39.2738477Z         PASS [   0.008s] (124/220) host notes::tests::lists_markdown_notes_in_visible_folders
+2026-10-27T20:13:39.2771543Z         PASS [   0.009s] (125/220) host notes::tests::reads_only_notes_inside_the_folder
+2026-10-27T20:13:39.2792486Z         PASS [   0.009s] (126/220) host notes::tests::refuses_to_read_a_note_that_is_not_utf8
+2026-10-27T20:13:39.2851135Z         PASS [   0.008s] (127/220) host rpc::export::export_protocol
+2026-10-27T20:13:39.2857413Z         PASS [   0.012s] (128/220) host notes::tests::writes_a_note_only_over_the_version_it_was_read_at
+2026-10-27T20:13:39.2919810Z         PASS [   0.007s] (129/220) host shell::tests::lists_each_installed_shell_once
+2026-10-27T20:13:39.2925808Z         PASS [   0.007s] (130/220) host terminals::codex::tests::adds_no_launcher_where_none_is_shipped
+2026-10-27T20:13:39.2929641Z         PASS [   0.014s] (131/220) host settings::tests::remembers_what_was_saved
+2026-10-27T20:13:39.3021070Z         PASS [   0.010s] (132/220) host terminals::codex::tests::installs_the_launcher_and_replaces_an_older_one
+2026-10-27T20:13:39.3028247Z         PASS [   0.010s] (133/220) host terminals::codex::tests::installs_the_launcher_once_it_has_been_built
+2026-10-27T20:13:39.3165502Z         PASS [   0.014s] (134/220) host terminals::codex::tests::shells::wraps_codex_in_bash_and_its_subshells
+2026-10-27T20:13:39.3249213Z         PASS [   0.032s] (135/220) host terminals::codex::tests::shells::restores_the_users_own_zsh_folder
+2026-10-27T20:13:39.3327887Z         PASS [   0.008s] (136/220) host terminals::images::tests::a_repaste_keeps_the_file_and_refreshes_its_age
+2026-10-27T20:13:39.3404040Z         PASS [   0.008s] (137/220) host terminals::images::tests::pastes_of_the_same_image_share_one_file
+2026-10-27T20:13:39.3443246Z         PASS [   0.028s] (138/220) host terminals::codex::tests::shells::wraps_codex_in_zsh_and_loads_the_users_own_files
+2026-10-27T20:13:39.3460352Z         PASS [   0.006s] (139/220) host terminals::images::tests::pastes_paths_with_spaces_in_quotes
+2026-10-27T20:13:39.3526626Z         PASS [   0.006s] (140/220) host terminals::images::tests::saves_the_image_and_removes_week_old_ones
+2026-10-27T20:13:39.3530181Z         PASS [   0.009s] (141/220) host terminals::images::tests::refuses_images_over_the_limit_and_bad_data
+2026-10-27T20:13:39.4648933Z         FAIL [   0.161s] (142/220) host terminals::codex::tests::shells::wraps_codex_in_fish_and_restores_the_data_folders
+2026-10-27T20:13:39.4650597Z   stdout ───
+2026-10-27T20:13:39.4650843Z 
+2026-10-27T20:13:39.4651192Z     running 1 test
+2026-10-27T20:13:39.4652588Z     test terminals::codex::tests::shells::wraps_codex_in_fish_and_restores_the_data_folders ... FAILED
+2026-10-27T20:13:39.4653293Z 
+2026-10-27T20:13:39.4653417Z     failures:
+2026-10-27T20:13:39.4653564Z 
+2026-10-27T20:13:39.4653672Z     failures:
+2026-10-27T20:13:39.4654173Z         terminals::codex::tests::shells::wraps_codex_in_fish_and_restores_the_data_folders
+2026-10-27T20:13:39.4654582Z 
+2026-10-27T20:13:39.4654986Z     test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 94 filtered out; finished in 0.16s
+2026-10-27T20:13:39.4655458Z 
+2026-10-27T20:13:39.4655640Z   stderr ───
+2026-10-27T20:13:39.4655783Z 
+2026-10-27T20:13:39.4656494Z     thread 'terminals::codex::tests::shells::wraps_codex_in_fish_and_restores_the_data_folders' (6950) panicked at crates/host/src/terminals/codex/tests.rs:166:9:
+2026-10-27T20:13:39.4657331Z     assertion `left == right` failed
+2026-10-27T20:13:39.4657979Z       left: "--no-daemon fix\n--remote=ws://localhost:9999\n[/usr/local/share:/usr/share:/var/lib/snapd/desktop]\n"
+2026-10-27T20:13:39.4658659Z      right: "--no-daemon fix\n--remote=ws://localhost:9999\n[]\n"
+2026-10-27T20:13:39.4659233Z     note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+2026-10-27T20:13:39.4659578Z 
+2026-10-27T20:13:39.4659771Z   Cancelling due to test failure: 3 tests still running
+2026-10-27T20:13:39.4778139Z         PASS [   0.125s] (143/220) host terminals::stream::tests::a_client_that_falls_behind_holds_herdr_back_without_losing_frames
+2026-10-27T20:13:39.5837408Z         PASS [   0.310s] (144/220) host notes::tests::reports_an_edited_note
+2026-10-27T20:13:39.6633720Z         PASS [   0.310s] (145/220) host terminals::stream::tests::a_key_that_fails_to_send_leaves_the_terminal_open
+2026-10-27T20:13:39.6635370Z ────────────
+2026-10-27T20:13:39.6636003Z      Summary [   1.019s] 145/220 tests run: 144 passed, 1 failed, 0 skipped
+2026-10-27T20:13:39.6637141Z         FAIL [   0.161s] (142/220) host terminals::codex::tests::shells::wraps_codex_in_fish_and_restores_the_data_folders
+2026-10-27T20:13:39.6638607Z warning: 75/220 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)
+2026-10-27T20:13:39.6671029Z error: test run failed
+2026-10-27T20:13:39.6689689Z error: recipe `test` failed on line 48 with exit code 100
+2026-10-27T20:13:39.6710055Z ##[error]Process completed with exit code 100.
+2026-10-27T20:13:39.6849474Z Post job cleanup.
+2026-10-27T20:13:39.7814239Z [command]/usr/bin/git version
+2026-10-27T20:13:39.7861216Z git version 2.55.0
+2026-10-27T20:13:39.7900463Z Temporarily overriding HOME='/home/runner/work/_temp/6fae2c95-0208-4ea2-b20c-b8d0b488a8bf' before making global git config changes
+2026-10-27T20:13:39.7902358Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-27T20:13:39.7912751Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/app/app
+2026-10-27T20:13:39.7951822Z Removing SSH command configuration
+2026-10-27T20:13:39.7959866Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-27T20:13:39.8005343Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-27T20:13:39.8255627Z Removing HTTP extra header
+2026-10-27T20:13:39.8263723Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-27T20:13:39.8318798Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-27T20:13:39.8585826Z Removing includeIf entries pointing to credentials config files
+2026-10-27T20:13:39.8595385Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-27T20:13:39.8645180Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-27T20:13:39.9068644Z Cleaning up orphan processes

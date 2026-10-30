@@ -4,7 +4,7 @@ import type { Client } from "@/lib/client";
 import type { Machine } from "@/lib/machines";
 import { report } from "@/lib/report";
 
-const kept = new Set(["github.options", "github.accounts"]);
+const kept = new Set(["github.options", "github.accounts", "github.log"]);
 
 export type Write<T> = (client: Client) => Promise<T>;
 

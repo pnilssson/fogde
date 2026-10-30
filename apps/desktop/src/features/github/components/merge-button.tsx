@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { ActionButton } from "@/features/github/components/action-button";
 import { useWrite } from "@/features/github/hooks/use-write";
 import type { MergeMethod, PullDetail, Repo } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
@@ -35,19 +36,39 @@ const labels: Record<MergeMethod, string> = {
 interface Props {
   machine: Machine;
   repo: Repo;
+  id: string;
   number: number;
   pull: PullDetail;
 }
 
-export function MergeButton({ machine, repo, number, pull }: Props) {
-  const id = useId();
+export function MergeButton({ machine, repo, id, number, pull }: Props) {
+  const field = useId();
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState<MergeMethod | undefined>(
     pull.methods[0],
   );
   const [remove, setRemove] = useState(!pull.cross);
   const merge = useWrite(machine, "Could not merge");
+  const auto = useWrite(machine, "Could not change auto-merge");
   const blocked = pull.merge === "conflicts" || pull.methods.length === 0;
+  const later =
+    pull.automerge && (pull.merge === "blocked" || pull.merge === "behind");
+  const pending = merge.isPending || auto.isPending;
+
+  if (pull.auto) {
+    return (
+      <ActionButton
+        label="Cancel auto-merge"
+        busy="Cancelling…"
+        pending={auto.isPending}
+        onClick={() => {
+          auto.mutate((client) =>
+            client.call("github.setAutoMerge", { repo, id, method: null }),
+          );
+        }}
+      />
+    );
+  }
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -59,14 +80,19 @@ export function MergeButton({ machine, repo, number, pull }: Props) {
         }}
       >
         <GitMergeIcon data-icon="inline-start" />
-        Merge
+        {later ? "Merge when ready" : "Merge"}
       </Button>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{`Merge #${String(number)} into ${pull.base}?`}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {later
+              ? `Merge #${String(number)} into ${pull.base} when ready?`
+              : `Merge #${String(number)} into ${pull.base}?`}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            GitHub merges it right away, and it can only be undone with a
-            revert.
+            {later
+              ? "GitHub merges it as soon as the required reviews and checks pass. You can cancel until then."
+              : "GitHub merges it right away, and it can only be undone with a revert."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="flex flex-col gap-2">
@@ -98,16 +124,16 @@ export function MergeButton({ machine, repo, number, pull }: Props) {
               ))}
             </SelectContent>
           </Select>
-          {!pull.cross && (
+          {!pull.cross && !later && (
             <Field orientation="horizontal">
               <Checkbox
-                id={`${id}-delete`}
+                id={`${field}-delete`}
                 checked={remove}
                 onCheckedChange={(checked) => {
                   setRemove(checked);
                 }}
               />
-              <FieldLabel htmlFor={`${id}-delete`}>
+              <FieldLabel htmlFor={`${field}-delete`}>
                 Delete {pull.head} on GitHub
               </FieldLabel>
             </Field>
@@ -117,10 +143,24 @@ export function MergeButton({ machine, repo, number, pull }: Props) {
           <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
           <AlertDialogAction
             size="sm"
-            disabled={merge.isPending || !method}
-            aria-busy={merge.isPending}
+            disabled={pending || !method}
+            aria-busy={pending}
             onClick={() => {
               if (!method) {
+                return;
+              }
+
+              const done = {
+                onSettled: () => {
+                  setOpen(false);
+                },
+              };
+              if (later) {
+                auto.mutate(
+                  (client) =>
+                    client.call("github.setAutoMerge", { repo, id, method }),
+                  done,
+                );
                 return;
               }
 
@@ -133,18 +173,18 @@ export function MergeButton({ machine, repo, number, pull }: Props) {
                     sha: pull.sha,
                     delete: remove && !pull.cross,
                   }),
-                {
-                  onSettled: () => {
-                    setOpen(false);
-                  },
-                },
+                done,
               );
             }}
           >
-            {merge.isPending && (
-              <Spinner aria-hidden data-icon="inline-start" />
-            )}
-            {merge.isPending ? "Merging…" : "Merge"}
+            {pending && <Spinner aria-hidden data-icon="inline-start" />}
+            {later
+              ? pending
+                ? "Turning on…"
+                : "Turn on auto-merge"
+              : pending
+                ? "Merging…"
+                : "Merge"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

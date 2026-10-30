@@ -76,3 +76,10 @@ export const diffQuery = (machine: Machine, path: string, scope: DiffScope) =>
     queryFn: () => machine.client.call("checkouts.diff", { path, scope }),
     refetchInterval: refresh,
   });
+
+export const logQuery = (machine: Machine, repo: Repo, job: number) =>
+  queryOptions({
+    queryKey: [machine.id, "github.log", repo, job],
+    queryFn: () => machine.client.call("github.log", { repo, job }),
+    staleTime: Infinity,
+  });

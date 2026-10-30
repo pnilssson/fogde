@@ -5,6 +5,9 @@ import { CopiedNotice } from "@/components/copied-notice";
 import { MachinePicker } from "@/components/machine-picker";
 import { FullPage, PageFrame } from "@/components/page-frame";
 import { GitHubView } from "@/features/github/components/github-view";
+import { OpenCheckout } from "@/features/github/lib/open";
+import { samePath } from "@/features/github/lib/scope";
+import { setTab } from "@/features/github/lib/state";
 import { MonitorView } from "@/features/monitor/components/monitor-view";
 import { notesQuery } from "@/features/notes/api/notes";
 import { NotesView } from "@/features/notes/components/notes-view";
@@ -12,8 +15,9 @@ import { SettingsView } from "@/features/settings/components/settings-view";
 import { copyPath, usePathCopied } from "@/features/notes/lib/copy";
 import { inDialog } from "@/features/workspaces/hooks/use-shortcuts";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
+import { mainCheckout } from "@/features/workspaces/lib/checkouts";
 import type { View } from "@/features/workspaces/lib/selection";
-import { showTiles } from "@/features/workspaces/lib/tiles";
+import { selectWorkspace, showTiles } from "@/features/workspaces/lib/tiles";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 import {
@@ -74,11 +78,7 @@ export function Pages({ groups, workspace }: Props) {
         key={machine.id}
         {...frame}
         workspaces={workspaces}
-        current={
-          workspace?.machine === machine.id
-            ? workspaces.find(({ id }) => id === workspace.id)
-            : undefined
-        }
+        view={workspace?.machine === machine.id ? workspace : undefined}
       />
     );
   }
@@ -130,17 +130,45 @@ function NotesPage(picker: FrameProps) {
 
 function GitHubPage({
   workspaces,
-  current,
+  view,
   ...picker
-}: FrameProps & { workspaces: Workspace[]; current: Workspace | undefined }) {
+}: FrameProps & { workspaces: Workspace[]; view: View | undefined }) {
+  const machine = picker.machine.id;
+  const current = workspaces.find(({ id }) => id === view?.id);
+  const viewed = current?.checkouts.find(
+    ({ path }) => view?.checkout !== undefined && samePath(path, view.checkout),
+  );
+  const wanted = (viewed ?? (current && mainCheckout(current)))?.path;
+  const open = (path: string, near = path) => {
+    const owners = workspaces.filter(({ checkouts }) =>
+      checkouts.some((checkout) => samePath(checkout.path, near)),
+    );
+    const owner = owners.find(({ id }) => id === current?.id) ?? owners[0];
+    if (!owner) {
+      return;
+    }
+
+    const listed = owner.checkouts.find((checkout) =>
+      samePath(checkout.path, path),
+    );
+    setTab("changes");
+    selectWorkspace(
+      listed?.main
+        ? { machine, id: owner.id }
+        : { machine, id: owner.id, checkout: listed?.path ?? path },
+    );
+  };
+
   return (
     <FullPage title="GitHub">
-      <GitHubView
-        machine={picker.machine}
-        workspaces={workspaces}
-        current={current}
-        picker={<MachinePicker {...picker} />}
-      />
+      <OpenCheckout value={open}>
+        <GitHubView
+          machine={picker.machine}
+          workspaces={workspaces}
+          wanted={wanted}
+          picker={<MachinePicker {...picker} />}
+        />
+      </OpenCheckout>
     </FullPage>
   );
 }

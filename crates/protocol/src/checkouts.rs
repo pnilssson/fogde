@@ -102,6 +102,13 @@ pub struct UndoParams {
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
+pub struct CleanUpParams {
+    pub path: String,
+    pub sha: String,
+    pub base: String,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
 pub struct SwitchParams {
     pub path: String,
     pub branch: String,
@@ -163,11 +170,27 @@ impl Method for GetDiff {
     type Result = Diff;
 }
 
+pub struct CleanUp;
+
+impl Method for CleanUp {
+    const NAME: &'static str = "checkouts.cleanUp";
+    type Params = CleanUpParams;
+    type Result = ();
+}
+
 pub struct Undo;
 
 impl Method for Undo {
     const NAME: &'static str = "checkouts.undo";
     type Params = UndoParams;
+    type Result = ();
+}
+
+pub struct CreateBranch;
+
+impl Method for CreateBranch {
+    const NAME: &'static str = "checkouts.createBranch";
+    type Params = SwitchParams;
     type Result = ();
 }
 

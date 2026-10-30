@@ -133,6 +133,9 @@ export function NotesView({ machine, note, picker, onOpen }: Props) {
               note={open}
               notes={list.data.notes}
               onOpen={onOpen}
+              onRename={(name) =>
+                files.rename.mutateAsync({ path: open.path, name })
+              }
             />
           ) : files.rename.isPending ? null : note ? (
             <Message
@@ -179,9 +182,10 @@ interface ShownProps {
   note: Note;
   notes: Note[];
   onOpen: (note: string) => void;
+  onRename: (name: string) => Promise<unknown>;
 }
 
-function Shown({ machine, note, notes, onOpen }: ShownProps) {
+function Shown({ machine, note, notes, onOpen, onRename }: ShownProps) {
   const text = useQuery(noteQuery(machine, note.path));
   useEffect(() => {
     view(machine.id, note.path);
@@ -214,6 +218,7 @@ function Shown({ machine, note, notes, onOpen }: ShownProps) {
         notes={notes}
         loaded={text.data}
         onOpen={onOpen}
+        onRename={onRename}
       />
     </div>
   );

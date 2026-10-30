@@ -130,7 +130,7 @@ export function ConnectServer({ onBack, onContinue }: Props) {
         >
           {(field) => (
             <Field data-invalid={!field.state.meta.isValid}>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <FieldLabel htmlFor={field.name}>Server</FieldLabel>
                 <Tooltip>
                   <TooltipTrigger

@@ -28,7 +28,7 @@ export function KeyHelp({ target, keys, pending, onRetry }: Props) {
         ) : (
           <>
             <p>ssh offered:</p>
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-2">
               {keys.map((key) => (
                 <li key={key.fingerprint} className="break-all">
                   {key.name} ({key.fingerprint})

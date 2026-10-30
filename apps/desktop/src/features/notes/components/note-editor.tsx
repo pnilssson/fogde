@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/components/ui/toast";
 import { noteQuery } from "@/features/notes/api/notes";
+import { NoteTitle } from "@/features/notes/components/note-title";
 import { noteState, replaceText } from "@/features/notes/lib/editor";
 import { resolveHref, resolveWikilink } from "@/features/notes/lib/links";
 import { NoteSession } from "@/features/notes/lib/session";
@@ -19,12 +20,21 @@ interface Props {
   notes: Note[];
   loaded: NoteText;
   onOpen: (path: string) => void;
+  onRename: (name: string) => Promise<unknown>;
 }
 
-export function NoteEditor({ machine, note, notes, loaded, onOpen }: Props) {
+export function NoteEditor({
+  machine,
+  note,
+  notes,
+  loaded,
+  onOpen,
+  onRename,
+}: Props) {
   const queries = useQueryClient();
   const container = useRef<HTMLDivElement>(null);
   const session = useRef<NoteSession>(undefined);
+  const editor = useRef<EditorView>(undefined);
   const links = useRef({ note, notes, onOpen });
   const latest = useRef(loaded);
 
@@ -104,6 +114,7 @@ export function NoteEditor({ machine, note, notes, loaded, onOpen }: Props) {
       ),
     );
     session.current = current;
+    editor.current = view;
     const left = () => {
       current.flush();
     };
@@ -117,6 +128,7 @@ export function NoteEditor({ machine, note, notes, loaded, onOpen }: Props) {
       current.flush();
       view.destroy();
       session.current = undefined;
+      editor.current = undefined;
     };
   }, [machine, note.path, queries]);
 
@@ -127,13 +139,22 @@ export function NoteEditor({ machine, note, notes, loaded, onOpen }: Props) {
 
   return (
     <ScrollArea className="h-full">
-      <div
-        ref={container}
-        className="flex min-h-full flex-col select-text"
-        onKeyDown={(event) => {
-          event.stopPropagation();
-        }}
-      />
+      <div className="flex min-h-full flex-col">
+        <NoteTitle
+          name={note.name}
+          onRename={onRename}
+          onDone={() => {
+            editor.current?.focus();
+          }}
+        />
+        <div
+          ref={container}
+          className="flex flex-1 flex-col select-text"
+          onKeyDown={(event) => {
+            event.stopPropagation();
+          }}
+        />
+      </div>
     </ScrollArea>
   );
 }

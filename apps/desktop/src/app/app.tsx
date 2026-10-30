@@ -41,7 +41,7 @@ export function App() {
       <LazyMotion features={domAnimation} strict>
         <MotionConfig reducedMotion="user">
           <Toaster>
-            <TooltipProvider>
+            <TooltipProvider delay={600}>
               <RouterProvider router={router} />
             </TooltipProvider>
           </Toaster>

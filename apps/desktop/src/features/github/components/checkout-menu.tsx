@@ -9,9 +9,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { useOpenCheckout } from "@/features/github/lib/open";
 import { useWrite } from "@/features/github/hooks/use-write";
 import { holds } from "@/features/github/lib/scope";
-import { select } from "@/features/github/lib/state";
 import type { CheckoutStatus, PullDetail, Repo } from "@/generated/protocol";
 import { folderName } from "@/lib/folders";
 import type { Machine } from "@/lib/machines";
@@ -35,6 +35,7 @@ export function CheckoutMenu({
     machine,
     "Could not check out the pull request",
   );
+  const open = useOpenCheckout();
   const holder = checkouts.find((checkout) => holds(checkout, number, pull));
   const first = checkouts[0];
 
@@ -44,7 +45,7 @@ export function CheckoutMenu({
         size="sm"
         variant="secondary"
         onClick={() => {
-          select(machine.id, { kind: "checkout", path: holder.path });
+          open(holder.path);
         }}
       >
         <GitBranchIcon data-icon="inline-start" />
@@ -62,7 +63,7 @@ export function CheckoutMenu({
         client.call("github.checkoutPull", { path, repo, number, worktree }),
       {
         onSuccess: (checkout) => {
-          select(machine.id, { kind: "checkout", path: checkout });
+          open(checkout, path);
         },
       },
     );

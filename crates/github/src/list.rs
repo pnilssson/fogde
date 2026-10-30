@@ -78,6 +78,7 @@ struct RawItem {
     comments: Count,
     is_draft: Option<bool>,
     head_ref_name: Option<String>,
+    head_ref_oid: Option<String>,
     head_repository_owner: Option<Login>,
     base_ref_name: Option<String>,
     review_decision: Option<String>,
@@ -175,6 +176,7 @@ fn item(node: &Value, section: Section) -> Result<Listed, serde_json::Error> {
     let pull = raw.head_ref_name.map(|head| PullSummary {
         draft: raw.is_draft.unwrap_or(false),
         head,
+        sha: raw.head_ref_oid.unwrap_or_default(),
         owner: raw.head_repository_owner.map(|owner| owner.login),
         base: raw.base_ref_name.unwrap_or_default(),
         review: raw.review_decision.as_deref().and_then(review),

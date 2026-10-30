@@ -1,21 +1,40 @@
+import { ColumnsIcon, RowsIcon } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { Choice } from "@/components/choice";
 import { PageBar } from "@/components/page-bar";
+import { diffQuery } from "@/features/github/api/github";
 import { BranchMenu } from "@/features/github/components/branch-menu";
-import { CheckoutPicker } from "@/features/github/components/checkout-picker";
-import { SyncButton } from "@/features/github/components/sync-button";
+import {
+  CheckoutPicker,
+  type Group,
+} from "@/features/github/components/checkout-picker";
+import { DiffTally } from "@/features/github/components/diff-tally";
+import {
+  FetchButton,
+  SyncButton,
+} from "@/features/github/components/sync-button";
 import { usePlan } from "@/features/github/hooks/use-plan";
+import { useOpenCheckout } from "@/features/github/lib/open";
 import { type Entry, pullFor } from "@/features/github/lib/scope";
-import { type Scope, select, setScope } from "@/features/github/lib/state";
-import type { CheckoutStatus, Workspace } from "@/generated/protocol";
+import {
+  setDiffStyle,
+  useDiffScope,
+  useDiffStyle,
+  useGitHubState,
+} from "@/features/github/lib/state";
+import type { CheckoutStatus } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+
+const styles = [
+  { value: "unified", label: "Unified", icon: RowsIcon },
+  { value: "split", label: "Split", icon: ColumnsIcon },
+] as const;
 
 interface Props {
   machine: Machine;
-  current: Workspace | undefined;
-  scope: Scope;
-  checkouts: CheckoutStatus[];
+  groups: Group[];
   checkout: CheckoutStatus | undefined;
   openPulls: Entry[];
   online: boolean;
@@ -24,43 +43,44 @@ interface Props {
 
 export function GitHubBar({
   machine,
-  current,
-  scope,
-  checkouts,
+  groups,
   checkout,
   openPulls,
   online,
   picker,
 }: Props) {
+  const open = useOpenCheckout();
+  const { tab } = useGitHubState();
+  const style = useDiffStyle();
+  const changes = tab === "changes" && checkout !== undefined;
+
   return (
     <PageBar>
       <CheckoutPicker
-        checkouts={checkouts}
+        groups={groups}
         chosen={checkout}
         openPulls={openPulls}
         onPick={(path) => {
-          select(machine.id, { kind: "checkout", path });
+          open(path);
         }}
       />
       {checkout && (
         <CheckoutControls
           machine={machine}
           checkout={checkout}
-          checkouts={checkouts}
           hasPull={pullFor(openPulls, checkout) !== undefined}
           online={online}
+          onOpen={open}
         />
       )}
+      {changes && <DiffSummary machine={machine} checkout={checkout} />}
       <span className="flex-1" />
-      {current && (
+      {changes && (
         <Choice
-          label="Scope"
-          value={scope}
-          options={[
-            { value: "workspace", label: current.name },
-            { value: "all", label: "All workspaces" },
-          ]}
-          onChange={setScope}
+          label="Layout"
+          value={style}
+          options={styles}
+          onChange={setDiffStyle}
         />
       )}
       {picker}
@@ -71,17 +91,17 @@ export function GitHubBar({
 interface ControlsProps {
   machine: Machine;
   checkout: CheckoutStatus;
-  checkouts: CheckoutStatus[];
   hasPull: boolean;
   online: boolean;
+  onOpen: (path: string) => void;
 }
 
 function CheckoutControls({
   machine,
   checkout,
-  checkouts,
   hasPull,
   online,
+  onOpen,
 }: ControlsProps) {
   const { sync, next } = usePlan(machine, checkout, hasPull, online);
 
@@ -91,11 +111,9 @@ function CheckoutControls({
         machine={machine}
         path={checkout.path}
         branch={checkout.branch}
-        checkouts={checkouts.map(({ path }) => path)}
-        onOpen={(other) => {
-          select(machine.id, { kind: "checkout", path: other });
-        }}
+        onOpen={onOpen}
       />
+      <FetchButton machine={machine} checkout={checkout} />
       <SyncButton
         machine={machine}
         checkout={checkout}
@@ -103,5 +121,24 @@ function CheckoutControls({
         primary={next === "sync"}
       />
     </>
+  );
+}
+
+interface SummaryProps {
+  machine: Machine;
+  checkout: CheckoutStatus;
+}
+
+function DiffSummary({ machine, checkout }: SummaryProps) {
+  const scope = useDiffScope(checkout.files.length);
+  const diff = useQuery(diffQuery(machine, checkout.path, scope));
+  if (!diff.data) {
+    return null;
+  }
+
+  return (
+    <span className="flex min-w-0 px-2">
+      <DiffTally diff={diff.data} scope={scope} />
+    </span>
   );
 }

@@ -26,8 +26,10 @@ export function Layer({ className, ...props }: ComponentProps<"section">) {
 
 export function SideScroll({ children }: { children: ReactNode }) {
   return (
-    <ScrollArea className="min-h-0 flex-1">
-      <div className="px-2 pb-2">{children}</div>
+    <ScrollArea className="group/side min-h-0 flex-1">
+      <div className="px-2 pb-2 group-data-has-overflow-y/side:pr-4">
+        {children}
+      </div>
     </ScrollArea>
   );
 }

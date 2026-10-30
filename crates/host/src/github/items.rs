@@ -1,6 +1,6 @@
 use protocol::github::{
-    Detail, GetIssue, GetOptions, GetPull, ItemParams, ListIssues, ListParams, ListPulls, Listed,
-    RepoOptions,
+    Detail, GetIssue, GetLog, GetOptions, GetPull, ItemParams, ListIssues, ListParams, ListPulls,
+    Listed, Log, LogParams, RepoOptions,
 };
 use protocol::repos::Repo;
 use protocol::rpc::Failure;
@@ -14,6 +14,7 @@ pub fn register(router: &mut Router) {
     router.add::<GetPull>();
     router.add::<GetIssue>();
     router.add::<GetOptions>();
+    router.add::<GetLog>();
 }
 
 impl Handler for ListPulls {
@@ -63,5 +64,16 @@ impl Handler for GetIssue {
 impl Handler for GetOptions {
     async fn handle(session: &Session, repo: Repo) -> Result<RepoOptions, Failure> {
         session.gh().await?.options(&repo).await.map_err(failure)
+    }
+}
+
+impl Handler for GetLog {
+    async fn handle(session: &Session, params: LogParams) -> Result<Log, Failure> {
+        session
+            .gh()
+            .await?
+            .log(&params.repo, params.job)
+            .await
+            .map_err(failure)
     }
 }

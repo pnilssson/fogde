@@ -3,6 +3,7 @@ query($owner: String!, $name: String!, $number: Int!) {
     mergeCommitAllowed
     squashMergeAllowed
     rebaseMergeAllowed
+    autoMergeAllowed
     pullRequest(number: $number) {
       id
       number
@@ -21,6 +22,7 @@ query($owner: String!, $name: String!, $number: Int!) {
       isCrossRepository
       reviewDecision
       mergeStateStatus
+      autoMergeRequest { mergeMethod }
       additions
       deletions
       changedFiles
@@ -32,6 +34,16 @@ query($owner: String!, $name: String!, $number: Int!) {
       reviews(last: 100) { nodes { id url state submittedAt bodyHTML author { login } } }
       closingIssuesReferences(first: 20) { nodes { number title url state } }
       files(first: 100) { nodes { path additions deletions } }
+      reviewThreads(first: 100) {
+        nodes {
+          isResolved
+          isOutdated
+          path
+          line
+          originalLine
+          comments(first: 50) { nodes { id url createdAt bodyHTML author { login } } }
+        }
+      }
       commits(last: 1) {
         nodes {
           commit {
@@ -40,13 +52,15 @@ query($owner: String!, $name: String!, $number: Int!) {
                 nodes {
                   __typename
                   ... on CheckRun {
+                    databaseId
                     name
+                    isRequired(pullRequestNumber: $number)
                     status
                     conclusion
                     detailsUrl
                     checkSuite { workflowRun { databaseId } }
                   }
-                  ... on StatusContext { context state targetUrl }
+                  ... on StatusContext { context state targetUrl isRequired(pullRequestNumber: $number) }
                 }
               }
             }

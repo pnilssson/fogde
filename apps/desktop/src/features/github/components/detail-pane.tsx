@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/empty";
 import { CheckoutDetail } from "@/features/github/components/checkout-detail";
 import { ItemDetail } from "@/features/github/components/item-detail";
-import { type Entry, pullFor } from "@/features/github/lib/scope";
+import { type Entry, landed, pullFor } from "@/features/github/lib/scope";
 import { type Item, sameRepo, type Tab } from "@/features/github/lib/state";
 import type { CheckoutStatus } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
@@ -18,6 +18,8 @@ interface Props {
   item: Item | undefined;
   checkouts: CheckoutStatus[];
   openPulls: Entry[];
+  closedPulls: Entry[];
+  linked: boolean;
   online: boolean;
 }
 
@@ -28,6 +30,8 @@ export function DetailPane({
   item,
   checkouts,
   openPulls,
+  closedPulls,
+  linked,
   online,
 }: Props) {
   if (tab === "changes") {
@@ -46,6 +50,8 @@ export function DetailPane({
         machine={machine}
         checkout={checkout}
         pull={pullFor(openPulls, checkout)}
+        merged={landed(closedPulls, checkout)}
+        linked={linked}
         online={online}
       />
     );

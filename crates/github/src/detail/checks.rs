@@ -1,4 +1,4 @@
-use protocol::github::{Check, CheckState, MergeState};
+use protocol::github::{Check, CheckState, MergeMethod, MergeState};
 use serde::Deserialize;
 
 use crate::list::Nodes;
@@ -22,6 +22,8 @@ pub(super) struct Rollup {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Context {
+    database_id: Option<u64>,
+    is_required: Option<bool>,
     name: Option<String>,
     status: Option<String>,
     conclusion: Option<String>,
@@ -46,6 +48,7 @@ struct Run {
 }
 
 pub(super) fn check(context: Context) -> Option<Check> {
+    let required = context.is_required.unwrap_or(false);
     if let Some(name) = context.name {
         let state = match (context.status.as_deref(), context.conclusion.as_deref()) {
             (Some("COMPLETED"), Some("SUCCESS")) => CheckState::Success,
@@ -55,14 +58,18 @@ pub(super) fn check(context: Context) -> Option<Check> {
             _ => CheckState::Pending,
         };
 
+        let run = context
+            .check_suite
+            .and_then(|suite| suite.workflow_run)
+            .and_then(|run| run.database_id);
+
         return Some(Check {
             name,
             state,
             url: context.details_url,
-            run: context
-                .check_suite
-                .and_then(|suite| suite.workflow_run)
-                .and_then(|run| run.database_id),
+            run,
+            job: run.and(context.database_id),
+            required,
         });
     }
 
@@ -77,6 +84,8 @@ pub(super) fn check(context: Context) -> Option<Check> {
         state,
         url: context.target_url,
         run: None,
+        job: None,
+        required,
     })
 }
 
@@ -89,5 +98,20 @@ pub(super) fn merge(status: &str) -> MergeState {
         "DRAFT" => MergeState::Draft,
         "UNSTABLE" => MergeState::Unstable,
         _ => MergeState::Unknown,
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct AutoMerge {
+    pub(super) merge_method: String,
+}
+
+pub(super) fn method(name: &str) -> Option<MergeMethod> {
+    match name {
+        "MERGE" => Some(MergeMethod::Merge),
+        "SQUASH" => Some(MergeMethod::Squash),
+        "REBASE" => Some(MergeMethod::Rebase),
+        _ => None,
     }
 }

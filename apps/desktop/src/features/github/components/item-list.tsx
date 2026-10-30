@@ -26,9 +26,10 @@ interface Props {
   kind: Kind;
   entries: Entry[];
   closed: Closed;
-  repos: Repo[];
+  repo: Repo;
   loading: boolean;
   chosen: Item | undefined;
+  current?: number;
   onSelect: (entry: Entry) => void;
 }
 
@@ -36,29 +37,35 @@ export function ItemList({
   kind,
   entries,
   closed,
-  repos,
+  repo,
   loading,
   chosen,
+  current,
   onSelect,
 }: Props) {
   if (loading && entries.length === 0) {
     return <TileStatus notice="Loading…" busy />;
   }
 
-  const sections = order
-    .map((section) => ({
-      section,
-      shown: entries.filter(({ item }) => item.section === section),
-    }))
-    .filter(({ shown }) => shown.length > 0);
+  const others = entries.filter(({ item }) => item.number !== current);
+  const sections = [
+    {
+      key: "current",
+      title: "This branch",
+      shown: entries.filter(({ item }) => item.number === current),
+    },
+    ...order.map((section) => ({
+      key: section,
+      title: titles[section],
+      shown: others.filter(({ item }) => item.section === section),
+    })),
+  ].filter(({ shown }) => shown.length > 0);
   const rows = (shown: Entry[]) =>
     shown.map((entry) => (
       <ItemRow
         key={`${entry.repo.owner}/${entry.repo.name}#${String(entry.item.number)}`}
         kind={kind}
         item={entry.item}
-        repo={entry.repo}
-        showRepo={repos.length > 1}
         active={sameItem(chosen, {
           kind,
           repo: entry.repo,
@@ -73,16 +80,12 @@ export function ItemList({
   return (
     <div className="flex flex-col gap-2">
       {entries.length === 0 ? (
-        <Notice>{empty(kind, "open", repos)}</Notice>
+        <Notice>{empty(kind, "open", repo)}</Notice>
       ) : (
-        sections.map(({ section, shown }) => (
-          <section
-            key={section}
-            aria-label={titles[section]}
-            className="flex flex-col"
-          >
+        sections.map(({ key, title, shown }) => (
+          <section key={key} aria-label={title} className="flex flex-col">
             <h3 className="flex h-8 items-center gap-2 px-2 type-caption text-muted-foreground">
-              <span className="flex-1">{titles[section]}</span>
+              <span className="flex-1">{title}</span>
               <span>{shown.length}</span>
             </h3>
             {rows(shown)}
@@ -112,7 +115,7 @@ export function ItemList({
           (closed.loading && closed.entries.length === 0 ? (
             <TileStatus notice="Loading…" busy />
           ) : closed.entries.length === 0 ? (
-            <Notice>{empty(kind, "closed", repos)}</Notice>
+            <Notice>{empty(kind, "closed", repo)}</Notice>
           ) : (
             rows(closed.entries)
           ))}
@@ -125,12 +128,8 @@ function Notice({ children }: { children: string }) {
   return <p className="px-2 type-caption text-muted-foreground">{children}</p>;
 }
 
-function empty(kind: Kind, filter: Filter, repos: Repo[]) {
+function empty(kind: Kind, filter: Filter, repo: Repo) {
   const what = kind === "pull" ? "pull requests" : "issues";
-  const where =
-    repos.length === 1 && repos[0]
-      ? `${repos[0].owner}/${repos[0].name}`
-      : `${String(repos.length)} repositories`;
 
-  return `No ${filter} ${what} in ${where}.`;
+  return `No ${filter} ${what} in ${repo.owner}/${repo.name}.`;
 }

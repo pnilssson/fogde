@@ -35,7 +35,7 @@ export const marks: Record<string, string> = {
   Emphasis: "italic",
   StrongEmphasis: "font-bold",
   Strikethrough: "line-through",
-  InlineCode: "rounded-sm bg-muted px-1 type-code",
+  InlineCode: "rounded-sm bg-muted px-2 type-code",
 };
 
 const blocks: Record<string, string> = {

@@ -31,7 +31,7 @@ export function TileBar({ item, active, icon, title, model, onClose }: Props) {
         !active && "text-muted-foreground",
       )}
     >
-      <BarTitle icon={icon} title={title} />
+      <BarTitle icon={icon} title={title} mono />
       <span className="flex-1" />
       {model && (
         <span className="hidden shrink-0 text-muted-foreground @lg:inline">

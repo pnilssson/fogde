@@ -5,13 +5,15 @@ interface Props {
   icon?: ReactNode;
   title: string;
   muted?: boolean;
+  mono?: boolean;
 }
 
-export function BarTitle({ icon, title, muted = false }: Props) {
+export function BarTitle({ icon, title, muted = false, mono = false }: Props) {
   return (
     <span
       className={cn(
-        "flex min-w-0 items-center gap-2 font-mono type-caption",
+        "flex min-w-0 items-center gap-2",
+        mono ? "font-mono type-caption" : "type-body",
         muted && "text-muted-foreground",
       )}
     >

@@ -11,31 +11,27 @@ export interface Entry {
   item: Listed;
 }
 
-export function foldersOf(workspaces: Workspace[]) {
-  const folders = workspaces.flatMap((workspace) => [
-    workspace.folder,
-    ...workspace.checkouts.map(({ path }) => path),
-    ...workspace.terminals.map(({ folder }) => folder),
-  ]);
+export function pathsOf(workspaces: Workspace[]) {
+  const paths = workspaces.flatMap(({ checkouts }) =>
+    checkouts.map(({ path }) => path),
+  );
 
-  return [...new Set(folders)].sort();
+  return [...new Set(paths)].sort();
 }
 
-export function reposOf(checkouts: CheckoutStatus[]) {
-  const repos: Repo[] = [];
-  for (const { repo } of checkouts) {
-    if (repo && !repos.some((known) => sameRepo(known, repo))) {
-      repos.push(repo);
-    }
-  }
-
-  return repos;
+export function grouped(workspaces: Workspace[], statuses: CheckoutStatus[]) {
+  return workspaces
+    .map((workspace) => ({
+      workspace,
+      checkouts: statuses.filter((status) =>
+        workspace.checkouts.some(({ path }) => samePath(path, status.path)),
+      ),
+    }))
+    .filter(({ checkouts }) => checkouts.length > 0);
 }
 
-export function merged(lists: { repo: Repo; items: Listed[] | undefined }[]) {
-  return lists
-    .flatMap(({ repo, items }) => (items ?? []).map((item) => ({ repo, item })))
-    .sort((a, b) => b.item.updated.localeCompare(a.item.updated));
+export function entriesOf(repo: Repo | undefined, items: Listed[] | undefined) {
+  return repo ? (items ?? []).map((item) => ({ repo, item })) : [];
 }
 
 interface Head {
@@ -60,21 +56,35 @@ export function holds(checkout: CheckoutStatus, number: number, pull: Head) {
 }
 
 export function pullFor(entries: Entry[], checkout: CheckoutStatus) {
-  const { repo } = checkout;
-  if (!repo) {
+  return entries.find(
+    (entry) => entry.item.state === "open" && belongs(entry, checkout),
+  );
+}
+
+export function landed(entries: Entry[], checkout: CheckoutStatus) {
+  const head = checkout.last?.sha;
+  if (!head || checkout.files.length > 0) {
     return undefined;
   }
 
-  return entries.find(({ repo: base, item }) => {
-    const { pull } = item;
-    if (!pull || item.state !== "open" || !sameRepo(base, repo)) {
-      return false;
-    }
+  return entries.find(
+    (entry) =>
+      entry.item.state === "merged" &&
+      entry.item.pull?.sha === head &&
+      entry.item.pull.base !== checkout.branch &&
+      belongs(entry, checkout),
+  );
+}
 
-    const cross = pull.owner?.toLowerCase() !== base.owner.toLowerCase();
+function belongs({ repo: base, item }: Entry, checkout: CheckoutStatus) {
+  const { pull } = item;
+  if (!pull || !checkout.repo || !sameRepo(base, checkout.repo)) {
+    return false;
+  }
 
-    return holds(checkout, item.number, { ...pull, cross });
-  });
+  const cross = pull.owner?.toLowerCase() !== base.owner.toLowerCase();
+
+  return holds(checkout, item.number, { ...pull, cross });
 }
 
 export function ago(time: string | number, now = Date.now()) {

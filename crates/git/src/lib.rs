@@ -6,6 +6,7 @@ mod error;
 mod head;
 mod history;
 mod include;
+mod land;
 mod remote;
 mod run;
 mod status;
@@ -21,10 +22,11 @@ pub use diff::{Diff, FileDiff, Scope, diff};
 pub use error::Error;
 pub use head::{branch, common, heads, root};
 pub use history::{LastCommit, last, undo};
+pub use land::{delete_branch, landed, leave};
 pub use remote::{Config, Remote, config, remotes};
 pub use status::{Change, File, Status, status};
 pub use worktree::{
     Worktree, add_detached, add_worktree, clean, discard_worktree, remove_merged_branch,
     remove_worktree, worktrees,
 };
-pub use write::{fetched, pull, push, refresh, switch};
+pub use write::{branch_off, fetched, pull, push, refresh, switch};

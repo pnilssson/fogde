@@ -1,6 +1,4 @@
-use protocol::github::{
-    Comment, Detail, FileStat, Linked, MergeMethod, PullDetail, RepoOptions, Verdict,
-};
+use protocol::github::{Comment, Detail, FileStat, Linked, MergeMethod, PullDetail};
 use protocol::repos::Repo;
 use serde::Deserialize;
 use serde_json::json;
@@ -11,12 +9,14 @@ use crate::gh::Gh;
 use crate::list::{Login, Nodes, RawLabel, labels, logins, review, state};
 
 mod checks;
+mod conversation;
+mod options;
 
-use checks::{CommitNode, check, merge};
+use checks::{AutoMerge, CommitNode, check, merge, method};
+use conversation::{RawComment, RawThread, comment, thread};
 
 const PULL: &str = include_str!("queries/pull.graphql");
 const ISSUE: &str = include_str!("queries/issue.graphql");
-const OPTIONS: &str = include_str!("queries/options.graphql");
 
 #[derive(Deserialize)]
 struct Reply<T> {
@@ -26,10 +26,21 @@ struct Reply<T> {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PullRepo {
-    merge_commit_allowed: bool,
-    squash_merge_allowed: bool,
-    rebase_merge_allowed: bool,
+    #[serde(flatten)]
+    methods: Methods,
+    #[serde(default)]
+    auto_merge_allowed: bool,
     pull_request: Option<RawItem>,
+}
+
+#[derive(Deserialize)]
+struct Methods {
+    #[serde(rename = "mergeCommitAllowed")]
+    merge: bool,
+    #[serde(rename = "squashMergeAllowed")]
+    squash: bool,
+    #[serde(rename = "rebaseMergeAllowed")]
+    rebase: bool,
 }
 
 #[derive(Deserialize)]
@@ -65,25 +76,14 @@ struct RawItem {
     is_cross_repository: Option<bool>,
     review_decision: Option<String>,
     merge_state_status: Option<String>,
+    auto_merge_request: Option<AutoMerge>,
+    review_threads: Option<Nodes<RawThread>>,
     additions: Option<u32>,
     deletions: Option<u32>,
     changed_files: Option<u32>,
     review_requests: Option<Nodes<Requested>>,
     files: Option<Nodes<RawFile>>,
     commits: Option<Nodes<CommitNode>>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RawComment {
-    id: String,
-    url: String,
-    created_at: Option<String>,
-    submitted_at: Option<String>,
-    state: Option<String>,
-    #[serde(rename = "bodyHTML")]
-    html: String,
-    author: Option<Login>,
 }
 
 #[derive(Deserialize)]
@@ -112,19 +112,6 @@ struct RawFile {
     deletions: u32,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct OptionsRepo {
-    default_branch_ref: Option<Branch>,
-    labels: Option<Nodes<RawLabel>>,
-    assignable_users: Option<Nodes<Login>>,
-}
-
-#[derive(Deserialize)]
-struct Branch {
-    name: String,
-}
-
 impl Gh {
     pub async fn pull(&self, repo: &Repo, number: u32) -> Result<Detail, Error> {
         let host = checked(repo)?;
@@ -143,45 +130,42 @@ impl Gh {
             .and_then(|repo| repo.issue)
             .ok_or_else(|| missing(number))?;
 
-        Ok(detail(raw, Vec::new()))
-    }
-
-    pub async fn options(&self, repo: &Repo) -> Result<RepoOptions, Error> {
-        let host = checked(repo)?;
-        let variables = json!({ "owner": repo.owner, "name": repo.name });
-        let reply: Reply<OptionsRepo> = self.graphql(&host, OPTIONS, variables).await?;
-        let raw = reply
-            .repository
-            .ok_or_else(|| Error::Gh(format!("{}/{} was not found", repo.owner, repo.name)))?;
-
-        Ok(RepoOptions {
-            labels: labels(raw.labels),
-            people: logins(raw.assignable_users),
-            branch: raw.default_branch_ref.map(|branch| branch.name),
-        })
+        Ok(detail(raw, Rules::default()))
     }
 }
 
 fn pull(reply: Reply<PullRepo>, number: u32) -> Result<Detail, Error> {
     let repo = reply.repository.ok_or_else(|| missing(number))?;
     let methods = [
-        (repo.squash_merge_allowed, MergeMethod::Squash),
-        (repo.merge_commit_allowed, MergeMethod::Merge),
-        (repo.rebase_merge_allowed, MergeMethod::Rebase),
+        (repo.methods.squash, MergeMethod::Squash),
+        (repo.methods.merge, MergeMethod::Merge),
+        (repo.methods.rebase, MergeMethod::Rebase),
     ]
     .into_iter()
     .filter_map(|(allowed, method)| allowed.then_some(method))
     .collect();
     let raw = repo.pull_request.ok_or_else(|| missing(number))?;
 
-    Ok(detail(raw, methods))
+    Ok(detail(
+        raw,
+        Rules {
+            methods,
+            automerge: repo.auto_merge_allowed,
+        },
+    ))
 }
 
 fn missing(number: u32) -> Error {
     Error::Gh(format!("#{number} was not found"))
 }
 
-fn detail(mut raw: RawItem, methods: Vec<MergeMethod>) -> Detail {
+#[derive(Default)]
+struct Rules {
+    methods: Vec<MergeMethod>,
+    automerge: bool,
+}
+
+fn detail(mut raw: RawItem, rules: Rules) -> Detail {
     let reviews = raw.reviews.take().map(Nodes::items).into_iter().flatten();
     let mut comments: Vec<Comment> = raw
         .comments
@@ -208,7 +192,7 @@ fn detail(mut raw: RawItem, methods: Vec<MergeMethod>) -> Detail {
         })
         .collect();
 
-    let pull = pull_detail(&mut raw, methods);
+    let pull = pull_detail(&mut raw, rules);
 
     Detail {
         id: raw.id,
@@ -229,7 +213,7 @@ fn detail(mut raw: RawItem, methods: Vec<MergeMethod>) -> Detail {
     }
 }
 
-fn pull_detail(raw: &mut RawItem, methods: Vec<MergeMethod>) -> Option<PullDetail> {
+fn pull_detail(raw: &mut RawItem, rules: Rules) -> Option<PullDetail> {
     let head = raw.head_ref_name.take()?;
     let checks = raw
         .commits
@@ -248,7 +232,12 @@ fn pull_detail(raw: &mut RawItem, methods: Vec<MergeMethod>) -> Option<PullDetai
         cross: raw.is_cross_repository.unwrap_or(false),
         review: raw.review_decision.as_deref().and_then(review),
         merge: merge(raw.merge_state_status.as_deref().unwrap_or_default()),
-        methods,
+        methods: rules.methods,
+        automerge: rules.automerge,
+        auto: raw
+            .auto_merge_request
+            .take()
+            .and_then(|request| method(&request.merge_method)),
         reviewers: raw
             .review_requests
             .take()
@@ -258,6 +247,14 @@ fn pull_detail(raw: &mut RawItem, methods: Vec<MergeMethod>) -> Option<PullDetai
             .filter_map(|request| request.requested_reviewer?.login)
             .collect(),
         checks,
+        threads: raw
+            .review_threads
+            .take()
+            .map(Nodes::items)
+            .into_iter()
+            .flatten()
+            .filter_map(thread)
+            .collect(),
         files: raw
             .files
             .take()
@@ -273,26 +270,6 @@ fn pull_detail(raw: &mut RawItem, methods: Vec<MergeMethod>) -> Option<PullDetai
         added: raw.additions.unwrap_or(0),
         removed: raw.deletions.unwrap_or(0),
         changed: raw.changed_files.unwrap_or(0),
-    })
-}
-
-fn comment(raw: RawComment) -> Option<Comment> {
-    let verdict = match raw.state.as_deref() {
-        None => None,
-        Some("APPROVED") => Some(Verdict::Approved),
-        Some("CHANGES_REQUESTED") => Some(Verdict::Changes),
-        Some("DISMISSED") => Some(Verdict::Dismissed),
-        Some("COMMENTED") if !raw.html.trim().is_empty() => Some(Verdict::Commented),
-        Some(_) => return None,
-    };
-
-    Some(Comment {
-        id: raw.id,
-        author: raw.author.map(|author| author.login),
-        html: raw.html,
-        created: raw.created_at.or(raw.submitted_at)?,
-        url: raw.url,
-        verdict,
     })
 }
 

@@ -16,6 +16,8 @@ export type AgentStatus = { agent: Agent, state: AgentState, };
 
 export type ArrangeWorkspaceParams = { workspace: string, before: string | null, };
 
+export type AutoMergeParams = { repo: Repo, id: string, method: MergeMethod | null, };
+
 export type Bar = { machine: MachineId, metrics: Array<Metric>, };
 
 export type Base = { name: string, behind: number, };
@@ -28,7 +30,7 @@ export type ChangeKind = "added" | "modified" | "deleted" | "renamed" | "copied"
 
 export type Changes = { added: number, removed: number, base: Base | null, upstream: Divergence | null, };
 
-export type Check = { name: string, state: CheckState, url: string | null, run: number | null, };
+export type Check = { name: string, state: CheckState, url: string | null, run: number | null, job: number | null, required: boolean, };
 
 export type CheckState = "pending" | "success" | "failure" | "skipped" | "neutral";
 
@@ -41,6 +43,8 @@ export type CheckoutStatus = { path: string, repo: Repo | null, branch: string |
 export type ChecksState = "pending" | "success" | "failure";
 
 export type ChecksSummary = { state: ChecksState, passed: number, failed: number, total: number, };
+
+export type CleanUpParams = { path: string, sha: string, base: string, };
 
 export type ClickTerminalParams = { id: string, column: number, row: number, };
 
@@ -112,6 +116,10 @@ export type Listed = { number: number, title: string, url: string, state: ItemSt
 
 export type Load = { id: string, cpu: number, memory: number, };
 
+export type Log = { step: string | null, lines: Array<string>, };
+
+export type LogParams = { repo: Repo, job: number, };
+
 export type Machine = { "kind": "computer", name: string, connected: boolean, } | { "kind": "server", id: string, name: string, target: string, connected: boolean, };
 
 export type MachineId = { "kind": "computer" } | { "kind": "server", id: string, };
@@ -150,9 +158,9 @@ export type PlaceTerminalParams = { terminal: string, workspace: string, checkou
 
 export type Platform = "windows" | "macos" | "linux";
 
-export type PullDetail = { draft: boolean, head: string, owner: string | null, sha: string, base: string, cross: boolean, review: ReviewState | null, merge: MergeState, methods: Array<MergeMethod>, reviewers: Array<string>, checks: Array<Check>, files: Array<FileStat>, added: number, removed: number, changed: number, };
+export type PullDetail = { draft: boolean, head: string, owner: string | null, sha: string, base: string, cross: boolean, review: ReviewState | null, merge: MergeState, methods: Array<MergeMethod>, automerge: boolean, auto: MergeMethod | null, reviewers: Array<string>, checks: Array<Check>, threads: Array<Thread>, files: Array<FileStat>, added: number, removed: number, changed: number, };
 
-export type PullSummary = { draft: boolean, head: string, owner: string | null, base: string, review: ReviewState | null, checks: ChecksSummary | null, added: number, removed: number, };
+export type PullSummary = { draft: boolean, head: string, sha: string, owner: string | null, base: string, review: ReviewState | null, checks: ChecksSummary | null, added: number, removed: number, };
 
 export type RemoteRepo = { host: string, owner: string, name: string, cloned: boolean, };
 
@@ -236,6 +244,8 @@ export type TextPoint = { row: number, column: number, };
 
 export type Theme = "system" | "light" | "dark";
 
+export type Thread = { path: string, line: number | null, outdated: boolean, comments: Array<Comment>, };
+
 export type UndoParams = { path: string, sha: string, };
 
 export type Usage = { agent: Agent, windows: Array<Window>, at: number, };
@@ -263,7 +273,9 @@ export type Methods = {
   "agents.list": { params: null; result: Array<AgentStatus> };
   "agents.startSignIn": { params: Agent; result: AgentPrompt };
   "checkouts.branches": { params: string; result: Array<Branch> };
+  "checkouts.cleanUp": { params: CleanUpParams; result: null };
   "checkouts.commit": { params: CommitParams; result: null };
+  "checkouts.createBranch": { params: SwitchParams; result: null };
   "checkouts.diff": { params: DiffParams; result: Diff };
   "checkouts.fetch": { params: string; result: null };
   "checkouts.pull": { params: string; result: null };
@@ -282,6 +294,7 @@ export type Methods = {
   "github.finishSignIn": { params: null; result: null };
   "github.issue": { params: ItemParams; result: Detail };
   "github.issues": { params: ListParams; result: Array<Listed> };
+  "github.log": { params: LogParams; result: Log };
   "github.merge": { params: MergeParams; result: null };
   "github.newIssue": { params: NewIssueParams; result: number };
   "github.newPull": { params: NewPullParams; result: number };
@@ -291,6 +304,7 @@ export type Methods = {
   "github.rerun": { params: RerunParams; result: null };
   "github.review": { params: ReviewParams; result: null };
   "github.setAssignees": { params: PeopleParams; result: null };
+  "github.setAutoMerge": { params: AutoMergeParams; result: null };
   "github.setDraft": { params: DraftParams; result: null };
   "github.setLabels": { params: LabelsParams; result: null };
   "github.setReviewers": { params: PeopleParams; result: null };

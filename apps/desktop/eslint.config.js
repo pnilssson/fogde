@@ -8,6 +8,8 @@ import { reactRefresh } from "eslint-plugin-react-refresh";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import { spacing } from "./lint/spacing.js";
+
 const parent = {
   group: ["../*"],
   message: "Import with @/ instead of reaching into parent folders.",
@@ -54,6 +56,12 @@ export default defineConfig([
         },
       ],
     },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/components/ui/**"],
+    plugins: { fogde: { rules: { spacing } } },
+    rules: { "fogde/spacing": "error" },
   },
   {
     files: ["src/components/ui/**"],

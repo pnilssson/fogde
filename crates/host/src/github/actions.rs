@@ -1,9 +1,10 @@
 use github::Request;
 use protocol::github::{
-    AddComment, CheckoutPull, CheckoutPullParams, CommentParams, DraftParams, EditItem, EditParams,
-    ItemParams, LabelsParams, MergeParams, MergePull, NewIssue, NewIssueParams, NewPull,
-    NewPullParams, PeopleParams, RerunFailed, RerunParams, ReviewParams, SetAssignees, SetDraft,
-    SetLabels, SetReviewers, SetState, StateParams, SubmitReview, UpdateBranch,
+    AddComment, AutoMergeParams, CheckoutPull, CheckoutPullParams, CommentParams, DraftParams,
+    EditItem, EditParams, ItemParams, LabelsParams, MergeParams, MergePull, NewIssue,
+    NewIssueParams, NewPull, NewPullParams, PeopleParams, RerunFailed, RerunParams, ReviewParams,
+    SetAssignees, SetAutoMerge, SetDraft, SetLabels, SetReviewers, SetState, StateParams,
+    SubmitReview, UpdateBranch,
 };
 use protocol::repos::Repo;
 use protocol::rpc::{Failure, SERVER_ERROR};
@@ -18,6 +19,7 @@ pub fn register(router: &mut Router) {
     router.add::<MergePull>();
     router.add::<UpdateBranch>();
     router.add::<SetDraft>();
+    router.add::<SetAutoMerge>();
     router.add::<SetState>();
     router.add::<EditItem>();
     router.add::<SetLabels>();
@@ -103,6 +105,17 @@ impl Handler for SetDraft {
             .gh()
             .await?
             .set_draft(&params.repo, &params.id, params.draft)
+            .await
+            .map_err(failure)
+    }
+}
+
+impl Handler for SetAutoMerge {
+    async fn handle(session: &Session, params: AutoMergeParams) -> Result<(), Failure> {
+        session
+            .gh()
+            .await?
+            .set_auto_merge(&params.repo, &params.id, params.method)
             .await
             .map_err(failure)
     }

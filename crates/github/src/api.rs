@@ -34,6 +34,7 @@ struct Rejection {
     message: String,
     #[serde(default)]
     errors: Vec<Value>,
+    status: Option<String>,
 }
 
 impl Gh {
@@ -67,6 +68,20 @@ impl Gh {
             .send(
                 &["api", "--hostname", host, "--method", verb, &request.path],
                 request.body.as_ref(),
+            )
+            .await?;
+        if !output.status.success() {
+            return Err(rejected(&output));
+        }
+
+        Ok(output.stdout)
+    }
+
+    pub(crate) async fn read(&self, host: &str, path: &str) -> Result<Vec<u8>, Error> {
+        let output = self
+            .send(
+                &["api", "--hostname", host, "--allow-escape-sequences", path],
+                None,
             )
             .await?;
         if !output.status.success() {
@@ -110,6 +125,9 @@ fn rejected(output: &Output) -> Error {
     let Ok(rejection) = serde_json::from_slice::<Rejection>(&output.stdout) else {
         return graphql_error(&output.stdout).unwrap_or_else(|| failure(&output.stderr));
     };
+    if rejection.status.as_deref() == Some("410") {
+        return Error::Gh("GitHub no longer keeps it".to_owned());
+    }
 
     let detail = rejection.errors.iter().find_map(|error| match error {
         Value::String(text) => Some(text.clone()),
@@ -176,6 +194,14 @@ mod tests {
             ))
             .to_string(),
             "the GitHub CLI failed: To get started with GitHub CLI, please run:  gh auth login"
+        );
+        assert_eq!(
+            rejected(&output(
+                r#"{"message":"Server Error","documentation_url":"https://docs.github.com/rest/actions/workflow-jobs#download-job-logs-for-a-workflow-run","status":"410"}"#,
+                "gh: Server Error (HTTP 410)",
+            ))
+            .to_string(),
+            "the GitHub CLI failed: GitHub no longer keeps it"
         );
     }
 

@@ -172,6 +172,30 @@ async fn records_the_fetch_time_of_a_linked_worktree() {
 }
 
 #[tokio::test]
+async fn a_fetch_in_one_checkout_counts_for_its_worktrees() {
+    let dir = tempfile::tempdir().unwrap();
+    let (app, _) = published(dir.path()).await;
+    let login = dir.path().join("login");
+    git(
+        &app,
+        [
+            "worktree",
+            "add",
+            "--quiet",
+            "-b",
+            "feature/login",
+            login.to_str().unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    refresh(&app).await.unwrap();
+
+    assert!(fetched(&login).await.is_some());
+}
+
+#[tokio::test]
 async fn fetching_without_a_remote_says_so() {
     let dir = tempfile::tempdir().unwrap();
     repo(dir.path()).await;
@@ -204,4 +228,29 @@ async fn the_first_push_goes_to_the_remote_git_pushes_to() {
 
     let pushed = status(&app).await.unwrap();
     assert_eq!(pushed.upstream.as_deref(), Some("fork/feature/login"));
+}
+
+#[tokio::test]
+async fn a_new_branch_takes_the_uncommitted_changes_along() {
+    let dir = tempfile::tempdir().unwrap();
+    let (app, _) = published(dir.path()).await;
+    write(&app, "login.txt", "login\n").await;
+
+    branch_off(&app, "feature/login").await.unwrap();
+
+    let now = status(&app).await.unwrap();
+    assert_eq!(now.branch.as_deref(), Some("feature/login"));
+    assert_eq!(now.upstream, None);
+    assert_eq!(now.files.len(), 1);
+}
+
+#[tokio::test]
+async fn refuses_names_git_cannot_use_for_a_branch() {
+    let dir = tempfile::tempdir().unwrap();
+    let (app, _) = published(dir.path()).await;
+
+    for name in ["", "-d", "feature..login", "main"] {
+        assert!(branch_off(&app, name).await.is_err(), "{name:?}");
+    }
+    assert_eq!(status(&app).await.unwrap().branch.as_deref(), Some("main"));
 }

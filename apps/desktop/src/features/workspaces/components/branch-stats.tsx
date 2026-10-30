@@ -1,11 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Fragment } from "react";
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type { Changes, Stats } from "@/generated/protocol";
 import { statsQuery } from "@/lib/stats";
 
@@ -93,14 +88,10 @@ export function BranchStats({ changes }: Props) {
   }
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <span className="flex shrink-0 items-center gap-2 font-mono type-caption tabular-nums" />
-        }
-      >
-        {parts.map(({ key, counts }) => (
-          <span key={key}>
+    <span className="flex shrink-0 items-center gap-2 font-mono type-caption tabular-nums">
+      {parts.map(({ key, counts, sentence }) => (
+        <span key={key}>
+          <span aria-hidden>
             {counts.map(({ text, tone }, index) => (
               <Fragment key={text}>
                 {index > 0 && " "}
@@ -108,13 +99,9 @@ export function BranchStats({ changes }: Props) {
               </Fragment>
             ))}
           </span>
-        ))}
-      </TooltipTrigger>
-      <TooltipContent className="max-w-none flex-col items-start">
-        {parts.map(({ key, sentence }) => (
-          <span key={key}>{sentence}</span>
-        ))}
-      </TooltipContent>
-    </Tooltip>
+          <span className="sr-only">{sentence}</span>
+        </span>
+      ))}
+    </span>
   );
 }

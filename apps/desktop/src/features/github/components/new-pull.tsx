@@ -15,6 +15,7 @@ interface Props {
   repo: Repo;
   path: string;
   branch: string;
+  unpushed: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (number: number) => void;
@@ -25,6 +26,7 @@ export function NewPull({
   repo,
   path,
   branch,
+  unpushed,
   open,
   onOpenChange,
   onCreated,
@@ -52,16 +54,20 @@ export function NewPull({
           return;
         }
 
-        const number = await create.mutateAsync((client) =>
-          client.call("github.newPull", {
+        const number = await create.mutateAsync(async (client) => {
+          if (unpushed) {
+            await client.call("checkouts.push", path);
+          }
+
+          return client.call("github.newPull", {
             path,
             repo,
             title,
             body,
             base: target.trim(),
             draft,
-          }),
-        );
+          });
+        });
         onOpenChange(false);
         onCreated(number);
       }}

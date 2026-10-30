@@ -1,5 +1,5 @@
 import {
-  ArrowClockwiseIcon,
+  PlugsConnectedIcon,
   FolderSimplePlusIcon,
 } from "@phosphor-icons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -94,7 +94,7 @@ export function MachineGroup({
           <ContextMenuTrigger
             render={
               <div
-                className={cn("flex min-w-0 flex-1", down && "opacity-50")}
+                className={cn("flex min-w-0 flex-1 pl-2", down && "opacity-50")}
               />
             }
           >
@@ -124,7 +124,7 @@ export function MachineGroup({
               {status.retrying ? (
                 <Spinner aria-hidden />
               ) : (
-                <ArrowClockwiseIcon />
+                <PlugsConnectedIcon />
               )}
             </TooltipTrigger>
             <TooltipContent side="right">

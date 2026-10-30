@@ -18,7 +18,6 @@ import type {
   ChecksSummary,
   ItemState,
   Listed,
-  Repo,
   ReviewState,
 } from "@/generated/protocol";
 
@@ -60,20 +59,11 @@ function Row({ active, icon, title, badges, detail, onSelect }: RowProps) {
 interface ItemRowProps {
   kind: Kind;
   item: Listed;
-  repo: Repo;
-  showRepo: boolean;
   active: boolean;
   onSelect: () => void;
 }
 
-export function ItemRow({
-  kind,
-  item,
-  repo,
-  showRepo,
-  active,
-  onSelect,
-}: ItemRowProps) {
+export function ItemRow({ kind, item, active, onSelect }: ItemRowProps) {
   const { pull } = item;
 
   return (
@@ -98,9 +88,7 @@ export function ItemRow({
       detail={
         <>
           <span className="min-w-0 truncate">
-            {showRepo
-              ? `${repo.name}#${String(item.number)}`
-              : `#${String(item.number)}`}
+            #{item.number}
             {item.author ? ` by ${item.author}` : ""}, {ago(item.updated)}
           </span>
           {pull && (

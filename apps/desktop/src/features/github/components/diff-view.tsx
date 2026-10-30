@@ -6,17 +6,10 @@ import {
 } from "@pierre/diffs/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Choice } from "@/components/choice";
 import { TileStatus } from "@/components/tile-status";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { diffQuery } from "@/features/github/api/github";
-import { DiffTally } from "@/features/github/components/diff-tally";
 import { useReported } from "@/features/github/hooks/use-reported";
 import {
   diffCss,
@@ -29,36 +22,24 @@ import {
 import { diffThemes } from "@/features/github/lib/diff-theme";
 import {
   arrive,
-  setDiffScope,
-  setDiffStyle,
   setShown,
-  useDiffOptions,
+  useDiffScope,
+  useDiffStyle,
   useTarget,
 } from "@/features/github/lib/state";
 import type { Diff } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 import { useTheme } from "@/lib/theme";
 
-const scopes = [
-  { value: "uncommitted", label: "Uncommitted" },
-  { value: "branch", label: "Branch" },
-] as const;
-
-const styles = [
-  { value: "unified", label: "Unified" },
-  { value: "split", label: "Split" },
-] as const;
-
 interface Props {
   machine: Machine;
   path: string;
-  branch: string | null;
   uncommitted: number;
 }
 
-export function DiffView({ machine, path, branch, uncommitted }: Props) {
-  const options = useDiffOptions();
-  const scope = options.scope ?? (uncommitted > 0 ? "uncommitted" : "branch");
+export function DiffView({ machine, path, uncommitted }: Props) {
+  const style = useDiffStyle();
+  const scope = useDiffScope(uncommitted);
   const diff = useQuery(diffQuery(machine, path, scope));
 
   useReported("Could not refresh the diff", diff.data ? diff.error : null);
@@ -68,25 +49,6 @@ export function DiffView({ machine, path, branch, uncommitted }: Props) {
       aria-label="Diff"
       className="flex min-h-0 min-w-0 flex-1 flex-col gap-2"
     >
-      <div className="flex shrink-0 items-center gap-4">
-        <Choice
-          label="Compare"
-          value={scope}
-          options={scopes}
-          onChange={setDiffScope}
-        />
-        <div className="flex min-w-0 flex-1">
-          {diff.data && (
-            <DiffTally diff={diff.data} scope={scope} branch={branch} />
-          )}
-        </div>
-        <Choice
-          label="Layout"
-          value={options.style}
-          options={styles}
-          onChange={setDiffStyle}
-        />
-      </div>
       {diff.isError && !diff.data ? (
         <TileStatus
           notice="Could not read the diff"
@@ -106,15 +68,10 @@ export function DiffView({ machine, path, branch, uncommitted }: Props) {
                 ? "No uncommitted changes"
                 : `No changes${diff.data.base ? ` since ${diff.data.base}` : ""}`}
             </EmptyTitle>
-            {scope === "uncommitted" && (
-              <EmptyDescription>
-                Branch shows everything this branch adds.
-              </EmptyDescription>
-            )}
           </EmptyHeader>
         </Empty>
       ) : (
-        <Files diff={diff.data} style={options.style} />
+        <Files diff={diff.data} style={style} />
       )}
     </section>
   );

@@ -1,42 +1,34 @@
-import { ListIcon, TreeStructureIcon } from "@phosphor-icons/react";
 import { cn } from "cn";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useRef } from "react";
 
-import { Choice } from "@/components/choice";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { moveFocus } from "@/features/github/lib/focus";
-import {
-  jump,
-  setLayout,
-  useLayout,
-  useShown,
-} from "@/features/github/lib/state";
+import { useLayout, useShown } from "@/features/github/lib/state";
 import type { ChangeKind, FileChange } from "@/generated/protocol";
 
-const layouts = [
-  { value: "list", label: "List", icon: ListIcon },
-  { value: "folders", label: "By folder", icon: TreeStructureIcon },
-] as const;
-
 interface Props {
+  label: string;
   files: FileChange[];
-  picked: ReadonlySet<string>;
-  truncated: boolean;
-  onPick: (paths: string[], on: boolean) => void;
+  active: boolean;
+  picked?: ReadonlySet<string>;
+  onPick?: (paths: string[], on: boolean) => void;
+  onShow: (path: string) => void;
 }
 
-export function ChangeList({ files, picked, truncated, onPick }: Props) {
-  const id = useId();
+export function ChangeList({
+  label,
+  files,
+  active,
+  picked,
+  onPick,
+  onShow,
+}: Props) {
   const layout = useLayout();
-  const shown = useShown();
+  const viewed = useShown();
+  const shown = active ? viewed : undefined;
   const list = useRef<HTMLDivElement>(null);
-  const chosen = files.filter((file) => picked.has(file.path)).length;
   const groups = layout === "folders" ? folders(files) : [["", files] as const];
+  const has = (file: FileChange) => picked?.has(file.path) ?? false;
 
   useEffect(() => {
     list.current
@@ -45,49 +37,26 @@ export function ChangeList({ files, picked, truncated, onPick }: Props) {
   }, [shown]);
 
   return (
-    <section aria-label="Changes" className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id={`${id}-all`}
-          checked={chosen === files.length}
-          indeterminate={chosen > 0 && chosen < files.length}
-          onCheckedChange={(checked) => {
-            onPick(
-              files.map((file) => file.path),
-              checked,
-            );
-          }}
-        />
-        <label htmlFor={`${id}-all`} className="flex-1 type-body">
-          {chosen === files.length
-            ? files.length === 1
-              ? "1 changed file"
-              : `${String(files.length)} changed files`
-            : `${String(chosen)} of ${String(files.length)} selected`}
-        </label>
-        <Choice
-          label="Group files"
-          value={layout}
-          options={layouts}
-          onChange={setLayout}
-        />
-      </div>
-      <div ref={list} className="flex flex-col gap-2" onKeyDown={moveFocus}>
-        {groups.map(([folder, grouped]) => (
-          <ul
-            key={folder}
-            className="flex flex-col"
-            aria-label={folder || undefined}
-          >
-            {folder && (
-              <li className="flex h-8 items-center gap-2">
+    <div
+      ref={list}
+      role="group"
+      aria-label={label}
+      className="flex flex-col gap-2"
+      onKeyDown={moveFocus}
+    >
+      {groups.map(([folder, grouped]) => (
+        <ul
+          key={folder}
+          className="flex flex-col"
+          aria-label={folder || undefined}
+        >
+          {folder && (
+            <li className="flex h-8 items-center gap-2">
+              {onPick && (
                 <Checkbox
                   aria-label={`Include ${folder}`}
-                  checked={grouped.every((file) => picked.has(file.path))}
-                  indeterminate={
-                    grouped.some((file) => picked.has(file.path)) &&
-                    !grouped.every((file) => picked.has(file.path))
-                  }
+                  checked={grouped.every(has)}
+                  indeterminate={grouped.some(has) && !grouped.every(has)}
                   onCheckedChange={(checked) => {
                     onPick(
                       grouped.map((file) => file.path),
@@ -95,50 +64,46 @@ export function ChangeList({ files, picked, truncated, onPick }: Props) {
                     );
                   }}
                 />
-                <span className="min-w-0 flex-1 truncate type-caption text-muted-foreground">
-                  {folder}
-                </span>
-                <span className="type-caption text-muted-foreground">
+              )}
+              <span className="flex min-w-0 flex-1 items-center gap-2 px-2 type-caption text-muted-foreground">
+                <span className="min-w-0 flex-1 truncate">{folder}</span>
+                <span className="min-w-4 shrink-0 text-right">
                   {grouped.length}
                 </span>
-              </li>
-            )}
-            {grouped.map((file) => (
-              <li key={file.path} className="flex min-w-0 items-center gap-2">
+              </span>
+            </li>
+          )}
+          {grouped.map((file) => (
+            <li key={file.path} className="flex min-w-0 items-center gap-2">
+              {onPick && (
                 <Checkbox
                   aria-label={`Include ${file.path}`}
-                  checked={picked.has(file.path)}
+                  checked={has(file)}
                   onCheckedChange={(checked) => {
                     onPick([file.path], checked);
                   }}
                 />
-                <button
-                  type="button"
-                  data-row
-                  aria-current={file.path === shown || undefined}
-                  className={cn(
-                    "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring",
-                    file.path === shown && "bg-selected",
-                  )}
-                  onClick={() => {
-                    jump(file.path);
-                  }}
-                >
-                  <Name file={file} folder={folder} />
-                  <Status change={file.change} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ))}
-      </div>
-      {truncated && (
-        <p className="type-caption text-muted-foreground">
-          Only the first {files.length} changed files are listed. Commit the
-          rest in a terminal.
-        </p>
-      )}
-    </section>
+              )}
+              <button
+                type="button"
+                data-row
+                aria-current={file.path === shown || undefined}
+                className={cn(
+                  "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring",
+                  file.path === shown && "bg-selected",
+                )}
+                onClick={() => {
+                  onShow(file.path);
+                }}
+              >
+                <Name file={file} folder={folder} />
+                <Status change={file.change} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ))}
+    </div>
   );
 }
 
@@ -185,22 +150,12 @@ function Status({ change }: { change: ChangeKind }) {
   const { letter, label, tone } = marks[change];
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <span
-            className={cn(
-              "w-4 shrink-0 text-center font-mono type-caption",
-              tone,
-            )}
-          />
-        }
-      >
-        <span aria-hidden>{letter}</span>
-        <span className="sr-only">{label}</span>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
+    <span
+      className={cn("w-4 shrink-0 text-right font-mono type-caption", tone)}
+    >
+      <span aria-hidden>{letter}</span>
+      <span className="sr-only">{label}</span>
+    </span>
   );
 }
 

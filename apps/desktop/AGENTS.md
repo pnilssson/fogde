@@ -12,7 +12,6 @@
 - Show each state in one place; never repeat it across the top bar, sidebar and main area.
 - Show validation errors under their input and every other error as a toast.
 - Never use a middle dot (·) as a separator; write the relation in words ("app on Hetzner VPS") or separate with layout.
-- Use tooltips only for icon-only controls or information not visible elsewhere; never repeat visible text.
 - Keep the window chrome transparent; raise surfaces with the `surface-*` background and shadow tokens.
 - App-owned spacing uses Tailwind values divisible by four, or `2`; app-owned text uses only the `type-*` roles; app-owned colours use theme tokens as they are (`bg-hover`, `text-muted-foreground`, `text-success`), never opacity modifiers like `/70` or arbitrary values. shadcn/ui and third-party styles are exempt.
 - Meet WCAG 2.2 AA: every action works by keyboard with a visible focus state, and icon-only controls have accessible labels.

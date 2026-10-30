@@ -4,8 +4,9 @@ use std::time::SystemTime;
 use tokio::fs;
 
 use crate::Error;
+use crate::head::common;
 use crate::remote::{config, remotes};
-use crate::run::{git, git_paths};
+use crate::run::git;
 use crate::status::status;
 
 pub async fn push(root: &Path) -> Result<(), Error> {
@@ -56,9 +57,23 @@ pub async fn refresh(root: &Path) -> Result<(), Error> {
 }
 
 pub async fn fetched(root: &Path) -> Option<SystemTime> {
-    let path = git_paths(root, &["FETCH_HEAD"]).await.ok()?.pop()?;
+    let common = common(root).await?;
+    let mut heads = vec![common.join("FETCH_HEAD")];
+    if let Ok(mut entries) = fs::read_dir(common.join("worktrees")).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            heads.push(entry.path().join("FETCH_HEAD"));
+        }
+    }
 
-    fs::metadata(path).await.ok()?.modified().ok()
+    let mut newest = None;
+    for head in heads {
+        let Ok(modified) = fs::metadata(head).await.and_then(|meta| meta.modified()) else {
+            continue;
+        };
+        newest = newest.max(Some(modified));
+    }
+
+    newest
 }
 
 pub async fn switch(root: &Path, branch: &str) -> Result<(), Error> {
@@ -67,6 +82,22 @@ pub async fn switch(root: &Path, branch: &str) -> Result<(), Error> {
     }
 
     git(root, ["switch", "--quiet", branch]).await.map(drop)
+}
+
+pub async fn branch_off(root: &Path, name: &str) -> Result<(), Error> {
+    let name = name.trim();
+    let valid = !name.is_empty()
+        && !name.starts_with('-')
+        && git(root, ["check-ref-format", "--branch", name])
+            .await
+            .is_ok();
+    if !valid {
+        return Err(Error::Git(format!("{name} is not a valid branch name")));
+    }
+
+    git(root, ["switch", "--quiet", "--create", name])
+        .await
+        .map(drop)
 }
 
 async fn default_remote(root: &Path) -> Result<String, Error> {

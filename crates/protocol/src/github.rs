@@ -7,16 +7,17 @@ use ts_rs::TS;
 use crate::Method;
 
 pub use actions::{
-    AddComment, CheckoutPull, CheckoutPullParams, CommentParams, DraftParams, EditItem, EditParams,
-    LabelsParams, MergeParams, MergePull, NewIssue, NewIssueParams, NewPull, NewPullParams,
-    PeopleParams, RerunFailed, RerunParams, ReviewEvent, ReviewParams, SetAssignees, SetDraft,
-    SetLabels, SetReviewers, SetState, StateParams, SubmitReview, UpdateBranch,
+    AddComment, AutoMergeParams, CheckoutPull, CheckoutPullParams, CommentParams, DraftParams,
+    EditItem, EditParams, LabelsParams, MergeParams, MergePull, NewIssue, NewIssueParams, NewPull,
+    NewPullParams, PeopleParams, RerunFailed, RerunParams, ReviewEvent, ReviewParams, SetAssignees,
+    SetAutoMerge, SetDraft, SetLabels, SetReviewers, SetState, StateParams, SubmitReview,
+    UpdateBranch,
 };
 pub use items::{
     Check, CheckState, ChecksState, ChecksSummary, Comment, Detail, FileStat, Filter, GetIssue,
-    GetOptions, GetPull, ItemParams, ItemState, Label, Linked, ListIssues, ListParams, ListPulls,
-    Listed, MergeMethod, MergeState, PullDetail, PullSummary, RepoOptions, ReviewState, Section,
-    Verdict,
+    GetLog, GetOptions, GetPull, ItemParams, ItemState, Label, Linked, ListIssues, ListParams,
+    ListPulls, Listed, Log, LogParams, MergeMethod, MergeState, PullDetail, PullSummary,
+    RepoOptions, ReviewState, Section, Thread, Verdict,
 };
 
 #[derive(Clone, Debug, Serialize, TS)]

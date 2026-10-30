@@ -1,5 +1,5 @@
-import { useQueries, useQuery } from "@tanstack/react-query";
-import { type ReactNode, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 
 import { Body, Main } from "@/components/frame";
 import { PageShell } from "@/components/shell";
@@ -11,53 +11,67 @@ import { DetailPane } from "@/features/github/components/detail-pane";
 import { GitHubBar } from "@/features/github/components/github-bar";
 import { SidePanel } from "@/features/github/components/side-panel";
 import { useReported } from "@/features/github/hooks/use-reported";
-import { foldersOf, merged, reposOf } from "@/features/github/lib/scope";
+import {
+  entriesOf,
+  grouped,
+  pathsOf,
+  samePath,
+} from "@/features/github/lib/scope";
 import {
   sameRepo,
   useChosen,
   useGitHubState,
 } from "@/features/github/lib/state";
-import type { Workspace } from "@/generated/protocol";
+import type { Repo, Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
   machine: Machine;
   workspaces: Workspace[];
-  current: Workspace | undefined;
+  wanted: string | undefined;
   picker: ReactNode;
 }
 
-export function GitHubView({ machine, workspaces, current, picker }: Props) {
-  const { scope, tab, closed } = useGitHubState();
+const nowhere: Repo = { host: "", owner: "", name: "" };
+
+export function GitHubView({ machine, workspaces, wanted, picker }: Props) {
+  const { tab, closed } = useGitHubState();
   const chosen = useChosen(machine.id);
   const kind = tab === "issue" ? "issue" : "pull";
-  const shown = useMemo(
-    () => (scope === "workspace" && current ? [current] : workspaces),
-    [scope, current, workspaces],
-  );
-  const checkouts = useQuery(checkoutsQuery(machine, foldersOf(shown)));
+  const checkouts = useQuery(checkoutsQuery(machine, pathsOf(workspaces)));
   const accounts = useQuery(accountsQuery(machine));
-  const repos = useMemo(() => reposOf(checkouts.data ?? []), [checkouts.data]);
-  const signedIn = repos.filter((repo) =>
-    accounts.data?.some(({ host }) => host === repo.host),
-  );
-  const lists = useQueries({
-    queries: signedIn.map((repo) => listQuery(machine, kind, repo, "open")),
+  const groups = grouped(workspaces, checkouts.data ?? []);
+  const checkout =
+    checkouts.data?.find(({ path }) => wanted && samePath(path, wanted)) ??
+    checkouts.data?.[0];
+  const known = checkout?.repo ?? undefined;
+  const repo = accounts.data?.some(({ host }) => host === known?.host)
+    ? known
+    : undefined;
+  const online = repo !== undefined;
+  const shut = useQuery({
+    ...listQuery(machine, kind, repo ?? nowhere, "closed"),
+    enabled: online && closed && tab !== "changes",
   });
-  const shut = useQueries({
-    queries: signedIn.map((repo) => ({
-      ...listQuery(machine, kind, repo, "closed"),
-      enabled: closed && tab !== "changes",
-    })),
+  const merged = useQuery({
+    ...listQuery(machine, "pull", repo ?? nowhere, "closed"),
+    enabled: online,
   });
-  const open = useQueries({
-    queries: signedIn.map((repo) => listQuery(machine, "pull", repo, "open")),
+  const issues = useQuery({
+    ...listQuery(machine, "issue", repo ?? nowhere, "open"),
+    enabled: online,
   });
+  const open = useQuery({
+    ...listQuery(machine, "pull", repo ?? nowhere, "open"),
+    enabled: online,
+  });
+  const list = kind === "issue" ? issues : open;
 
-  const failed =
-    [accounts, ...lists, ...shut, ...open].find(({ error }) => error)?.error ??
-    null;
-  useReported("Could not load GitHub", failed);
+  useReported(
+    "Could not load GitHub",
+    [accounts, shut, merged, issues, open].find(({ error }) => error)?.error ??
+      null,
+  );
   useReported(
     "Could not read the checkouts",
     checkouts.data ? checkouts.error : null,
@@ -93,33 +107,11 @@ export function GitHubView({ machine, workspaces, current, picker }: Props) {
     );
   }
 
-  const entries = merged(
-    signedIn.map((repo, index) => ({ repo, items: lists[index]?.data })),
-  );
-  const closedEntries = merged(
-    signedIn.map((repo, index) => ({ repo, items: shut[index]?.data })),
-  );
-  const openPulls = merged(
-    signedIn.map((repo, index) => ({ repo, items: open[index]?.data })),
-  );
-  const unsigned = accounts.data
-    ? [
-        ...new Set(
-          repos
-            .filter((repo) => !signedIn.includes(repo))
-            .map(({ host }) => host),
-        ),
-      ]
-    : [];
-  const checkout =
-    checkouts.data.find(({ path }) => path === chosen.checkout) ??
-    checkouts.data[0];
-  const online = signedIn.some(
-    (repo) => checkout?.repo != null && sameRepo(repo, checkout.repo),
-  );
-  const item = tab === "issue" ? chosen.issue : chosen.pull;
-  const where =
-    scope === "workspace" && current ? current.name : "these workspaces";
+  const openPulls = entriesOf(repo, open.data);
+  const unsigned = known && accounts.data && !online ? known.host : undefined;
+  const picked = tab === "issue" ? chosen.issue : chosen.pull;
+  const item =
+    picked && repo && sameRepo(picked.repo, repo) ? picked : undefined;
 
   return (
     <PageShell
@@ -129,24 +121,28 @@ export function GitHubView({ machine, workspaces, current, picker }: Props) {
           tab={tab}
           closed={{
             shown: closed,
-            entries: closedEntries,
-            loading: shut.some(({ isPending }) => isPending),
+            entries: entriesOf(repo, shut.data),
+            loading: shut.isPending,
           }}
           checkout={checkout}
-          where={where}
-          entries={entries}
-          loading={lists.some(({ isPending }) => isPending)}
+          entries={entriesOf(repo, list.data)}
+          loading={list.isPending}
           chosen={item}
-          signedIn={signedIn}
+          repo={repo}
           unsigned={unsigned}
+          counts={{
+            changes: checkout
+              ? `${String(checkout.files.length)}${checkout.truncated ? "+" : ""}`
+              : undefined,
+            pull: open.data?.length.toString(),
+            issue: issues.data?.length.toString(),
+          }}
         />
       }
     >
       <GitHubBar
         machine={machine}
-        current={current}
-        scope={scope}
-        checkouts={checkouts.data}
+        groups={groups}
         checkout={checkout}
         openPulls={openPulls}
         online={online}
@@ -161,6 +157,15 @@ export function GitHubView({ machine, workspaces, current, picker }: Props) {
             item={item}
             checkouts={checkouts.data}
             openPulls={openPulls}
+            closedPulls={entriesOf(repo, merged.data)}
+            linked={
+              checkout !== undefined &&
+              !workspaces.some(({ checkouts: listed }) =>
+                listed.some(
+                  ({ main, path }) => main && samePath(path, checkout.path),
+                ),
+              )
+            }
             online={online}
           />
         </Main>

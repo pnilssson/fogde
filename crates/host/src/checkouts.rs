@@ -3,12 +3,13 @@ use std::time::UNIX_EPOCH;
 
 use futures_util::future::join_all;
 use protocol::checkouts::{
-    Branch, ChangeKind, CheckoutStatus, Commit, CommitParams, Diff, DiffParams, DiffScope, Fetch,
-    FileChange, FileDiff, GetCheckouts, GetDiff, LastCommit, ListBranches, Pull, Push, Switch,
-    SwitchParams, Undo, UndoParams,
+    Branch, ChangeKind, CheckoutStatus, CleanUp, CleanUpParams, Commit, CommitParams, CreateBranch,
+    Diff, DiffParams, DiffScope, Fetch, FileChange, FileDiff, GetCheckouts, GetDiff, LastCommit,
+    ListBranches, Pull, Push, Switch, SwitchParams, Undo, UndoParams,
 };
 use protocol::repos::Repo;
 use protocol::rpc::Failure;
+use tokio::fs;
 
 use crate::folders;
 use crate::rpc::{Handler, Router, failure};
@@ -23,8 +24,10 @@ pub fn register(router: &mut Router) {
     router.add::<Push>();
     router.add::<Pull>();
     router.add::<Switch>();
+    router.add::<CreateBranch>();
     router.add::<Fetch>();
     router.add::<Undo>();
+    router.add::<CleanUp>();
     router.add::<GetDiff>();
 }
 
@@ -178,6 +181,16 @@ impl Handler for Switch {
     }
 }
 
+impl Handler for CreateBranch {
+    async fn handle(_: &Session, params: SwitchParams) -> Result<(), Failure> {
+        let root = root(&params.path).await?;
+
+        git::branch_off(&root, &params.branch)
+            .await
+            .map_err(failure)
+    }
+}
+
 impl Handler for Fetch {
     async fn handle(_: &Session, path: String) -> Result<(), Failure> {
         git::refresh(&root(&path).await?).await.map_err(failure)
@@ -219,6 +232,37 @@ impl Handler for Undo {
         let root = root(&params.path).await?;
 
         git::undo(&root, &params.sha).await.map_err(failure)
+    }
+}
+
+impl Handler for CleanUp {
+    async fn handle(session: &Session, params: CleanUpParams) -> Result<(), Failure> {
+        let root = root(&params.path).await?;
+        let branch = git::landed(&root, &params.sha, &params.base)
+            .await
+            .map_err(failure)?;
+        let main = crate::workspaces::checkouts(&root)
+            .await
+            .into_iter()
+            .find(|checkout| checkout.main)
+            .map_or_else(|| root.clone(), |checkout| PathBuf::from(checkout.path));
+        if same(&main, &root).await {
+            return git::leave(&root, &branch, &params.base)
+                .await
+                .map_err(failure);
+        }
+
+        crate::workspaces::close_terminals_in(session, &root).await?;
+        git::remove_worktree(&main, &root).await.map_err(failure)?;
+
+        git::delete_branch(&main, &branch).await.map_err(failure)
+    }
+}
+
+async fn same(a: &Path, b: &Path) -> bool {
+    match (fs::canonicalize(a).await, fs::canonicalize(b).await) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
     }
 }
 

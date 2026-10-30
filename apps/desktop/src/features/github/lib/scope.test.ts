@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { ago, holds, pullFor, samePath } from "@/features/github/lib/scope";
+import {
+  ago,
+  holds,
+  landed,
+  pullFor,
+  samePath,
+} from "@/features/github/lib/scope";
 import type { CheckoutStatus } from "@/generated/protocol";
 
 const repo = { host: "github.com", owner: "acme", name: "app" };
@@ -36,6 +42,7 @@ const entry = (owner: string | null) => ({
     pull: {
       draft: false,
       head: "feature/login",
+      sha: "3f2a9b1c0d4e5f60718293a4b5c6d7e8f9012345",
       owner,
       base: "main",
       review: null,
@@ -71,6 +78,53 @@ describe("pullFor", () => {
   it("leaves a branch of the same name in another fork alone", () => {
     expect(pullFor([entry("dev")], checkout({}))).toBeUndefined();
     expect(pullFor([entry("acme")], checkout({}))?.item.number).toBe(7);
+  });
+});
+
+describe("landed", () => {
+  const sha = "3f2a9b1c0d4e5f60718293a4b5c6d7e8f9012345";
+  const merged = {
+    ...entry("acme"),
+    item: { ...entry("acme").item, state: "merged" as const },
+  };
+  const last = {
+    sha,
+    subject: "Add login",
+    date: "2026-06-30T12:00:00Z",
+    undoable: false,
+  };
+
+  it("offers to clean up a checkout still at the merged commit", () => {
+    expect(landed([merged], checkout({ last }))?.item.number).toBe(7);
+  });
+
+  it("keeps a checkout with work the pull request does not have", () => {
+    const later = { ...last, sha: "0000000000000000000000000000000000000001" };
+    const changed = {
+      path: "notes.txt",
+      from: null,
+      change: "untracked" as const,
+    };
+
+    expect(landed([merged], checkout({ last: later }))).toBeUndefined();
+    expect(
+      landed([merged], checkout({ last, files: [changed] })),
+    ).toBeUndefined();
+    expect(landed([entry("acme")], checkout({ last }))).toBeUndefined();
+  });
+
+  it("keeps the base branch a fork opened its pull request from", () => {
+    const fork = {
+      ...merged,
+      item: {
+        ...merged.item,
+        pull: { ...merged.item.pull, head: "main", owner: "dev" },
+      },
+    };
+
+    expect(
+      landed([fork], checkout({ last, branch: "main", owner: "dev" })),
+    ).toBeUndefined();
   });
 });
 

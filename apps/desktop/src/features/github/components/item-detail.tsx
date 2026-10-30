@@ -15,6 +15,7 @@ import { PullPanel } from "@/features/github/components/pull-panel";
 import { RenderedHtml } from "@/features/github/components/rendered-html";
 import { StateIcon } from "@/features/github/components/rows";
 import { TextDialog } from "@/features/github/components/text-dialog";
+import { Threads } from "@/features/github/components/threads";
 import { useReported } from "@/features/github/hooks/use-reported";
 import { useWrite } from "@/features/github/hooks/use-write";
 import { ago } from "@/features/github/lib/scope";
@@ -217,6 +218,7 @@ function Shown({ machine, kind, repo, detail, checkouts }: ShownProps) {
             checkouts={checkouts}
           />
         )}
+        {pull && <Threads threads={pull.threads} />}
         <RenderedHtml html={detail.html} empty="No description." />
         <Conversation
           machine={machine}

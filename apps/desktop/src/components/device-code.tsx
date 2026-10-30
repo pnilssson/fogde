@@ -29,7 +29,7 @@ export function DeviceCode({ code, url, site, hint, onCancel }: Props) {
 
   return (
     <section className="flex flex-col items-center gap-8">
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         <h1 className="type-display">
           Enter this code on{" "}
           <button

@@ -3,7 +3,7 @@ use protocol::github::{ChecksState, ChecksSummary};
 
 const OPEN_PULLS: &str = r#"{
   "repository":{"pullRequests":{"nodes":[
-    {"number":42,"title":"Add login","url":"https://github.com/acme/app/pull/42","state":"OPEN","updatedAt":"2026-10-28T12:50:03Z","isDraft":true,"headRefName":"feature/login","headRepositoryOwner":{"login":"acme"},"baseRefName":"main","reviewDecision":"REVIEW_REQUIRED","additions":509,"deletions":69,"author":{"login":"dev"},"labels":{"nodes":[{"name":"enhancement","color":"0dd8ac"}]},"comments":{"totalCount":3},"commits":{"nodes":[{"commit":{"statusCheckRollup":{"state":"FAILURE","contexts":{"totalCount":25,"checkRunCountsByState":[{"state":"SUCCESS","count":10},{"state":"SKIPPED","count":13},{"state":"CANCELLED","count":1},{"state":"IN_PROGRESS","count":0}],"statusContextCountsByState":[{"state":"FAILURE","count":1},{"state":"PENDING","count":0}]}}}}]}},
+    {"number":42,"title":"Add login","url":"https://github.com/acme/app/pull/42","state":"OPEN","updatedAt":"2026-10-28T12:50:03Z","isDraft":true,"headRefName":"feature/login","headRefOid":"3f2a9b1c0d4e5f60718293a4b5c6d7e8f9012345","headRepositoryOwner":{"login":"acme"},"baseRefName":"main","reviewDecision":"REVIEW_REQUIRED","additions":509,"deletions":69,"author":{"login":"dev"},"labels":{"nodes":[{"name":"enhancement","color":"0dd8ac"}]},"comments":{"totalCount":3},"commits":{"nodes":[{"commit":{"statusCheckRollup":{"state":"FAILURE","contexts":{"totalCount":25,"checkRunCountsByState":[{"state":"SUCCESS","count":10},{"state":"SKIPPED","count":13},{"state":"CANCELLED","count":1},{"state":"IN_PROGRESS","count":0}],"statusContextCountsByState":[{"state":"FAILURE","count":1},{"state":"PENDING","count":0}]}}}}]}},
     {"number":41,"title":"Fix typo","url":"https://github.com/acme/app/pull/41","state":"OPEN","updatedAt":"2026-10-27T09:14:33Z","isDraft":false,"headRefName":"typo","headRepositoryOwner":null,"baseRefName":"main","reviewDecision":null,"additions":1,"deletions":1,"author":null,"labels":{"nodes":[]},"comments":{"totalCount":0},"commits":{"nodes":[{"commit":{"statusCheckRollup":null}}]}},
     {"number":40,"title":"Docs","url":"https://github.com/acme/app/pull/40","state":"OPEN","updatedAt":"2026-10-26T09:14:33Z","isDraft":false,"headRefName":"docs","headRepositoryOwner":{"login":"dev"},"baseRefName":"main","reviewDecision":"APPROVED","additions":3,"deletions":0,"author":{"login":"dev"},"labels":{"nodes":[]},"comments":{"totalCount":0},"commits":{"nodes":[]}},
     null
@@ -14,7 +14,7 @@ const OPEN_PULLS: &str = r#"{
     {}
   ]},
   "assigned":{"nodes":[
-    {"number":42,"title":"Add login","url":"https://github.com/acme/app/pull/42","state":"OPEN","updatedAt":"2026-10-28T12:50:03Z","isDraft":true,"headRefName":"feature/login","headRepositoryOwner":{"login":"acme"},"baseRefName":"main","reviewDecision":"REVIEW_REQUIRED","additions":509,"deletions":69,"author":{"login":"dev"},"labels":{"nodes":[]},"comments":{"totalCount":3},"commits":{"nodes":[]}}
+    {"number":42,"title":"Add login","url":"https://github.com/acme/app/pull/42","state":"OPEN","updatedAt":"2026-10-28T12:50:03Z","isDraft":true,"headRefName":"feature/login","headRefOid":"3f2a9b1c0d4e5f60718293a4b5c6d7e8f9012345","headRepositoryOwner":{"login":"acme"},"baseRefName":"main","reviewDecision":"REVIEW_REQUIRED","additions":509,"deletions":69,"author":{"login":"dev"},"labels":{"nodes":[]},"comments":{"totalCount":3},"commits":{"nodes":[]}}
   ]}
 }"#;
 
@@ -51,6 +51,7 @@ fn reads_pull_requests_with_reviews_check_counts_and_missing_authors() {
         &PullSummary {
             draft: true,
             head: "feature/login".to_owned(),
+            sha: "3f2a9b1c0d4e5f60718293a4b5c6d7e8f9012345".to_owned(),
             owner: Some("acme".to_owned()),
             base: "main".to_owned(),
             review: Some(ReviewState::Required),

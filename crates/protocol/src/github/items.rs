@@ -64,6 +64,7 @@ pub struct Label {
 pub struct PullSummary {
     pub draft: bool,
     pub head: String,
+    pub sha: String,
     pub owner: Option<String>,
     pub base: String,
     pub review: Option<ReviewState>,
@@ -153,8 +154,11 @@ pub struct PullDetail {
     pub review: Option<ReviewState>,
     pub merge: MergeState,
     pub methods: Vec<MergeMethod>,
+    pub automerge: bool,
+    pub auto: Option<MergeMethod>,
     pub reviewers: Vec<String>,
     pub checks: Vec<Check>,
+    pub threads: Vec<Thread>,
     pub files: Vec<FileStat>,
     pub added: u32,
     pub removed: u32,
@@ -188,6 +192,9 @@ pub struct Check {
     pub url: Option<String>,
     #[ts(type = "number | null")]
     pub run: Option<u64>,
+    #[ts(type = "number | null")]
+    pub job: Option<u64>,
+    pub required: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
@@ -198,6 +205,27 @@ pub enum CheckState {
     Failure,
     Skipped,
     Neutral,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct Thread {
+    pub path: String,
+    pub line: Option<u32>,
+    pub outdated: bool,
+    pub comments: Vec<Comment>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, TS)]
+pub struct LogParams {
+    pub repo: Repo,
+    #[ts(type = "number")]
+    pub job: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct Log {
+    pub step: Option<String>,
+    pub lines: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
@@ -252,4 +280,12 @@ impl Method for GetOptions {
     const NAME: &'static str = "github.options";
     type Params = Repo;
     type Result = RepoOptions;
+}
+
+pub struct GetLog;
+
+impl Method for GetLog {
+    const NAME: &'static str = "github.log";
+    type Params = LogParams;
+    type Result = Log;
 }

@@ -22,17 +22,10 @@ interface Props {
   machine: Machine;
   path: string;
   branch: string | null;
-  checkouts: string[];
   onOpen: (path: string) => void;
 }
 
-export function BranchMenu({
-  machine,
-  path,
-  branch,
-  checkouts,
-  onOpen,
-}: Props) {
+export function BranchMenu({ machine, path, branch, onOpen }: Props) {
   const [open, setOpen] = useState(false);
   const branches = useQuery({ ...branchesQuery(machine, path), enabled: open });
   const change = useWrite(machine, "Could not switch branch");
@@ -73,7 +66,6 @@ export function BranchMenu({
             item={item}
             current={item.name === branch}
             here={path}
-            checkouts={checkouts}
             onSwitch={() => {
               change.mutate((client) =>
                 client.call("checkouts.switch", { path, branch: item.name }),
@@ -91,24 +83,13 @@ interface ItemProps {
   item: Branch;
   current: boolean;
   here: string;
-  checkouts: string[];
   onSwitch: () => void;
   onOpen: (path: string) => void;
 }
 
-function BranchItem({
-  item,
-  current,
-  here,
-  checkouts,
-  onSwitch,
-  onOpen,
-}: ItemProps) {
+function BranchItem({ item, current, here, onSwitch, onOpen }: ItemProps) {
   const elsewhere =
     item.worktree && !samePath(item.worktree, here) ? item.worktree : null;
-  const shown = elsewhere
-    ? checkouts.find((checkout) => samePath(checkout, elsewhere))
-    : undefined;
   const detail = elsewhere
     ? `In worktree ${folderName(elsewhere)}`
     : item.remote
@@ -117,10 +98,10 @@ function BranchItem({
 
   return (
     <DropdownMenuItem
-      disabled={current || (elsewhere !== null && !shown)}
+      disabled={current}
       onClick={() => {
-        if (shown) {
-          onOpen(shown);
+        if (elsewhere) {
+          onOpen(elsewhere);
           return;
         }
         onSwitch();

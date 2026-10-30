@@ -164,7 +164,7 @@ export function LivePlot({ points, span, height, label, format }: Props) {
         )}
         {hovered && cursor !== undefined && (
           <div
-            className="pointer-events-none absolute top-0 flex flex-col gap-1 rounded-lg bg-popover px-3 py-2 text-popover-foreground shadow-surface-3"
+            className="pointer-events-none absolute top-0 flex flex-col gap-2 rounded-lg bg-popover p-2 text-popover-foreground shadow-surface-3"
             style={{
               left: cursor + TIP + 12 > plot ? cursor - TIP - 12 : cursor + 12,
               width: TIP,

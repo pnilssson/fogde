@@ -21,6 +21,7 @@ export function usePlan(
 
   return {
     canOpen,
+    base,
     sync: syncOf(checkout),
     next: nextStep(checkout, hasPull, canOpen),
   };

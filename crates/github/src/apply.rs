@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::process::Stdio;
 
+use protocol::github::MergeMethod;
 use protocol::repos::Repo;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -11,6 +12,9 @@ use crate::gh::{Gh, failure, spawn_error};
 
 const READY: &str = "mutation($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { clientMutationId } }";
 const DRAFT: &str = "mutation($id: ID!) { convertPullRequestToDraft(input: { pullRequestId: $id }) { clientMutationId } }";
+
+const AUTO: &str = "mutation($id: ID!, $method: PullRequestMergeMethod!) { enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: $method }) { clientMutationId } }";
+const MANUAL: &str = "mutation($id: ID!) { disablePullRequestAutoMerge(input: { pullRequestId: $id }) { clientMutationId } }";
 
 #[derive(Deserialize)]
 struct Created {
@@ -40,6 +44,31 @@ impl Gh {
         let mutation = if draft { DRAFT } else { READY };
 
         self.graphql::<Value>(&host, mutation, json!({ "id": id }))
+            .await
+            .map(drop)
+    }
+
+    pub async fn set_auto_merge(
+        &self,
+        repo: &Repo,
+        id: &str,
+        method: Option<MergeMethod>,
+    ) -> Result<(), Error> {
+        let host = checked(repo)?;
+        let Some(method) = method else {
+            return self
+                .graphql::<Value>(&host, MANUAL, json!({ "id": id }))
+                .await
+                .map(drop);
+        };
+
+        let method = match method {
+            MergeMethod::Merge => "MERGE",
+            MergeMethod::Squash => "SQUASH",
+            MergeMethod::Rebase => "REBASE",
+        };
+
+        self.graphql::<Value>(&host, AUTO, json!({ "id": id, "method": method }))
             .await
             .map(drop)
     }

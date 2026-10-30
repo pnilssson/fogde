@@ -45,6 +45,13 @@ pub struct DraftParams {
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
+pub struct AutoMergeParams {
+    pub repo: Repo,
+    pub id: String,
+    pub method: Option<MergeMethod>,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
 pub struct StateParams {
     pub repo: Repo,
     pub number: u32,
@@ -137,6 +144,14 @@ pub struct UpdateBranch;
 impl Method for UpdateBranch {
     const NAME: &'static str = "github.updateBranch";
     type Params = ItemParams;
+    type Result = ();
+}
+
+pub struct SetAutoMerge;
+
+impl Method for SetAutoMerge {
+    const NAME: &'static str = "github.setAutoMerge";
+    type Params = AutoMergeParams;
     type Result = ();
 }
 

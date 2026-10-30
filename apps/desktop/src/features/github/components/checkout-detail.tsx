@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { DiffView } from "@/features/github/components/diff-view";
+import { LandedCard } from "@/features/github/components/landed-card";
 import { NewPull } from "@/features/github/components/new-pull";
 import { PullCard } from "@/features/github/components/pull-card";
 import { usePlan } from "@/features/github/hooks/use-plan";
@@ -13,10 +14,19 @@ interface Props {
   machine: Machine;
   checkout: CheckoutStatus;
   pull: Entry | undefined;
+  merged: Entry | undefined;
+  linked: boolean;
   online: boolean;
 }
 
-export function CheckoutDetail({ machine, checkout, pull, online }: Props) {
+export function CheckoutDetail({
+  machine,
+  checkout,
+  pull,
+  merged,
+  linked,
+  online,
+}: Props) {
   const [opening, setOpening] = useState(false);
   const { path, repo, branch } = checkout;
   const { canOpen, next } = usePlan(
@@ -28,7 +38,15 @@ export function CheckoutDetail({ machine, checkout, pull, online }: Props) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      {online && branch && (
+      {online && !pull && merged && (
+        <LandedCard
+          machine={machine}
+          checkout={checkout}
+          entry={merged}
+          linked={linked}
+        />
+      )}
+      {online && branch && (pull !== undefined || merged === undefined) && (
         <PullCard
           branch={branch}
           pull={pull}
@@ -49,7 +67,6 @@ export function CheckoutDetail({ machine, checkout, pull, online }: Props) {
       <DiffView
         machine={machine}
         path={path}
-        branch={branch}
         uncommitted={checkout.files.length}
       />
       {repo && branch && (
@@ -58,6 +75,7 @@ export function CheckoutDetail({ machine, checkout, pull, online }: Props) {
           repo={repo}
           path={path}
           branch={branch}
+          unpushed={checkout.upstream === null || checkout.ahead > 0}
           open={opening}
           onOpenChange={setOpening}
           onCreated={(number) => {

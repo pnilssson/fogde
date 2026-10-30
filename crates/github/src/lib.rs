@@ -7,6 +7,7 @@ mod error;
 mod gh;
 mod install;
 mod list;
+mod logs;
 mod remote;
 mod repo;
 mod signin;

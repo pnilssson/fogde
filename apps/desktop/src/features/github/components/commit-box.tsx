@@ -3,11 +3,6 @@ import { useId } from "react";
 
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { ActionButton } from "@/features/github/components/action-button";
 import { useWrite } from "@/features/github/hooks/use-write";
 import { ago } from "@/features/github/lib/scope";
@@ -43,7 +38,7 @@ export function CommitBox({ machine, checkout, chosen }: Props) {
               value={message}
               placeholder="Commit message"
               rows={1}
-              className="max-h-40 min-h-8 py-1"
+              className="max-h-40 min-h-8 py-2"
               onChange={(event) => {
                 setDraft(draft, event.target.value);
               }}
@@ -86,20 +81,12 @@ function LastCommit({ machine, checkout }: Omit<Props, "chosen">) {
 
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <Tooltip>
-        <TooltipTrigger
-          render={<span className="min-w-0 flex-1 truncate type-body" />}
-        >
-          {last.subject}
-          <span className="sr-only">
-            , committed {ago(last.date)}, not pushed yet
-          </span>
-        </TooltipTrigger>
-        <TooltipContent className="flex-col items-start">
-          <span>{last.subject}</span>
-          <span>Committed {ago(last.date)}, not pushed yet</span>
-        </TooltipContent>
-      </Tooltip>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate type-body">{last.subject}</span>
+        <span className="truncate type-caption text-muted-foreground">
+          Committed {ago(last.date)}, not pushed yet
+        </span>
+      </div>
       <ActionButton
         variant="ghost"
         label="Undo"

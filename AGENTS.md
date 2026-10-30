@@ -9,12 +9,12 @@ Before changing the frontend, read `apps/desktop/AGENTS.md`; before changing Rus
 - Add dependencies, tools and GitHub Actions at their latest stable version; pin actions to a full commit SHA with the version in a comment.
 
 ## Working rules
-- Never start the development environment or run visual checks unless asked; the user runs and tests the app.
+- Never start the development environment or run visual checks unless asked; the user runs `just dev`, which also rebuilds and deploys the server host, and restarts it after Rust changes.
 - Run `just check` before committing or pushing and fix what it finds. Add an `#[allow]`, lint override, ignore entry or lower threshold only after the user agrees.
 - Allow permissive and file-level copyleft licenses (BSD, ISC, Zlib, MPL-2.0) in cargo-deny without asking; ask before GPL, LGPL, AGPL or other strong copyleft.
 - Leave changes uncommitted until the user asks. Work on `main`, without branches or pull requests unless asked.
 - Never hand-edit generated files; change the source and regenerate.
-- These files hold only rules an agent would otherwise get wrong and no check enforces. Product and design decisions go in the Fogde notes. When a rule changes, replace the old one; add a new one only when the user asks.
+- These files hold only rules an agent would otherwise get wrong and no check enforces. Product and design decisions go in the Fogde notes; when a change reverses or replaces a decision recorded there, update that note in the same change. When a rule changes, replace the old one; add a new one only when the user asks.
 
 ## Code
 - Prefer concise names, one word where it reads well.
@@ -31,4 +31,5 @@ Before changing the frontend, read `apps/desktop/AGENTS.md`; before changing Rus
 
 ## Security
 - Drive the unmodified official CLI of each agent and of GitHub (`gh`), and let users sign in through each CLI's own flow. Never read, store, log, sync or forward their credentials, or the files where those CLIs keep them.
+- Read agent files only by name, never a folder's contents (listing names to find a session file is fine), and never `config.json`, `auth.json`, `.credentials.json` or `*.key` (Claude keeps `<pid>.<hash>.key` beside each `sessions/<pid>.json`). Keep only the values needed, and never log a transcript's content.
 - Keep secrets only in the OS keychain, never in files, logs or error messages.

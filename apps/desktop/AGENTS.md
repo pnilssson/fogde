@@ -18,7 +18,7 @@
 
 ## Motion
 
-- Animate only a change of state or place. Never animate keyboard-triggered actions or anything used many times a day; hover changes colour only.
+- Animate only a change of state or place, or an ongoing state as a slow opacity pulse kept in step across rows. Never animate keyboard-triggered actions or anything used many times a day; hover changes colour only.
 - Animate only `transform` and `opacity`: ease-out to enter and leave, ease-in-out to move, never ease-in. Use the shared ease-out token and shadcn/ui's transitions as published.
 - Stay under 300 ms: tooltips 125–200 ms, menus 150–250 ms, dialogs at most 300 ms, exits faster than entries. Enter from `scale-95` and `opacity-0`, never `scale-0`; popovers grow from their trigger.
 - Prefer CSS transitions; use `motion/react` only for layout, presence and gestures. With reduced motion, keep fades and drop movement.

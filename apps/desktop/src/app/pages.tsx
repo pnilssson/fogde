@@ -46,7 +46,7 @@ export function Pages({ groups, workspace }: Props) {
 
   if (page === "settings") {
     return (
-      <FullPage title="Settings">
+      <FullPage title="Settings" onClose={showTiles}>
         <SettingsView />
       </FullPage>
     );
@@ -114,7 +114,7 @@ function NotesPage(picker: FrameProps) {
   );
 
   return (
-    <FullPage title="Notes">
+    <FullPage title="Notes" onClose={showTiles}>
       <NotesView
         machine={machine}
         note={note}

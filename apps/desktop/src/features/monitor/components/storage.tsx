@@ -41,7 +41,7 @@ export function Storage({ machine, workspaces, disk }: Props) {
   return (
     <section className="flex flex-col gap-2" aria-labelledby={heading}>
       <div className="flex items-baseline gap-2">
-        <h2 id={heading} className="type-title">
+        <h2 id={heading} className="type-caption text-muted-foreground">
           Storage
         </h2>
         {disk && (

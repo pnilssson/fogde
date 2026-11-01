@@ -5,6 +5,7 @@ import {
 import { type ReactNode, useState } from "react";
 
 import { Layer, SideScroll } from "@/components/frame";
+import { PageBar } from "@/components/page-bar";
 import { PageShell } from "@/components/shell";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -107,8 +108,13 @@ export function SettingsView() {
         </Layer>
       }
     >
+      <PageBar>
+        <span className="flex-1" />
+      </PageBar>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-4 p-4">{content}</div>
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-2 pb-2">
+          {content}
+        </div>
       </ScrollArea>
     </PageShell>
   );

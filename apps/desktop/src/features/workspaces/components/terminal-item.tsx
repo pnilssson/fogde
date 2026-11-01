@@ -32,6 +32,7 @@ export function TerminalItem({
       icon={<TerminalIcon agent={terminal.agent} />}
       label={terminal.name}
       status={terminal.status}
+      since={terminal.active ?? undefined}
       closable={close.closable}
       onSelect={onSelect}
       onArrange={onArrange}

@@ -38,10 +38,6 @@ export function useShownNote(machine: string) {
   return useStore(pages, ({ notes }) => notes[machine]);
 }
 
-export function isFull(page: Page | undefined) {
-  return page !== undefined && page !== "monitor";
-}
-
 export function openPage(page: Page, machine?: string) {
   pages.setState(machine === undefined ? { page } : { page, machine });
 }

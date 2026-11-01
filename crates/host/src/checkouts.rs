@@ -198,13 +198,37 @@ impl Handler for Fetch {
 }
 
 impl Handler for GetDiff {
-    async fn handle(_: &Session, params: DiffParams) -> Result<Diff, Failure> {
-        let root = root(&params.path).await?;
-        let scope = match params.scope {
-            DiffScope::Uncommitted => git::Scope::Uncommitted,
-            DiffScope::Branch => git::Scope::Branch,
+    async fn handle(session: &Session, params: DiffParams) -> Result<Diff, Failure> {
+        let diff = match params.scope {
+            DiffScope::Turn => {
+                let turn = match params.terminal {
+                    Some(terminal) => {
+                        session
+                            .shared
+                            .tracker
+                            .turn(&session.shared.turns(), &terminal)
+                            .await
+                    }
+                    None => None,
+                };
+                match turn {
+                    Some(diff) => diff.map_err(failure)?,
+                    None => git::Diff {
+                        base: None,
+                        files: Vec::new(),
+                        truncated: false,
+                    },
+                }
+            }
+            DiffScope::Uncommitted => {
+                git::diff(&root(&params.path).await?, git::Scope::Uncommitted)
+                    .await
+                    .map_err(failure)?
+            }
+            DiffScope::Branch => git::diff(&root(&params.path).await?, git::Scope::Branch)
+                .await
+                .map_err(failure)?,
         };
-        let diff = git::diff(&root, scope).await.map_err(failure)?;
 
         Ok(Diff {
             base: diff.base,

@@ -1,10 +1,13 @@
 use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use futures_util::future::join_all;
 use herdr_client::{Client, Error, Pane, Subscription, Workspace};
 use protocol::terminals::{Changes, TerminalState};
+
+use super::turns::Turns;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{Notify, broadcast};
 
@@ -40,6 +43,13 @@ pub struct Tracker {
     views: Mutex<HashMap<u64, String>>,
     viewed: Notify,
     counted: Notify,
+    turns: Arc<Turns>,
+}
+
+struct Update {
+    seen: Vec<String>,
+    clearing: Vec<String>,
+    started: Vec<(String, PathBuf)>,
 }
 
 impl Default for Tracker {
@@ -53,6 +63,7 @@ impl Default for Tracker {
             views: Mutex::default(),
             viewed: Notify::new(),
             counted: Notify::new(),
+            turns: Arc::default(),
         }
     }
 }
@@ -122,9 +133,19 @@ impl Tracker {
         self.counted.notify_one();
     }
 
-    pub async fn run(self: Arc<Self>, client: Client) {
+    pub async fn turn(
+        &self,
+        store: &Path,
+        terminal: &str,
+    ) -> Option<Result<git::Diff, git::Error>> {
+        self.turns.diff(store, terminal).await
+    }
+
+    pub async fn run(self: Arc<Self>, client: Client, store: PathBuf) {
+        Turns::clear(&store).await;
+
         loop {
-            if let Err(error) = self.follow(&client).await {
+            if let Err(error) = self.follow(&client, &store).await {
                 tracing::warn!(%error, "lost Herdr's agent states");
             }
 
@@ -132,7 +153,7 @@ impl Tracker {
         }
     }
 
-    async fn follow(&self, client: &Client) -> Result<(), Error> {
+    async fn follow(&self, client: &Client, store: &Path) -> Result<(), Error> {
         let mut lifecycle = client.subscribe(&LIFECYCLE).await?;
         let mut panes = Vec::new();
         let mut statuses = client.subscribe(&[]).await?;
@@ -140,7 +161,7 @@ impl Tracker {
         resync.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
         loop {
-            let current = self.sync(client).await?;
+            let current = self.sync(client, store).await?;
             if current != panes {
                 statuses = client.subscribe(&watching(&current)).await?;
                 panes = current;
@@ -157,10 +178,18 @@ impl Tracker {
         }
     }
 
-    async fn sync(&self, client: &Client) -> Result<Vec<String>, Error> {
+    async fn sync(&self, client: &Client, store: &Path) -> Result<Vec<String>, Error> {
         let (workspaces, panes) = tokio::try_join!(client.workspaces(), client.panes())?;
         self.read_branches(&panes).await;
-        let (seen, clearing) = self.update(&workspaces, &panes);
+        let Update {
+            seen,
+            clearing,
+            started,
+        } = self.update(&workspaces, &panes);
+
+        self.turns
+            .keep(&lock(&self.states).keys().collect::<Vec<_>>());
+        self.turns.begin(store, started);
 
         for pane in clearing {
             if let Err(error) = client.focus_pane(&pane).await {
@@ -186,7 +215,7 @@ impl Tracker {
         lock(&self.git).branches = branches;
     }
 
-    fn update(&self, workspaces: &[Workspace], panes: &[Pane]) -> (Vec<String>, Vec<String>) {
+    fn update(&self, workspaces: &[Workspace], panes: &[Pane]) -> Update {
         let viewed = self.viewed();
         let git = lock(&self.git).clone();
         let models = lock(&self.models).clone();
@@ -195,6 +224,7 @@ impl Tracker {
         let mut next = HashMap::new();
         let mut seen = Vec::new();
         let mut clearing = Vec::new();
+        let mut started = Vec::new();
 
         for workspace in workspaces {
             let Some(pane) = panes.iter().find(|pane| pane.workspace == workspace.id) else {
@@ -217,6 +247,11 @@ impl Tracker {
             if looking && pane.status == herdr_client::Status::Done {
                 clearing.push(pane.id.clone());
             }
+            if Turns::begins(before.as_ref(), &state)
+                && let Some(folder) = &pane.cwd
+            {
+                started.push((state.id.clone(), folder.clone()));
+            }
 
             seen.push(pane.id.clone());
             if before.as_ref() != Some(&state) {
@@ -228,7 +263,11 @@ impl Tracker {
         *states = next;
         seen.sort();
 
-        (seen, clearing)
+        Update {
+            seen,
+            clearing,
+            started,
+        }
     }
 
     pub(super) fn watched(&self) -> bool {

@@ -1,5 +1,4 @@
 import { Progress } from "@base-ui/react/progress";
-import { useEffect, useState } from "react";
 
 import { AgentIcon } from "@/components/agent-icon";
 import { Button } from "@/components/ui/button";
@@ -10,11 +9,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useUsage } from "@/features/usage/hooks/use-usage";
+import { useNow } from "@/hooks/use-now";
 import type { Agent, Span, Window } from "@/generated/protocol";
 import { agents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
 
-const TICK = 30_000;
 const SESSION = 5 * 60 * 60_000;
 
 const spans: Record<Span, string> = {
@@ -93,22 +92,6 @@ function Meter({ agent, windows, shown, now }: MeterProps) {
       </TooltipContent>
     </Tooltip>
   );
-}
-
-function useNow() {
-  const [now, setNow] = useState(Date.now);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(Date.now());
-    }, TICK);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
-
-  return now;
 }
 
 function describe(window: Window, now: number) {

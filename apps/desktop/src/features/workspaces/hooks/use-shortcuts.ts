@@ -12,7 +12,7 @@ import {
 } from "@/features/workspaces/lib/selection";
 import { focusTile } from "@/features/workspaces/lib/tile-focus";
 import { openStart } from "@/features/workspaces/lib/opening";
-import { revealNext } from "@/features/workspaces/lib/tiles";
+import { revealNext, toggleZoom } from "@/features/workspaces/lib/tiles";
 import { leavePage, openPage } from "@/lib/page";
 import { arrowSide, pressed, shortcuts, tileNumber } from "@/lib/shortcuts";
 
@@ -79,6 +79,14 @@ function actionFor(event: KeyboardEvent, { groups, workspace }: Context) {
 
   if (pressed(event, shortcuts.close)) {
     return closeActive;
+  }
+
+  if (pressed(event, shortcuts.zoom)) {
+    return () => {
+      leavePage(() => {
+        toggleZoom();
+      });
+    };
   }
 
   if (pressed(event, shortcuts.tile)) {

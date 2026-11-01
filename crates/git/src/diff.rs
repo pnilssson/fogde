@@ -1,12 +1,13 @@
 mod parse;
 
+use std::ffi::OsStr;
 use std::path::Path;
 
 use tokio::fs;
 
 use crate::Error;
 use crate::changes::{binary, remote_head};
-use crate::run::{git, git_with_input};
+use crate::run::{git, git_env, git_with_input};
 use crate::status::{Change, status};
 
 const FILE_LIMIT: usize = 512 * 1024;
@@ -39,37 +40,30 @@ pub struct FileDiff {
     pub large: bool,
 }
 
+const ARGS: [&str; 16] = [
+    "-c",
+    "core.quotePath=false",
+    "-c",
+    "diff.noprefix=false",
+    "-c",
+    "diff.mnemonicPrefix=false",
+    "--no-optional-locks",
+    "diff",
+    "--no-color",
+    "--no-ext-diff",
+    "--no-textconv",
+    "--no-relative",
+    "--find-renames",
+    "--unified=3",
+    "--src-prefix=a/",
+    "--dst-prefix=b/",
+];
+
 pub async fn diff(root: &Path, scope: Scope) -> Result<Diff, Error> {
     let (start, base) = start(root, scope).await?;
-    let output = git(
-        root,
-        [
-            "-c",
-            "core.quotePath=false",
-            "-c",
-            "diff.noprefix=false",
-            "-c",
-            "diff.mnemonicPrefix=false",
-            "--no-optional-locks",
-            "diff",
-            "--no-color",
-            "--no-ext-diff",
-            "--no-textconv",
-            "--no-relative",
-            "--find-renames",
-            "--unified=3",
-            "--src-prefix=a/",
-            "--dst-prefix=b/",
-            &start,
-            "--",
-        ],
-    )
-    .await?;
+    let output = git(root, ARGS.iter().copied().chain([start.as_str(), "--"])).await?;
 
-    let mut chunks: Vec<(parse::Chunk, bool)> = parse::split(&String::from_utf8_lossy(&output))
-        .into_iter()
-        .map(|chunk| (chunk, false))
-        .collect();
+    let mut chunks = chunks(&output);
     let (added, left_out) = untracked(root).await?;
     chunks.extend(added);
     chunks.sort_by(|(a, _), (b, _)| a.path.cmp(&b.path));
@@ -78,6 +72,24 @@ pub async fn diff(root: &Path, scope: Scope) -> Result<Diff, Error> {
     diff.truncated |= left_out;
 
     Ok(diff)
+}
+
+pub(crate) async fn between(
+    root: &Path,
+    from: &str,
+    to: &str,
+    env: &[(&str, &OsStr)],
+) -> Result<Diff, Error> {
+    let output = git_env(root, ARGS.iter().copied().chain([from, to, "--"]), env).await?;
+
+    Ok(limit(None, chunks(&output)))
+}
+
+fn chunks(output: &[u8]) -> Vec<(parse::Chunk, bool)> {
+    parse::split(&String::from_utf8_lossy(output))
+        .into_iter()
+        .map(|chunk| (chunk, false))
+        .collect()
 }
 
 async fn start(root: &Path, scope: Scope) -> Result<(String, Option<String>), Error> {

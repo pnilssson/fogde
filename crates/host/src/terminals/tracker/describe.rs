@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use herdr_client::{Pane, Workspace};
 use protocol::agents::Agent;
 use protocol::terminals::{Status, TerminalState};
@@ -28,6 +30,7 @@ pub(super) fn describe(
         .and_then(|pane| pane.cwd.as_ref())
         .map(|cwd| cwd.display().to_string())
         .unwrap_or_default();
+    let status = status(herdr, previous.map(|state| state.status), viewed);
 
     TerminalState {
         id: workspace.id.clone(),
@@ -36,7 +39,8 @@ pub(super) fn describe(
         model: model
             .filter(|model| Some(model.agent) == agent)
             .and_then(|model| model.name.clone()),
-        status: status(herdr, previous.map(|state| state.status), viewed),
+        status,
+        active: active(status, previous, now()),
         branch: git.branches.get(&folder).cloned().flatten(),
         changes: git.changes.get(&folder).cloned(),
         folder,
@@ -78,4 +82,21 @@ pub(super) fn status(
         Herdr::Idle if matches!(previous, Some(Status::Working | Status::Done)) => Status::Done,
         Herdr::Idle | Herdr::Unknown => Status::Idle,
     }
+}
+
+pub(super) fn active(status: Status, previous: Option<&TerminalState>, now: i64) -> Option<i64> {
+    let before = previous.map(|state| state.status);
+    if before != Some(status) && (status == Status::Working || before == Some(Status::Working)) {
+        return Some(now);
+    }
+
+    previous.and_then(|state| state.active)
+}
+
+fn now() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|elapsed| i64::try_from(elapsed.as_secs()).ok())
+        .unwrap_or_default()
 }

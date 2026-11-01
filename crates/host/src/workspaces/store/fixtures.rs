@@ -10,6 +10,7 @@ pub fn terminal(id: &str, folder: &str) -> Terminal {
         agent: None,
         model: None,
         status: protocol::terminals::Status::Idle,
+        active: None,
         folder: folder.to_owned(),
         branch: None,
         changes: None,

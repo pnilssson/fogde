@@ -60,6 +60,10 @@
   box-shadow: var(--shadow-2);
 }
 
+.dockview-theme-fogde .dv-groupview.dv-active-group {
+  background-image: linear-gradient(var(--surface-2), var(--surface-2));
+}
+
 .terminal-view .xterm-viewport {
   overflow: hidden;
   background-color: transparent;

@@ -18,6 +18,8 @@ pub struct Terminal {
     pub agent: Option<Agent>,
     pub model: Option<String>,
     pub status: Status,
+    #[ts(type = "number | null")]
+    pub active: Option<i64>,
     pub folder: String,
     pub branch: Option<String>,
     pub changes: Option<Changes>,
@@ -40,6 +42,8 @@ pub struct TerminalState {
     pub agent: Option<Agent>,
     pub model: Option<String>,
     pub status: Status,
+    #[ts(type = "number | null")]
+    pub active: Option<i64>,
     pub folder: String,
     pub branch: Option<String>,
     pub changes: Option<Changes>,

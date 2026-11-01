@@ -7,6 +7,7 @@ export const shortcuts = {
   close: "W",
   path: "P",
   settings: ",",
+  zoom: "Enter",
 } as const;
 
 export const arrows = [
@@ -33,7 +34,11 @@ export function pressed(event: KeyboardEvent, key: string) {
 }
 
 function code(key: string) {
-  return key === "," ? "Comma" : `Key${key}`;
+  if (key === ",") {
+    return "Comma";
+  }
+
+  return key === "Enter" ? key : `Key${key}`;
 }
 
 export function tileNumber(event: KeyboardEvent) {

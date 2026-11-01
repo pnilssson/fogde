@@ -66,9 +66,9 @@ export type Detail = { id: string, number: number, title: string, url: string, s
 
 export type Diff = { base: string | null, files: Array<FileDiff>, truncated: boolean, };
 
-export type DiffParams = { path: string, scope: DiffScope, };
+export type DiffParams = { path: string, scope: DiffScope, terminal: string | null, };
 
-export type DiffScope = "uncommitted" | "branch";
+export type DiffScope = "turn" | "uncommitted" | "branch";
 
 export type Disk = { free: number, total: number, };
 
@@ -224,7 +224,7 @@ export type Status = "idle" | "working" | "blocked" | "done";
 
 export type SwitchParams = { path: string, branch: string, };
 
-export type Terminal = { id: string, name: string, agent: Agent | null, model: string | null, status: Status, folder: string, branch: string | null, changes: Changes | null, checkout: string | null, };
+export type Terminal = { id: string, name: string, agent: Agent | null, model: string | null, status: Status, active: number | null, folder: string, branch: string | null, changes: Changes | null, checkout: string | null, };
 
 export type TerminalEnded = { id: string, error: string | null, };
 
@@ -238,7 +238,7 @@ export type TerminalKeyParams = { id: string, key: Key, };
 
 export type TerminalScrolled = { id: string, offset: number, max: number, rows: number, };
 
-export type TerminalState = { id: string, name: string, agent: Agent | null, model: string | null, status: Status, folder: string, branch: string | null, changes: Changes | null, };
+export type TerminalState = { id: string, name: string, agent: Agent | null, model: string | null, status: Status, active: number | null, folder: string, branch: string | null, changes: Changes | null, };
 
 export type TextPoint = { row: number, column: number, };
 

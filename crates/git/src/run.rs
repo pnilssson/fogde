@@ -12,7 +12,16 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
+    git_env(repo, args, &[]).await
+}
+
+pub async fn git_env<I, S>(repo: &Path, args: I, env: &[(&str, &OsStr)]) -> Result<Vec<u8>, Error>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
     let output = command(repo, args)
+        .envs(env.iter().copied())
         .stdin(Stdio::null())
         .output()
         .await

@@ -66,6 +66,7 @@ pub struct CommitParams {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum DiffScope {
+    Turn,
     Uncommitted,
     Branch,
 }
@@ -74,6 +75,7 @@ pub enum DiffScope {
 pub struct DiffParams {
     pub path: String,
     pub scope: DiffScope,
+    pub terminal: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]

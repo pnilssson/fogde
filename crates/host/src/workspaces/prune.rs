@@ -110,6 +110,7 @@ mod tests {
             agent: None,
             model: None,
             status,
+            active: None,
             folder: "/repos/app".to_owned(),
             branch: None,
             changes: None,

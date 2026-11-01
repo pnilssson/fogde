@@ -16,7 +16,7 @@ export function Threads({ threads }: { threads: Thread[] }) {
 
   return (
     <section aria-labelledby={id} className="flex flex-col gap-2">
-      <h3 id={id} className="type-title">
+      <h3 id={id} className="type-caption text-muted-foreground">
         {threads.length === 1
           ? "1 unresolved conversation"
           : `${String(threads.length)} unresolved conversations`}

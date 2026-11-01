@@ -19,12 +19,28 @@ interface Props {
   title: string;
   model?: string | null | undefined;
   onClose?: (() => void) | undefined;
+  onZoom?: (() => void) | undefined;
 }
 
-export function TileBar({ item, active, icon, title, model, onClose }: Props) {
+export function TileBar({
+  item,
+  active,
+  icon,
+  title,
+  model,
+  onClose,
+  onZoom,
+}: Props) {
   return (
     <Bar
       {...(item ? dragProps(item) : {})}
+      onDoubleClick={(event) => {
+        if (event.target instanceof Element && event.target.closest("button")) {
+          return;
+        }
+
+        onZoom?.();
+      }}
       className={cn(
         "@container font-mono type-caption",
         item && "cursor-grab active:cursor-grabbing",

@@ -173,6 +173,19 @@ export function revealNext(groups: Parameters<typeof nextWaiting>[0]) {
   }
 }
 
+export function toggleZoom(panel = current?.activePanel?.api) {
+  if (!panel) {
+    return;
+  }
+
+  if (panel.isMaximized()) {
+    panel.exitMaximized();
+    return;
+  }
+
+  panel.maximize();
+}
+
 export function activate(panel: DockviewPanelApi) {
   panel.group.api.setActive();
 }

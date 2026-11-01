@@ -2,7 +2,7 @@ use herdr_client::Status as Herdr;
 use protocol::agents::Agent;
 use protocol::terminals::Status;
 
-use super::describe::status;
+use super::describe::{active, status};
 use super::*;
 
 #[test]
@@ -66,6 +66,7 @@ async fn a_session_that_falls_behind_gets_every_current_state() {
             agent: None,
             model: None,
             status: Status::Working,
+            active: None,
             folder: "/repos/app".into(),
             branch: Some("main".into()),
             changes: None,
@@ -212,4 +213,66 @@ async fn an_agent_whose_processes_cannot_be_read_waits_for_its_next_status() {
             .get("w1")
             .is_some_and(|model| model.name.is_none())
     );
+}
+
+#[test]
+fn an_agent_is_active_when_it_starts_or_stops_working() {
+    let idle = sample(Status::Idle, None);
+    let working = sample(Status::Working, active(Status::Working, Some(&idle), 100));
+    let done = sample(Status::Done, active(Status::Done, Some(&working), 160));
+    let seen = active(Status::Idle, Some(&done), 900);
+
+    assert_eq!(working.active, Some(100));
+    assert_eq!(done.active, Some(160));
+    assert_eq!(seen, Some(160));
+}
+
+#[test]
+fn an_idle_shell_has_no_activity() {
+    assert_eq!(active(Status::Idle, None, 100), None);
+    assert_eq!(
+        active(Status::Idle, Some(&sample(Status::Idle, None)), 200),
+        None
+    );
+}
+
+fn sample(status: Status, active: Option<i64>) -> TerminalState {
+    TerminalState {
+        id: "w1".into(),
+        name: "Claude".into(),
+        agent: Some(Agent::Claude),
+        model: None,
+        status,
+        active,
+        folder: "/repos/app".into(),
+        branch: Some("main".into()),
+        changes: None,
+    }
+}
+
+#[test]
+fn a_turn_starts_with_a_prompt_and_not_after_a_permission_answer() {
+    let tracker = Tracker::default();
+    let claude = workspace("Claude");
+    let started = [
+        Herdr::Idle,
+        Herdr::Working,
+        Herdr::Blocked,
+        Herdr::Working,
+        Herdr::Idle,
+        Herdr::Working,
+    ]
+    .map(|status| {
+        let pane = Pane {
+            status,
+            cwd: Some("/repos/app".into()),
+            ..pane(Some("claude"))
+        };
+        tracker
+            .update(std::slice::from_ref(&claude), &[pane])
+            .started
+            .len()
+    });
+
+    assert_eq!(started, [0, 1, 0, 0, 0, 1]);
 }

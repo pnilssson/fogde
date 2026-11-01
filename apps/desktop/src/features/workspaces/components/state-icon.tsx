@@ -1,5 +1,6 @@
 import { cn } from "cn";
 
+import { Spinner } from "@/components/ui/spinner";
 import type { Status } from "@/generated/protocol";
 
 interface Props {
@@ -7,26 +8,31 @@ interface Props {
   className?: string | undefined;
 }
 
-const states: Partial<Record<Status, { label: string; className: string }>> = {
-  working: {
-    label: "Working",
-    className: "bg-warning",
-  },
+const dots: Partial<Record<Status, { label: string; className: string }>> = {
   blocked: { label: "Needs your input", className: "bg-destructive" },
   done: { label: "Finished", className: "bg-success" },
 };
 
 export function StateIcon({ status, className }: Props) {
-  const state = states[status];
-  if (!state) {
+  if (status === "working") {
+    return (
+      <Spinner
+        aria-label="Working"
+        className={cn("size-3 shrink-0 text-muted-foreground", className)}
+      />
+    );
+  }
+
+  const dot = dots[status];
+  if (!dot) {
     return null;
   }
 
   return (
     <span
       role="img"
-      aria-label={state.label}
-      className={cn("size-2 shrink-0 rounded-full", state.className, className)}
+      aria-label={dot.label}
+      className={cn("size-2 shrink-0 rounded-full", dot.className, className)}
     />
   );
 }

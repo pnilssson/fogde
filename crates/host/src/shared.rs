@@ -99,7 +99,7 @@ impl Shared {
             .get_or_try_init(|| async move {
                 let shell = shell::program(self.settings.shell().await.ok().flatten()).await;
                 let herdr = Herdr::start(&self.tools, &home, &shell).await?;
-                tokio::spawn(Arc::clone(&self.tracker).run(herdr.client()));
+                tokio::spawn(Arc::clone(&self.tracker).run(herdr.client(), self.turns()));
                 tokio::spawn(terminals::count(Arc::clone(&self.tracker)));
 
                 Ok(herdr)
@@ -139,6 +139,10 @@ impl Shared {
 
     pub fn worktrees(&self) -> PathBuf {
         self.fogde.join("worktrees")
+    }
+
+    pub fn turns(&self) -> PathBuf {
+        self.fogde.join(".app").join("turns")
     }
 
     pub async fn set_repos(&self, path: PathBuf) -> io::Result<()> {

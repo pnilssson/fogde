@@ -6,6 +6,8 @@ import type {
   Workspace,
 } from "@/generated/protocol";
 
+export const nowhere: Repo = { host: "", owner: "", name: "" };
+
 export interface Entry {
   repo: Repo;
   item: Listed;

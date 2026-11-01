@@ -57,7 +57,7 @@ export function CheckList({ machine, repo, checks }: Props) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2">
-        <h3 className="flex-1 type-title">Checks</h3>
+        <h3 className="flex-1 type-caption text-muted-foreground">Checks</h3>
         {failed.length > 0 && (
           <ActionButton
             label="Re-run failed checks"

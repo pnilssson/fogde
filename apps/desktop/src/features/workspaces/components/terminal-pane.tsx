@@ -8,7 +8,7 @@ import { useClose } from "@/features/workspaces/hooks/use-close";
 import { useActiveClose } from "@/features/workspaces/lib/closing";
 import { useTiles } from "@/features/workspaces/lib/layouts";
 import { TerminalSlot } from "@/features/workspaces/lib/slot";
-import { activate } from "@/features/workspaces/lib/tiles";
+import { activate, toggleZoom } from "@/features/workspaces/lib/tiles";
 import type { Terminal } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
@@ -44,6 +44,9 @@ export function TerminalPane({ panel, machine, terminal }: Props) {
         title={terminal.name}
         model={terminal.model}
         onClose={onClose}
+        onZoom={() => {
+          toggleZoom(panel);
+        }}
       />
       {render({ panel, machine, id: terminal.id })}
       <CloseTerminal

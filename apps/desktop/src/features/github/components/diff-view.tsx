@@ -71,7 +71,7 @@ export function DiffView({ machine, path, uncommitted }: Props) {
           </EmptyHeader>
         </Empty>
       ) : (
-        <Files diff={diff.data} style={style} />
+        <DiffFiles diff={diff.data} style={style} />
       )}
     </section>
   );
@@ -80,9 +80,10 @@ export function DiffView({ machine, path, uncommitted }: Props) {
 interface FilesProps {
   diff: Diff;
   style: "unified" | "split";
+  follow?: boolean;
 }
 
-function Files({ diff, style }: FilesProps) {
+export function DiffFiles({ diff, style, follow = true }: FilesProps) {
   const theme = useTheme();
   const target = useTarget();
   const view = useRef<CodeViewHandle<undefined, undefined>>(null);
@@ -128,7 +129,7 @@ function Files({ diff, style }: FilesProps) {
   );
 
   useEffect(() => {
-    if (!target) {
+    if (!follow || !target) {
       return;
     }
 
@@ -136,13 +137,15 @@ function Files({ diff, style }: FilesProps) {
       view.current?.scrollTo({ type: "item", id: target, align: "start" });
     }
     arrive();
-  }, [target, items]);
+  }, [follow, target, items]);
 
   useEffect(
     () => () => {
-      setShown(undefined);
+      if (follow) {
+        setShown(undefined);
+      }
     },
-    [],
+    [follow],
   );
 
   return (
@@ -152,6 +155,10 @@ function Files({ diff, style }: FilesProps) {
       options={options}
       className="diff min-h-0 flex-1 overflow-auto"
       onScroll={(top, viewer) => {
+        if (!follow) {
+          return;
+        }
+
         const root = viewer.getContainerElement();
         const height = root?.clientHeight ?? 0;
         const remaining = root

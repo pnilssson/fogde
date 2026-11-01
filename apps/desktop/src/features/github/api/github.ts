@@ -70,10 +70,16 @@ export const branchesQuery = (machine: Machine, path: string) =>
     queryFn: () => machine.client.call("checkouts.branches", path),
   });
 
-export const diffQuery = (machine: Machine, path: string, scope: DiffScope) =>
+export const diffQuery = (
+  machine: Machine,
+  path: string,
+  scope: DiffScope,
+  terminal: string | null = null,
+) =>
   queryOptions({
-    queryKey: [machine.id, "checkouts.diff", path, scope],
-    queryFn: () => machine.client.call("checkouts.diff", { path, scope }),
+    queryKey: [machine.id, "checkouts.diff", path, scope, terminal],
+    queryFn: () =>
+      machine.client.call("checkouts.diff", { path, scope, terminal }),
     refetchInterval: refresh,
   });
 

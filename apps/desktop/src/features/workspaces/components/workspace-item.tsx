@@ -26,12 +26,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { BranchStats } from "@/features/workspaces/components/branch-stats";
 import { DeleteWorkspace } from "@/features/workspaces/components/delete-workspace";
 import { NewWorktree } from "@/features/workspaces/components/new-worktree";
-import { StateIcon } from "@/features/workspaces/components/state-icon";
+import { WorkspaceLabel } from "@/features/workspaces/components/workspace-label";
 import { WorkspaceTree } from "@/features/workspaces/components/workspace-tree";
-import { changesOf, mainCheckout } from "@/features/workspaces/lib/checkouts";
+import { mainCheckout } from "@/features/workspaces/lib/checkouts";
 import { setOpen, useOpen } from "@/features/workspaces/lib/layouts";
 import { beforeOf, changes } from "@/features/workspaces/lib/order";
 import {
@@ -41,7 +40,6 @@ import {
   useOverWorkspace,
 } from "@/features/workspaces/lib/reorder";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
-import { attention } from "@/features/workspaces/lib/status";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 import { shortcuts } from "@/lib/shortcuts";
@@ -160,6 +158,7 @@ export function WorkspaceItem({
             render={
               <SidebarMenuButton
                 data-heading
+                size={main?.branch ? "lg" : "default"}
                 {...(down ? {} : reorderProps(place))}
                 isActive={view !== undefined}
                 aria-expanded={open}
@@ -175,23 +174,11 @@ export function WorkspaceItem({
               />
             }
           >
-            <span
-              className={cn(
-                "min-w-0 flex-1 truncate",
-                workspace.missing && "text-muted-foreground",
-              )}
-            >
-              {workspace.name}
-            </span>
-            {main?.branch && (
-              <span className="max-w-1/3 min-w-0 shrink-0 truncate font-mono type-caption text-muted-foreground">
-                {main.branch}
-              </span>
-            )}
-            {main && <BranchStats changes={changesOf(workspace, main)} />}
-            {!open && !down && (
-              <StateIcon status={attention(workspace.terminals)} />
-            )}
+            <WorkspaceLabel
+              workspace={workspace}
+              main={main}
+              status={!open && !down}
+            />
           </ContextMenuTrigger>
           <ContextMenuContent>
             {!workspace.missing && (

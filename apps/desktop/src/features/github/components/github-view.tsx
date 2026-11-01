@@ -14,6 +14,7 @@ import { useReported } from "@/features/github/hooks/use-reported";
 import {
   entriesOf,
   grouped,
+  nowhere,
   pathsOf,
   samePath,
 } from "@/features/github/lib/scope";
@@ -22,7 +23,7 @@ import {
   useChosen,
   useGitHubState,
 } from "@/features/github/lib/state";
-import type { Repo, Workspace } from "@/generated/protocol";
+import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -31,8 +32,6 @@ interface Props {
   wanted: string | undefined;
   picker: ReactNode;
 }
-
-const nowhere: Repo = { host: "", owner: "", name: "" };
 
 export function GitHubView({ machine, workspaces, wanted, picker }: Props) {
   const { tab, closed } = useGitHubState();

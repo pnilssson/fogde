@@ -27,7 +27,7 @@ export function NoteTitle({ name, onRename, onDone }: Props) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-prose pt-8 pb-4 type-note">
+    <div className="mx-auto w-full max-w-2xl pt-8 pb-4 type-note">
       <input
         aria-label="Note name"
         className="w-full truncate bg-transparent type-display outline-none"

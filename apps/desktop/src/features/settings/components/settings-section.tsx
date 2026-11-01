@@ -28,7 +28,10 @@ export function SettingsSection({
     <section className="flex flex-col" aria-labelledby={id}>
       <div className="flex h-8 items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <h2 id={id} className="min-w-0 truncate type-title">
+          <h2
+            id={id}
+            className="min-w-0 truncate type-caption text-muted-foreground"
+          >
             {title}
           </h2>
           {hint && <Hint text={hint} />}

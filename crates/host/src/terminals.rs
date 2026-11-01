@@ -7,6 +7,7 @@ mod launch;
 mod stream;
 mod title;
 mod tracker;
+mod turns;
 
 use std::collections::HashMap;
 use std::future;
@@ -97,6 +98,7 @@ pub async fn list(session: &Session) -> Result<Vec<Terminal>, Failure> {
                 agent: state.agent,
                 model: state.model,
                 status: state.status,
+                active: state.active,
                 folder: state.folder,
                 branch: state.branch,
                 changes: state.changes,
@@ -173,6 +175,7 @@ impl Handler for CreateTerminal {
             agent: params.agent,
             model: None,
             status: Status::Idle,
+            active: None,
             folder: folder.display().to_string(),
             branch: git::branch(&folder).await,
             changes: None,

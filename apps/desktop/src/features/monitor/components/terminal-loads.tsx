@@ -36,7 +36,7 @@ export function TerminalLoads({ samples, workspaces }: Props) {
       aria-labelledby={heading}
     >
       <div className="col-span-full grid grid-cols-subgrid items-baseline pb-2">
-        <h2 id={heading} className="type-title">
+        <h2 id={heading} className="type-caption text-muted-foreground">
           Terminals
         </h2>
         <span className="hidden @sm:block" />

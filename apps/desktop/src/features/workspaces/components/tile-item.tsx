@@ -14,6 +14,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { Since } from "@/features/workspaces/components/since";
 import { StateIcon } from "@/features/workspaces/components/state-icon";
 import {
   dragProps,
@@ -34,6 +35,7 @@ interface Props {
   icon: ReactNode;
   label: string;
   status?: Status | undefined;
+  since?: number | undefined;
   closable: boolean;
   onSelect: () => void;
   onArrange: (tile: string, before: string | null) => void;
@@ -48,6 +50,7 @@ export function TileItem({
   icon,
   label,
   status,
+  since,
   closable,
   onSelect,
   onArrange,
@@ -132,6 +135,7 @@ export function TileItem({
         >
           {icon}
           <span className="min-w-0 flex-1 truncate">{label}</span>
+          {since !== undefined && status !== "working" && <Since at={since} />}
           {status && <StateIcon status={status} />}
         </ContextMenuTrigger>
         <ContextMenuContent>

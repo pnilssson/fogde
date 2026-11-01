@@ -1,11 +1,11 @@
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager};
+
+const CLOSE_TILE: &str = "close-tile";
+const CLOSE_WINDOW: &str = "close-window";
+const QUIT: &str = "quit";
 
 pub fn install(app: &tauri::App) -> tauri::Result<()> {
-    const CLOSE_TILE: &str = "close-tile";
-    const CLOSE_WINDOW: &str = "close-window";
-    const QUIT: &str = "quit";
-
     let handle = app.handle();
     let info = handle.package_info();
     let about = AboutMetadata {
@@ -87,25 +87,28 @@ pub fn install(app: &tauri::App) -> tauri::Result<()> {
     app.set_menu(menu)?;
 
     app.on_menu_event(|app, event| {
-        let id = event.id().as_ref();
-        if id == CLOSE_TILE {
-            if let Err(error) = app.emit(CLOSE_TILE, ()) {
-                tracing::warn!(%error, "could not ask the window to close a tile");
-            }
-        } else if id == CLOSE_WINDOW || id == QUIT {
-            match app.get_webview_window("main") {
-                Some(window) => {
-                    if let Err(error) = window.close() {
-                        tracing::warn!(%error, "could not close the window");
-                    }
-                }
-                None if id == QUIT => {
-                    app.exit(0);
-                }
-                None => {}
-            }
-        }
+        chosen(app, event.id().as_ref());
     });
 
     Ok(())
+}
+
+fn chosen(app: &AppHandle, id: &str) {
+    if id == CLOSE_TILE {
+        if let Err(error) = app.emit(CLOSE_TILE, ()) {
+            tracing::warn!(%error, "could not ask the window to close a tile");
+        }
+    } else if id == CLOSE_WINDOW || id == QUIT {
+        match app.get_webview_window("main") {
+            Some(window) => {
+                if let Err(error) = window.close() {
+                    tracing::warn!(%error, "could not close the window");
+                }
+            }
+            None if id == QUIT => {
+                app.exit(0);
+            }
+            None => {}
+        }
+    }
 }

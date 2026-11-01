@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { toast } from "@/components/ui/toast";
 import { callOwn } from "@/lib/host";
+import { report } from "@/lib/report";
 import { idOf, machinesQuery, type Machine } from "@/lib/machines";
 
 export function useRenameMachine(machine: Machine, onRenamed: () => void) {
@@ -15,11 +15,7 @@ export function useRenameMachine(machine: Machine, onRenamed: () => void) {
       onRenamed();
     },
     onError: (error) => {
-      toast.add({
-        type: "error",
-        title: `Could not rename ${machine.name}`,
-        description: error.message,
-      });
+      report(`Could not rename ${machine.name}`, error);
     },
   });
 }

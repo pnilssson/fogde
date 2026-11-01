@@ -2,7 +2,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import type { Terminal } from "@xterm/xterm";
 
-import { toast } from "@/components/ui/toast";
+import { report } from "@/lib/report";
 
 export function openLinks(terminal: Terminal) {
   const open = (event: MouseEvent, uri: string) => {
@@ -11,11 +11,7 @@ export function openLinks(terminal: Terminal) {
     }
 
     openUrl(uri).catch((error: unknown) => {
-      toast.add({
-        type: "error",
-        title: "Could not open the link",
-        description: error instanceof Error ? error.message : String(error),
-      });
+      report("Could not open the link", error);
     });
   };
 

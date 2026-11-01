@@ -2,6 +2,7 @@ import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { toast } from "@/components/ui/toast";
+import { useConnected } from "@/hooks/use-connected";
 import { agentsQuery } from "@/lib/agents";
 import { ConnectionError } from "@/lib/client";
 import type { Machine } from "@/lib/machines";
@@ -9,28 +10,16 @@ import type { Machine } from "@/lib/machines";
 export function useAgents(machines: Machine[]) {
   const queries = useQueryClient();
 
+  useConnected(machines, (machine) => {
+    load(queries, machine, 0);
+  });
+
   useEffect(() => {
-    const stops = machines.map((machine) => {
-      let state = machine.client.getSnapshot().state;
-      if (state === "connected") {
+    for (const machine of machines) {
+      if (machine.client.getSnapshot().state === "connected") {
         load(queries, machine, Infinity);
       }
-
-      return machine.client.subscribe(() => {
-        const next = machine.client.getSnapshot().state;
-        if (next === "connected" && state !== "connected") {
-          load(queries, machine, 0);
-        }
-
-        state = next;
-      });
-    });
-
-    return () => {
-      for (const stop of stops) {
-        stop();
-      }
-    };
+    }
   }, [machines, queries]);
 }
 

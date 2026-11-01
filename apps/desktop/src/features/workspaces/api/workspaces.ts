@@ -49,12 +49,16 @@ export function applyState(
     return undefined;
   }
 
-  update(queries, machine, (entry) => ({
-    ...entry,
-    terminals: entry.terminals.map((terminal) =>
-      terminal.id === state.id ? { ...terminal, ...state } : terminal,
-    ),
-  }));
+  update(queries, machine, (entry) =>
+    entry.id === workspace.id
+      ? {
+          ...entry,
+          terminals: entry.terminals.map((terminal) =>
+            terminal.id === state.id ? { ...terminal, ...state } : terminal,
+          ),
+        }
+      : entry,
+  );
   if (state.folder !== before.folder) {
     void queries.invalidateQueries(workspacesQuery(machine));
   }

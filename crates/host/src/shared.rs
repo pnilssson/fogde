@@ -13,7 +13,6 @@ use crate::db::Db;
 use crate::monitor::Monitor;
 use crate::notes::Notes;
 use crate::settings::Settings;
-use crate::shell;
 use crate::terminals::codex::{self, Wrap};
 use crate::terminals::{self, Tracker};
 use crate::usage::Meter;
@@ -36,14 +35,14 @@ pub struct Shared {
     codex: Mutex<()>,
     tools: PathBuf,
     gh: OnceCell<Gh>,
-    herdr: OnceCell<Herdr>,
+    herdr: OnceCell<Arc<Herdr>>,
     hosts: std::sync::Mutex<Vec<String>>,
 }
 
 impl Shared {
     pub fn new(binaries: Option<Binaries>, launcher: Option<PathBuf>) -> io::Result<Self> {
         let fogde = fogde()?;
-        let app = fogde.join(".app");
+        let app = app(&fogde)?;
 
         let shared = Self {
             settings: Settings::new(&app),
@@ -92,14 +91,16 @@ impl Shared {
             .clone()
     }
 
-    pub async fn herdr(&self) -> Result<&Herdr, herdr_client::Error> {
-        let home = self.fogde.join(".app").join("herdr");
+    pub async fn herdr(&self) -> Result<&Arc<Herdr>, herdr_client::Error> {
+        let home = self.fogde.join(".app").join("herdr-core");
 
         self.herdr
             .get_or_try_init(|| async move {
-                let shell = shell::program(self.settings.shell().await.ok().flatten()).await;
-                let herdr = Herdr::start(&self.tools, &home, &shell).await?;
-                tokio::spawn(Arc::clone(&self.tracker).run(herdr.client(), self.turns()));
+                let herdr = Arc::new(Herdr::start(&self.tools, &home).await?);
+                tokio::spawn(Arc::clone(&self.tracker).run(Arc::clone(&herdr), self.turns()));
+                if let Ok(stats) = self.settings.stats().await {
+                    self.tracker.set_stats(stats);
+                }
                 tokio::spawn(terminals::count(Arc::clone(&self.tracker)));
 
                 Ok(herdr)
@@ -117,7 +118,7 @@ impl Shared {
         .await
     }
 
-    pub fn running_herdr(&self) -> Option<&Herdr> {
+    pub fn running_herdr(&self) -> Option<&Arc<Herdr>> {
         self.herdr.get()
     }
 
@@ -159,4 +160,39 @@ pub fn fogde() -> io::Result<PathBuf> {
     std::env::home_dir()
         .map(|home| home.join("Fogde"))
         .ok_or_else(|| io::Error::other("could not find the home folder"))
+}
+
+pub fn app(fogde: &Path) -> io::Result<PathBuf> {
+    let app = fogde.join(".app");
+    std::fs::create_dir_all(&app)?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        std::fs::set_permissions(&app, std::fs::Permissions::from_mode(0o700))?;
+    }
+
+    Ok(app)
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::os::unix::fs::PermissionsExt;
+
+    use super::*;
+
+    #[test]
+    fn keeps_the_app_folder_private() {
+        let dir = tempfile::tempdir().unwrap();
+        let fogde = dir.path().join("Fogde");
+        std::fs::create_dir_all(fogde.join(".app")).unwrap();
+        std::fs::set_permissions(fogde.join(".app"), std::fs::Permissions::from_mode(0o755))
+            .unwrap();
+
+        let app = app(&fogde).unwrap();
+
+        let mode = std::fs::metadata(&app).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o700);
+    }
 }

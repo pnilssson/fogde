@@ -1,13 +1,15 @@
 import type { Terminal } from "@xterm/xterm";
 
-import type { Selection } from "@/features/terminals/lib/mouse";
-import type { Key, Platform } from "@/generated/protocol";
+import type { Keyboard } from "@/features/terminals/lib/keyboard";
+import type { Selection } from "@/features/terminals/lib/selection";
+import type { Platform } from "@/generated/protocol";
 import { frame } from "@/lib/frame";
 
 interface Context {
   selection: Selection;
+  keyboard: Keyboard;
   event: KeyboardEvent;
-  send: (key: Key) => void;
+  send: (data: string) => void;
 }
 
 type Action = (context: Context) => boolean;
@@ -15,11 +17,11 @@ type Chords = Partial<Record<string, Action>>;
 
 const modifiers = ["Control", "Alt", "Shift", "Meta"];
 
-function forward(key: Key): Action {
-  return ({ selection, event, send }) => {
+function enter(modifier: "shift" | "control"): Action {
+  return ({ selection, keyboard, event, send }) => {
     if (event.type === "keydown") {
       selection.clear();
-      send(key);
+      send(keyboard.enter(modifier));
     }
 
     return false;
@@ -45,8 +47,8 @@ function copy({ selection, event }: Context) {
 }
 
 const named: Chords = {
-  "shift+enter": forward("shiftEnter"),
-  "control+enter": forward("ctrlEnter"),
+  "shift+enter": enter("shift"),
+  "control+enter": enter("control"),
 };
 
 const clipboard: Chords = {
@@ -75,7 +77,8 @@ function chord(event: KeyboardEvent) {
 export function handleKeys(
   terminal: Terminal,
   selection: Selection,
-  send: (key: Key) => void,
+  keyboard: Keyboard,
+  send: (data: string) => void,
 ) {
   terminal.attachCustomKeyEventHandler((event) => {
     const action = chords[chord(event)];
@@ -83,6 +86,6 @@ export function handleKeys(
       return true;
     }
 
-    return action({ selection, event, send });
+    return action({ selection, keyboard, event, send });
   });
 }

@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use tokio::fs;
 
+use crate::dirs::Dirs;
 use crate::run::git;
 
 const SHORT: usize = 7;
@@ -14,49 +15,50 @@ enum Head {
 }
 
 pub async fn branch(folder: &Path) -> Option<String> {
-    let (root, dir) = repo(folder).await?;
-    let head = fs::read_to_string(dir.join("HEAD")).await.ok()?;
+    let dirs = Dirs::find(folder).await?;
+    let head = fs::read_to_string(dirs.path("HEAD")).await.ok()?;
 
     match parse(&head)? {
         Head::Branch(name) => Some(name),
         Head::Detached(commit) => Some(commit),
-        Head::Reftable => reftable(&root).await,
+        Head::Reftable => reftable(&dirs.root).await,
     }
 }
 
 pub async fn root(folder: &Path) -> Option<PathBuf> {
-    repo(folder).await.map(|(root, _)| root)
+    Dirs::find(folder).await.map(|dirs| dirs.root)
 }
 
 pub async fn common(folder: &Path) -> Option<PathBuf> {
-    let (_, dir) = repo(folder).await?;
+    let dirs = Dirs::find(folder).await?;
 
-    fs::canonicalize(common_dir(dir).await).await.ok()
+    fs::canonicalize(dirs.common).await.ok()
 }
 
 pub async fn heads(folder: &Path) -> Vec<(String, String)> {
-    let Some((_, dir)) = repo(folder).await else {
-        return Vec::new();
-    };
-    let common = common_dir(dir).await;
-
-    let mut heads = vec![(String::new(), head(&common).await)];
-    if let Ok(mut entries) = fs::read_dir(common.join("worktrees")).await {
-        while let Ok(Some(entry)) = entries.next_entry().await {
-            let name = entry.file_name().to_string_lossy().into_owned();
-            heads.push((name, head(&entry.path()).await));
-        }
+    let mut heads = Vec::new();
+    for (name, dir) in admins(folder).await {
+        heads.push((name, head(&dir).await));
     }
     heads.sort();
 
     heads
 }
 
-async fn common_dir(dir: PathBuf) -> PathBuf {
-    match fs::read_to_string(dir.join("commondir")).await {
-        Ok(link) => dir.join(link.trim()),
-        Err(_) => dir,
+pub(crate) async fn admins(folder: &Path) -> Vec<(String, PathBuf)> {
+    let Some(dirs) = Dirs::find(folder).await else {
+        return Vec::new();
+    };
+
+    let mut admins = vec![(String::new(), dirs.common.clone())];
+    if let Ok(mut entries) = fs::read_dir(dirs.path("worktrees")).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            admins.push((name, entry.path()));
+        }
     }
+
+    admins
 }
 
 async fn head(dir: &Path) -> String {
@@ -68,29 +70,6 @@ async fn head(dir: &Path) -> String {
         .unwrap_or_default();
 
     head + &tables
-}
-
-async fn repo(folder: &Path) -> Option<(PathBuf, PathBuf)> {
-    for dir in folder.ancestors() {
-        if let Some(git_dir) = git_dir(dir).await {
-            return Some((dir.to_owned(), git_dir));
-        }
-    }
-
-    None
-}
-
-async fn git_dir(dir: &Path) -> Option<PathBuf> {
-    let dot = dir.join(".git");
-    let metadata = fs::metadata(&dot).await.ok()?;
-    if metadata.is_dir() {
-        return Some(dot);
-    }
-
-    let link = fs::read_to_string(&dot).await.ok()?;
-    let target = link.trim().strip_prefix("gitdir:")?.trim();
-
-    Some(dir.join(target))
 }
 
 fn parse(head: &str) -> Option<Head> {

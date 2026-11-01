@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
-import { toast } from "@/components/ui/toast";
+import { report } from "@/lib/report";
 
 interface Setting<T> {
   queryKey: DataTag<QueryKey, T, Error>;
@@ -28,7 +28,7 @@ export function useSaveSetting<T>(
     },
     onError: (error, _, before) => {
       queries.setQueryData(setting.queryKey, before);
-      toast.add({ type: "error", title: failure, description: error.message });
+      report(failure, error);
     },
   });
 }

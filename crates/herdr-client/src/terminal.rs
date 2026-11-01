@@ -1,206 +1,120 @@
-use std::io;
+use std::collections::BTreeMap;
 use std::path::Path;
-use std::process::Stdio;
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
+use serde::de::IgnoredAny;
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, Lines};
-use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 
-use crate::Error;
+use crate::{Connection, Error};
 
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
 pub struct Terminal {
-    _child: Child,
-    stdin: ChildStdin,
-    stdout: Lines<BufReader<ChildStdout>>,
-    stderr: ChildStderr,
+    pub address: String,
+    #[serde(default)]
+    pub labels: BTreeMap<String, String>,
+    #[serde(default)]
+    pub cwd: String,
+    #[serde(default)]
+    pub pid: Option<u32>,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub status: Option<Status>,
+    #[serde(default)]
+    pub turn: u64,
+    #[serde(default)]
+    pub foreground: Option<Foreground>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Frame {
-    pub seq: u64,
-    pub width: u16,
-    pub height: u16,
-    pub full: bool,
-    pub bytes: Vec<u8>,
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct Status {
+    pub state: String,
+    #[serde(default)]
+    pub app: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum Scroll {
-    Up,
-    Down,
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct Foreground {
+    pub pid: i32,
+    pub name: String,
+    #[serde(default)]
+    pub cwd: String,
 }
 
-impl Terminal {
-    pub fn open(
-        herdr: &Path,
-        socket: &Path,
-        target: &str,
-        cols: u16,
-        rows: u16,
-    ) -> Result<Self, Error> {
-        let mut child = command(herdr, socket)
-            .args(["terminal", "session", "control", target])
-            .args(["--cols", &cols.to_string(), "--rows", &rows.to_string()])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(Error::Start)?;
+pub struct Run<'a> {
+    pub argv: &'a [String],
+    pub cwd: &'a Path,
+    pub env: &'a BTreeMap<String, String>,
+    pub labels: &'a BTreeMap<String, String>,
+}
 
-        let (Some(stdin), Some(stdout), Some(stderr)) =
-            (child.stdin.take(), child.stdout.take(), child.stderr.take())
-        else {
-            return Err(Error::Start(io::Error::other("missing pipe")));
-        };
-
-        Ok(Self {
-            _child: child,
-            stdin,
-            stdout: BufReader::new(stdout).lines(),
-            stderr,
-        })
-    }
-
-    pub async fn next(&mut self) -> Result<Frame, Error> {
-        while let Some(line) = self.stdout.next_line().await? {
-            match serde_json::from_str(&line)? {
-                Record::Frame(frame) => {
-                    return Ok(Frame {
-                        seq: frame.seq,
-                        width: frame.width,
-                        height: frame.height,
-                        full: frame.full,
-                        bytes: STANDARD.decode(frame.bytes)?,
-                    });
-                }
-                Record::Closed {
-                    reason: Some(reason),
-                } => {
-                    return Err(Error::Stream(reason));
-                }
-                Record::Closed { reason: None } => {
-                    return Err(Error::Closed);
-                }
-                Record::Other => {}
-            }
-        }
-
-        let mut reason = String::new();
-        self.stderr.read_to_string(&mut reason).await?;
-        let reason = reason.trim();
-        if reason.is_empty() {
-            return Err(Error::Closed);
-        }
-
-        Err(Error::Stream(reason.to_owned()))
-    }
-
-    pub async fn input(&mut self, bytes: &[u8]) -> Result<(), Error> {
-        self.send(&Control::Input {
-            bytes: STANDARD.encode(bytes),
-        })
+impl Connection {
+    pub async fn run(&self, run: Run<'_>) -> Result<Terminal, Error> {
+        self.call(
+            "terminal.run",
+            Started {
+                argv: run.argv,
+                cwd: run.cwd,
+                env: run.env,
+                labels: run.labels,
+                rm: true,
+            },
+        )
         .await
     }
 
-    pub async fn resize(&mut self, cols: u16, rows: u16) -> Result<(), Error> {
-        self.send(&Control::Resize { cols, rows }).await
+    pub async fn terminals(&self) -> Result<Vec<Terminal>, Error> {
+        let list: List = self.call("terminal.list", Empty {}).await?;
+
+        Ok(list.terminals)
     }
 
-    pub async fn scroll(
-        &mut self,
-        direction: Scroll,
-        lines: u16,
-        column: u16,
-        row: u16,
+    pub async fn label(
+        &self,
+        terminal: &str,
+        labels: &BTreeMap<String, String>,
     ) -> Result<(), Error> {
-        self.send(&Control::Scroll {
-            direction,
-            lines,
-            column,
-            row,
-        })
-        .await
+        self.call::<IgnoredAny>("terminal.label", Labelled { terminal, labels })
+            .await
+            .map(drop)
     }
 
-    pub async fn click(&mut self, column: u16, row: u16) -> Result<(), Error> {
-        for action in [Press::Down, Press::Up] {
-            self.send(&Control::Mouse {
-                action,
-                column,
-                row,
-            })
-            .await?;
+    pub async fn kill(&self, terminal: &str) -> Result<(), Error> {
+        match self
+            .call::<IgnoredAny>("terminal.kill", Target { terminal })
+            .await
+        {
+            Err(error) if error.is_gone() => Ok(()),
+            result => result.map(drop),
         }
-
-        Ok(())
     }
-
-    async fn send(&mut self, control: &Control) -> Result<(), Error> {
-        let mut line = serde_json::to_vec(control)?;
-        line.push(b'\n');
-        self.stdin.write_all(&line).await?;
-
-        Ok(())
-    }
-}
-
-fn command(herdr: &Path, socket: &Path) -> Command {
-    let mut command = process::command(herdr);
-    command.env("HERDR_SOCKET_PATH", socket);
-
-    command
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "type")]
-enum Record {
-    #[serde(rename = "terminal.frame")]
-    Frame(WireFrame),
-    #[serde(rename = "terminal.closed")]
-    Closed { reason: Option<String> },
-    #[serde(other)]
-    Other,
-}
-
-#[derive(Deserialize)]
-struct WireFrame {
-    seq: u64,
-    width: u16,
-    height: u16,
-    full: bool,
-    bytes: String,
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type")]
-enum Control {
-    #[serde(rename = "terminal.input")]
-    Input { bytes: String },
-    #[serde(rename = "terminal.resize")]
-    Resize { cols: u16, rows: u16 },
-    #[serde(rename = "terminal.scroll")]
-    Scroll {
-        direction: Scroll,
-        lines: u16,
-        column: u16,
-        row: u16,
-    },
-    #[serde(rename = "terminal.mouse")]
-    Mouse {
-        action: Press,
-        column: u16,
-        row: u16,
-    },
+pub(crate) struct Empty {}
+
+#[derive(Serialize)]
+pub(crate) struct Target<'a> {
+    pub(crate) terminal: &'a str,
 }
 
-#[derive(Clone, Copy, Serialize)]
-#[serde(rename_all = "snake_case")]
-enum Press {
-    Down,
-    Up,
+#[derive(Serialize)]
+struct Labelled<'a> {
+    terminal: &'a str,
+    labels: &'a BTreeMap<String, String>,
+}
+
+#[derive(Serialize)]
+struct Started<'a> {
+    argv: &'a [String],
+    cwd: &'a Path,
+    env: &'a BTreeMap<String, String>,
+    labels: &'a BTreeMap<String, String>,
+    rm: bool,
+}
+
+#[derive(Deserialize)]
+struct List {
+    terminals: Vec<Terminal>,
 }
 
 #[cfg(test)]
@@ -209,70 +123,68 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn reads_frame() {
-        let record: Record = serde_json::from_str(
-            r#"{"type":"terminal.frame","seq":2,"encoding":"ansi","width":80,"height":24,"full":false,"bytes":"aGk="}"#,
-        )
-        .unwrap();
-
-        let Record::Frame(frame) = record else {
-            panic!("expected a frame");
-        };
-        assert_eq!(
-            (frame.seq, frame.width, frame.height, frame.full),
-            (2, 80, 24, false)
-        );
-        assert_eq!(STANDARD.decode(frame.bytes).unwrap(), b"hi");
-    }
+    const LIST: &str = r#"{"hidden_finished":0,"terminals":[{"address":"t2","agent":"claude-code","argv":["C:\\Program Files\\PowerShell\\7\\pwsh.exe"],"cols":120,"created_ms":1793549649674,"cwd":"C:\\Users\\dev\\app","die_with_parent":false,"exit_code":null,"finished_ms":null,"foreground":{"argv":["C:\\Users\\dev\\.local\\bin\\claude.EXE"],"cwd":"C:\\Users\\dev\\app","name":"claude.EXE","pid":22364},"identity":"ghostty","keep":false,"labels":{"fogde":"Claude"},"name":null,"notify":true,"parent":null,"pid":17004,"reason":null,"reported":true,"rm":true,"rows":40,"screen":"exact","signal":null,"state":"live","status":{"app":"claude-code","kind":"permission","msg":"approve Bash: mkdir newdir","state":"blocked"},"status_ms":1793549649933,"template":null,"title":"✳ Make a folder","turn":2},{"address":"t3","argv":["/bin/zsh"],"cols":80,"created_ms":1793549650000,"cwd":"/repos/app","labels":{},"pid":4242,"rows":24,"screen":"exact","state":"live","status":null,"title":"","turn":0}]}"#;
 
     #[test]
-    fn reads_closed_and_ignores_new_records() {
-        let closed: Record = serde_json::from_str(
-            r#"{"type":"terminal.closed","reason":"terminal target w9:p9 not found"}"#,
-        )
-        .unwrap();
-        let other: Record = serde_json::from_str(r#"{"type":"terminal.bell"}"#).unwrap();
-
-        assert!(matches!(
-            closed,
-            Record::Closed { reason: Some(reason) } if reason.ends_with("not found")
-        ));
-        assert!(matches!(other, Record::Other));
-    }
-
-    #[test]
-    fn writes_controls() {
-        let controls = [
-            Control::Input {
-                bytes: STANDARD.encode("hi"),
-            },
-            Control::Resize {
-                cols: 120,
-                rows: 40,
-            },
-            Control::Scroll {
-                direction: Scroll::Up,
-                lines: 3,
-                column: 4,
-                row: 5,
-            },
-            Control::Mouse {
-                action: Press::Down,
-                column: 6,
-                row: 7,
-            },
-        ]
-        .map(|control| serde_json::to_value(control).unwrap());
+    fn reads_an_agent_and_a_shell() {
+        let list: List = serde_json::from_str(LIST).unwrap();
 
         assert_eq!(
-            controls,
+            list.terminals,
             [
-                json!({"type": "terminal.input", "bytes": "aGk="}),
-                json!({"type": "terminal.resize", "cols": 120, "rows": 40}),
-                json!({"type": "terminal.scroll", "direction": "up", "lines": 3, "column": 4, "row": 5}),
-                json!({"type": "terminal.mouse", "action": "down", "column": 6, "row": 7}),
+                Terminal {
+                    address: "t2".into(),
+                    labels: BTreeMap::from([("fogde".into(), "Claude".into())]),
+                    cwd: r"C:\Users\dev\app".into(),
+                    pid: Some(17004),
+                    title: "✳ Make a folder".into(),
+                    status: Some(Status {
+                        state: "blocked".into(),
+                        app: Some("claude-code".into()),
+                    }),
+                    turn: 2,
+                    foreground: Some(Foreground {
+                        pid: 22364,
+                        name: "claude.EXE".into(),
+                        cwd: r"C:\Users\dev\app".into(),
+                    }),
+                },
+                Terminal {
+                    address: "t3".into(),
+                    labels: BTreeMap::new(),
+                    cwd: "/repos/app".into(),
+                    pid: Some(4242),
+                    title: String::new(),
+                    status: None,
+                    turn: 0,
+                    foreground: None,
+                },
             ]
+        );
+    }
+
+    #[test]
+    fn removes_a_terminal_once_it_ends() {
+        let env = BTreeMap::from([("XDG_CONFIG_HOME".to_owned(), String::new())]);
+        let labels = BTreeMap::from([("fogde".to_owned(), "Terminal".to_owned())]);
+        let argv = ["/bin/zsh".to_owned()];
+        let started = Started {
+            argv: &argv,
+            cwd: Path::new("/repos/app"),
+            env: &env,
+            labels: &labels,
+            rm: true,
+        };
+
+        assert_eq!(
+            serde_json::to_value(started).unwrap(),
+            json!({
+                "argv": ["/bin/zsh"],
+                "cwd": "/repos/app",
+                "env": {"XDG_CONFIG_HOME": ""},
+                "labels": {"fogde": "Terminal"},
+                "rm": true,
+            })
         );
     }
 }

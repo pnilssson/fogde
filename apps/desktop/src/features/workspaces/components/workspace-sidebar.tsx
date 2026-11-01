@@ -31,6 +31,22 @@ export function WorkspaceSidebar({
     );
   }, []);
 
+  const select = useCallback(
+    (view: View, terminal?: Selection) => {
+      onSelect(view, terminal);
+      setOpenMobile(false);
+    },
+    [onSelect, setOpenMobile],
+  );
+
+  const start = useCallback(
+    (view: View, folder: string) => {
+      onStart(view, folder);
+      setOpenMobile(false);
+    },
+    [onStart, setOpenMobile],
+  );
+
   useEffect(() => {
     const element = stack.current;
     if (!element) {
@@ -63,14 +79,8 @@ export function WorkspaceSidebar({
           selected={selected}
           height={heights?.[index]}
           onMeasure={measure}
-          onSelect={(workspace, terminal) => {
-            onSelect(workspace, terminal);
-            setOpenMobile(false);
-          }}
-          onStart={(workspace, folder) => {
-            onStart(workspace, folder);
-            setOpenMobile(false);
-          }}
+          onSelect={select}
+          onStart={start}
         />
       ))}
     </div>

@@ -38,15 +38,13 @@ export type Checkout = { path: string, branch: string | null, main: boolean, };
 
 export type CheckoutPullParams = { path: string, repo: Repo, number: number, worktree: boolean, };
 
-export type CheckoutStatus = { path: string, repo: Repo | null, branch: string | null, upstream: string | null, ahead: number, behind: number, files: Array<FileChange>, truncated: boolean, owner: string | null, pull: number | null, fetched: number | null, last: LastCommit | null, };
+export type CheckoutStatus = { path: string, repo: Repo | null, branch: string | null, upstream: string | null, ahead: number, behind: number, commits: number | null, files: Array<FileChange>, truncated: boolean, owner: string | null, pull: number | null, fetched: number | null, last: LastCommit | null, };
 
 export type ChecksState = "pending" | "success" | "failure";
 
 export type ChecksSummary = { state: ChecksState, passed: number, failed: number, total: number, };
 
 export type CleanUpParams = { path: string, sha: string, base: string, };
-
-export type ClickTerminalParams = { id: string, column: number, row: number, };
 
 export type Comment = { id: string, author: string | null, html: string, created: string, url: string, verdict: Verdict | null, };
 
@@ -100,8 +98,6 @@ export type ItemParams = { repo: Repo, number: number, };
 
 export type ItemState = "open" | "closed" | "merged";
 
-export type Key = "shiftEnter" | "ctrlEnter";
-
 export type Label = { name: string, color: string, };
 
 export type LabelsParams = { repo: Repo, number: number, labels: Array<string>, };
@@ -148,6 +144,8 @@ export type NoteList = { root: string, folders: Array<string>, notes: Array<Note
 
 export type NoteText = { text: string, version: string, };
 
+export type NotesChanged = { notes: Array<Note>, listing: boolean, };
+
 export type Notifications = { enabled: boolean, sound: boolean, };
 
 export type PasteImageParams = { id: string, image: Image, data: string, };
@@ -176,6 +174,8 @@ export type RepoOptions = { labels: Array<Label>, people: Array<string>, branch:
 
 export type RerunParams = { repo: Repo, run: number, };
 
+export type ResizeTerminalParams = { id: string, size: Size, };
+
 export type ReviewEvent = "approve" | "changes" | "comment";
 
 export type ReviewParams = { repo: Repo, number: number, event: ReviewEvent, body: string, };
@@ -186,15 +186,7 @@ export type Sample = { at: number, cpu: number, memory: Memory, disk: Disk | nul
 
 export type SamplesParams = { since: number, };
 
-export type Scroll = "up" | "down";
-
-export type ScrollTerminalParams = { id: string, direction: Scroll, lines: number, column: number, row: number, };
-
 export type Section = "review" | "mine" | "assigned" | "other";
-
-export type SeekTerminalParams = { id: string, offset: number, };
-
-export type SelectionParams = { id: string, start: TextPoint, end: TextPoint, };
 
 export type ServerCheck = { "state": "ready" } | { "state": "untrusted", fingerprint: string, } | { "state": "keyRejected", keys: Array<SshKey>, };
 
@@ -228,19 +220,11 @@ export type Terminal = { id: string, name: string, agent: Agent | null, model: s
 
 export type TerminalEnded = { id: string, error: string | null, };
 
-export type TerminalFailed = { id: string, agent: Agent, error: string, };
-
-export type TerminalFrame = { id: string, cols: number, rows: number, full: boolean, data: string, viewport: Viewport | null, };
-
 export type TerminalInputParams = { id: string, data: string, };
 
-export type TerminalKeyParams = { id: string, key: Key, };
-
-export type TerminalScrolled = { id: string, offset: number, max: number, rows: number, };
+export type TerminalOutput = { id: string, token: number, data: string, };
 
 export type TerminalState = { id: string, name: string, agent: Agent | null, model: string | null, status: Status, active: number | null, folder: string, branch: string | null, changes: Changes | null, };
-
-export type TextPoint = { row: number, column: number, };
 
 export type Theme = "system" | "light" | "dark";
 
@@ -252,9 +236,7 @@ export type Usage = { agent: Agent, windows: Array<Window>, at: number, };
 
 export type Verdict = "approved" | "changes" | "commented" | "dismissed";
 
-export type Viewport = { offset: number, max: number, rows: number, };
-
-export type WatchTerminalParams = { id: string, size: Size, };
+export type WatchTerminalParams = { id: string, size: Size, token: number, };
 
 export type Window = { span: Span, left: number, resets: number, };
 
@@ -349,16 +331,11 @@ export type Methods = {
   "shell.set": { params: Shell; result: null };
   "stats.get": { params: null; result: Stats };
   "stats.set": { params: Stats; result: null };
-  "terminals.click": { params: ClickTerminalParams; result: null };
   "terminals.close": { params: string; result: null };
   "terminals.create": { params: CreateTerminalParams; result: Terminal };
   "terminals.input": { params: TerminalInputParams; result: null };
-  "terminals.key": { params: TerminalKeyParams; result: null };
   "terminals.pasteImage": { params: PasteImageParams; result: null };
-  "terminals.resize": { params: WatchTerminalParams; result: null };
-  "terminals.scroll": { params: ScrollTerminalParams; result: null };
-  "terminals.seek": { params: SeekTerminalParams; result: null };
-  "terminals.selection": { params: SelectionParams; result: string };
+  "terminals.resize": { params: ResizeTerminalParams; result: null };
   "terminals.unwatch": { params: string; result: null };
   "terminals.view": { params: string | null; result: null };
   "terminals.watch": { params: WatchTerminalParams; result: null };
@@ -380,14 +357,12 @@ export type Methods = {
 };
 
 export type Events = {
-  "terminals.frame": TerminalFrame;
-  "terminals.scrolled": TerminalScrolled;
+  "terminals.output": TerminalOutput;
   "terminals.ended": TerminalEnded;
-  "terminals.failed": TerminalFailed;
   "terminals.state": TerminalState;
   "workspaces.changed": null;
   "usage.changed": Array<Usage>;
-  "notes.changed": null;
+  "notes.changed": NotesChanged;
 };
 
 export const offline = -32001;

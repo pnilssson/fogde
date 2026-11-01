@@ -74,3 +74,79 @@ async fn records_the_whole_repository_from_a_subfolder() {
     let paths: Vec<_> = diff.files.iter().map(|file| file.path.as_str()).collect();
     assert_eq!(paths, ["a.txt", "src/b.txt"]);
 }
+
+#[tokio::test]
+async fn runs_no_clean_filter_that_could_write_into_the_repository() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = tempfile::tempdir().unwrap();
+    repo(dir.path()).await;
+    write(dir.path(), ".gitattributes", "*.bin filter=lfs\n").await;
+    commit(dir.path(), &[".gitattributes".to_owned()], "start")
+        .await
+        .unwrap();
+    git(
+        dir.path(),
+        ["config", "filter.lfs.clean", "echo x >> .git/cleaned; cat"],
+    )
+    .await
+    .unwrap();
+    git(dir.path(), ["config", "filter.lfs.required", "true"])
+        .await
+        .unwrap();
+    write(dir.path(), "model.bin", "weights\n").await;
+
+    let start = snapshot(dir.path(), store.path()).await.unwrap();
+    write(dir.path(), "model.bin", "tuned\n").await;
+    let diff = turn(dir.path(), store.path(), &start).await.unwrap();
+
+    assert!(!dir.path().join(".git").join("cleaned").exists());
+    assert_eq!(diff.files.len(), 1);
+    assert!(diff.files[0].patch.as_deref().unwrap().contains("+tuned"));
+}
+
+#[tokio::test]
+async fn runs_no_hook_of_the_repository() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = tempfile::tempdir().unwrap();
+    repo(dir.path()).await;
+    write(dir.path(), "a.txt", "one\n").await;
+    commit(dir.path(), &["a.txt".to_owned()], "start")
+        .await
+        .unwrap();
+    std::fs::create_dir_all(dir.path().join("hooks")).unwrap();
+    write(
+        dir.path(),
+        "hooks/post-index-change",
+        "#!/bin/sh\necho x >> .git/hooked\n",
+    )
+    .await;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        std::fs::set_permissions(
+            dir.path().join("hooks/post-index-change"),
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
+    }
+    git(dir.path(), ["config", "core.hooksPath", "hooks"])
+        .await
+        .unwrap();
+    write(
+        dir.path(),
+        "a.txt",
+        "staged
+",
+    )
+    .await;
+    git(dir.path(), ["add", "a.txt"]).await.unwrap();
+    assert!(dir.path().join(".git").join("hooked").exists());
+    std::fs::remove_file(dir.path().join(".git").join("hooked")).unwrap();
+
+    let start = snapshot(dir.path(), store.path()).await.unwrap();
+    write(dir.path(), "a.txt", "two\n").await;
+    turn(dir.path(), store.path(), &start).await.unwrap();
+
+    assert!(!dir.path().join(".git").join("hooked").exists());
+}

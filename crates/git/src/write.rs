@@ -4,7 +4,7 @@ use std::time::SystemTime;
 use tokio::fs;
 
 use crate::Error;
-use crate::head::common;
+use crate::head::admins;
 use crate::remote::{config, remotes};
 use crate::run::git;
 use crate::status::status;
@@ -48,25 +48,10 @@ pub async fn pull(root: &Path) -> Result<(), Error> {
         .map(drop)
 }
 
-pub async fn refresh(root: &Path) -> Result<(), Error> {
-    if remotes(root).await.is_empty() {
-        return Err(Error::Git("add a remote before fetching".to_owned()));
-    }
-
-    git(root, ["fetch", "--quiet"]).await.map(drop)
-}
-
 pub async fn fetched(root: &Path) -> Option<SystemTime> {
-    let common = common(root).await?;
-    let mut heads = vec![common.join("FETCH_HEAD")];
-    if let Ok(mut entries) = fs::read_dir(common.join("worktrees")).await {
-        while let Ok(Some(entry)) = entries.next_entry().await {
-            heads.push(entry.path().join("FETCH_HEAD"));
-        }
-    }
-
     let mut newest = None;
-    for head in heads {
+    for (_, dir) in admins(root).await {
+        let head = dir.join("FETCH_HEAD");
         let Ok(modified) = fs::metadata(head).await.and_then(|meta| meta.modified()) else {
             continue;
         };

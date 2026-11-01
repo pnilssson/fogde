@@ -1,14 +1,4 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useChangeMachine } from "@/features/settings/hooks/use-change-machine";
 import { isComputer, type Machine } from "@/lib/machines";
 
@@ -25,32 +15,17 @@ export function RemoveMachine({ machine, open, onOpenChange }: Props) {
   const place = isComputer(machine) ? "on this computer" : "on the server";
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{`Remove ${machine.name}?`}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {`Its workspaces, terminals and agents stay ${place}. Add it again to pick up where you left off.`}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            size="sm"
-            disabled={remove.isPending}
-            aria-busy={remove.isPending}
-            onClick={() => {
-              remove.mutate(machine);
-            }}
-          >
-            {remove.isPending && (
-              <Spinner aria-hidden data-icon="inline-start" />
-            )}
-            {remove.isPending ? "Removing…" : "Remove"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Remove ${machine.name}?`}
+      description={`Its workspaces, terminals and agents stay ${place}. Add it again to pick up where you left off.`}
+      action="Remove"
+      busy="Removing…"
+      pending={remove.isPending}
+      onConfirm={() => {
+        remove.mutate(machine);
+      }}
+    />
   );
 }

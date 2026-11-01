@@ -1,7 +1,6 @@
 import { area, curveMonotoneX, line } from "d3-shape";
 import { type RefObject, useEffect, useId, useRef, useState } from "react";
 
-import { useLive } from "@/features/monitor/hooks/use-live";
 import { axis, edgeFade, padded, project } from "@/features/monitor/lib/chart";
 
 const TOP = 12;
@@ -32,33 +31,31 @@ export function LivePlot({ points, span, height, label, format }: Props) {
   const width = useWidth(box);
   const id = useId();
   const [cursor, setCursor] = useState<number>();
-  const latest = points.at(-1)?.value ?? 0;
-  const live = useLive(latest, padded(points.map(({ value }) => value)));
+  const last = points.at(-1);
+  const now = last?.time ?? 0;
+  const value = last?.value ?? 0;
+  const range = padded(points.map((point) => point.value));
 
   const plot = width;
   const floor = height - BOTTOM;
-  const start = live.now - span;
+  const start = now - span;
   const x = (time: number) => ((time - start) / span) * plot;
-  const y = project(live.range, TOP, floor);
-  const shown = [
-    ...points.filter(({ time }) => time < live.now),
-    { time: live.now, value: live.value },
-  ];
+  const y = project(range, TOP, floor);
   const curve = line<Point>()
     .x(({ time }) => x(time))
     .y(({ value }) => y(value))
-    .curve(curveMonotoneX)(shown);
+    .curve(curveMonotoneX)(points);
   const fill = area<Point>()
     .x(({ time }) => x(time))
     .y0(floor)
     .y1(({ value }) => y(value))
-    .curve(curveMonotoneX)(shown);
-  const dot = y(live.value);
+    .curve(curveMonotoneX)(points);
+  const dot = y(value);
   const hovered =
     cursor === undefined
       ? undefined
       : nearest(points, start + (cursor / plot) * span);
-  const ticks = axis(live.range, floor - TOP);
+  const ticks = axis(range, floor - TOP);
 
   return (
     <div className="flex w-full text-foreground" style={{ height }}>

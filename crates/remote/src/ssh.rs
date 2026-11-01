@@ -1,4 +1,3 @@
-use std::io;
 use std::process::{Output, Stdio};
 
 use tokio::process::Command;
@@ -56,7 +55,7 @@ impl Server {
         self.command(options, script)
             .output()
             .await
-            .map_err(spawn_error)
+            .map_err(process::not_found(Error::Missing))
     }
 
     pub(crate) fn failure(&self, stderr: &[u8]) -> Failure {
@@ -82,23 +81,30 @@ impl Server {
         {
             Failure::Error(Error::Unreachable(target))
         } else {
-            let line = text.lines().rev().find(|line| !line.trim().is_empty());
-            Failure::Error(Error::Ssh(line.unwrap_or("it stopped").trim().to_owned()))
+            Failure::Error(Error::Ssh(
+                last_line(&text).unwrap_or("it stopped").to_owned(),
+            ))
         }
     }
+
+    pub(crate) fn error(&self, stderr: &[u8]) -> Error {
+        match self.failure(stderr) {
+            Failure::Error(error) => error,
+            Failure::Unknown => Error::Unreachable(self.target.clone()),
+        }
+    }
+}
+
+pub(crate) fn last_line(text: &str) -> Option<&str> {
+    text.lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
 }
 
 pub(crate) enum Failure {
     Unknown,
     Error(Error),
-}
-
-pub(crate) fn spawn_error(error: io::Error) -> Error {
-    if error.kind() == io::ErrorKind::NotFound {
-        return Error::Missing;
-    }
-
-    Error::Io(error)
 }
 
 #[cfg(test)]

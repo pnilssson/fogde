@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 import { GFM, parser } from "@lezer/markdown";
 import { afterEach, expect, test, vi } from "vitest";
@@ -154,5 +155,26 @@ test("a note replaced from disk keeps the line endings it has on disk", () => {
 
   expect(view.state.sliceDoc()).toBe("# Plan\n\n- signup\n");
   expect(edited).not.toHaveBeenCalled();
+  view.destroy();
+});
+
+test("undo reverts the user's typing but keeps a change from disk", () => {
+  const view = new EditorView({
+    parent: document.body,
+    state: noteState(
+      "# Plan\n\n- login\n",
+      { wikilink: vi.fn(), link: vi.fn() },
+      vi.fn(),
+    ),
+  });
+
+  view.dispatch({
+    changes: { from: 6, insert: " for app" },
+    userEvent: "input.type",
+  });
+  replaceText(view, "# Plan for app\n\n- login\n- signup\n");
+  undo(view);
+
+  expect(view.state.sliceDoc()).toBe("# Plan\n\n- login\n- signup\n");
   view.destroy();
 });

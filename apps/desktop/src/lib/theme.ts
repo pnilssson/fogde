@@ -9,24 +9,28 @@ import { frame } from "@/lib/frame";
 import { callOwn } from "@/lib/host";
 
 const dark = window.matchMedia("(prefers-color-scheme: dark)");
+const themes = z.enum(["system", "light", "dark"]);
 const materials = z.enum(["translucent", "solid"]);
-const key = "material";
 const looks = createStore<{ theme: Theme; material: Material }>()(() => ({
-  theme: "system",
-  material: recall(),
+  theme: recall("theme", themes, "system"),
+  material: recall("material", materials, "translucent"),
 }));
 
-function recall(): Material {
+function recall<T extends string>(
+  key: string,
+  values: z.ZodType<T>,
+  fallback: T,
+): T {
   try {
-    return materials.safeParse(localStorage.getItem(key)).data ?? "translucent";
+    return values.safeParse(localStorage.getItem(key)).data ?? fallback;
   } catch {
-    return "translucent";
+    return fallback;
   }
 }
 
-function remember(material: Material) {
+function remember(key: string, value: string) {
   try {
-    localStorage.setItem(key, material);
+    localStorage.setItem(key, value);
     return true;
   } catch {
     return false;
@@ -49,6 +53,7 @@ function apply() {
 
 async function show(theme: Theme) {
   looks.setState({ theme });
+  remember("theme", theme);
   apply();
 
   await getCurrentWindow().setTheme(theme === "system" ? null : theme);
@@ -56,7 +61,7 @@ async function show(theme: Theme) {
 
 async function showMaterial(material: Material) {
   looks.setState({ material });
-  remember(material);
+  remember("material", material);
   apply();
 
   await invoke("material", { material });

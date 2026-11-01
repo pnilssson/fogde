@@ -19,7 +19,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { logQuery } from "@/features/github/api/github";
-import { ActionButton } from "@/features/github/components/action-button";
+import { ActionButton } from "@/components/action-button";
 import { useReported } from "@/features/github/hooks/use-reported";
 import { useWrite } from "@/features/github/hooks/use-write";
 import type { Check, CheckState, Repo } from "@/generated/protocol";
@@ -76,7 +76,9 @@ export function CheckList({ machine, repo, checks }: Props) {
       </div>
       <ul className="flex flex-col">
         {sorted.map((check, index) => (
-          <li key={`${check.name}-${String(index)}`}>
+          <li
+            key={`${check.name}-${String(check.job ?? check.run ?? check.url ?? index)}`}
+          >
             {check.state === "failure" && check.job !== null ? (
               <FailedCheck
                 machine={machine}

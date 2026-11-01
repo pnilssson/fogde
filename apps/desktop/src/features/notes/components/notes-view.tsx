@@ -6,15 +6,10 @@ import { Bar, Body, Layer, Main, SideScroll } from "@/components/frame";
 import { PageShell } from "@/components/shell";
 import { IconAction } from "@/components/icon-action";
 import { PageBar } from "@/components/page-bar";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Nothing } from "@/components/nothing";
 import { TileStatus } from "@/components/tile-status";
 import { noteQuery, notesQuery } from "@/features/notes/api/notes";
-import { NameDialog } from "@/features/notes/components/name-dialog";
+import { NameDialog } from "@/components/name-dialog";
 import { NoteEditor } from "@/features/notes/components/note-editor";
 import { NotesTree } from "@/features/notes/components/notes-tree";
 import { SortMenu } from "@/features/notes/components/sort-menu";
@@ -138,14 +133,14 @@ export function NotesView({ machine, note, picker, onOpen }: Props) {
               }
             />
           ) : files.rename.isPending ? null : note ? (
-            <Message
+            <Nothing
               title="This note was moved or deleted"
-              description="Pick another note from the list."
+              hint="Pick another note from the list."
             />
           ) : (
-            <Message
+            <Nothing
               title="No note open"
-              description={
+              hint={
                 list.data.notes.length > 0
                   ? "Pick a note from the list."
                   : `Notes you add to ${list.data.root} show here.`
@@ -230,21 +225,4 @@ function useReported(title: string, error: Error | null) {
       report(title, error);
     }
   }, [title, error]);
-}
-
-function Message({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyTitle>{title}</EmptyTitle>
-        <EmptyDescription>{description}</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  );
 }

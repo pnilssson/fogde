@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { TileStatus } from "@/components/tile-status";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Nothing } from "@/components/nothing";
 import { diffQuery } from "@/features/github/api/github";
 import { useReported } from "@/features/github/hooks/use-reported";
 import {
@@ -20,6 +20,7 @@ import {
   versionOf,
 } from "@/features/github/lib/diff";
 import { diffThemes } from "@/features/github/lib/diff-theme";
+import { noChanges } from "@/features/github/lib/scope";
 import {
   arrive,
   setShown,
@@ -61,15 +62,7 @@ export function DiffView({ machine, path, uncommitted }: Props) {
       ) : !diff.data ? (
         <TileStatus notice="Reading the diff…" busy fill />
       ) : diff.data.files.length === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>
-              {scope === "uncommitted"
-                ? "No uncommitted changes"
-                : `No changes${diff.data.base ? ` since ${diff.data.base}` : ""}`}
-            </EmptyTitle>
-          </EmptyHeader>
-        </Empty>
+        <Nothing title={noChanges(scope, diff.data.base)} />
       ) : (
         <DiffFiles diff={diff.data} style={style} />
       )}

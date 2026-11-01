@@ -1,0 +1,13 @@
+fragment check on StatusCheckRollupContext {
+  __typename
+  ... on CheckRun {
+    databaseId
+    name
+    isRequired(pullRequestNumber: $number)
+    status
+    conclusion
+    detailsUrl
+    checkSuite { workflowRun { databaseId } }
+  }
+  ... on StatusContext { context state targetUrl isRequired(pullRequestNumber: $number) }
+}

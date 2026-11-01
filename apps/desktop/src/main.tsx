@@ -12,7 +12,7 @@ if (!root) {
 }
 
 followWindowFocus();
-await followTheme().catch(() => undefined);
+void followTheme().catch(() => undefined);
 
 createRoot(root).render(
   <StrictMode>

@@ -1,21 +1,15 @@
-mod agent;
-mod client;
+mod connection;
 mod error;
 mod events;
 mod herdr;
 mod install;
-mod pane;
-mod scroll;
-mod selection;
+mod stream;
 mod terminal;
-mod workspace;
+mod wire;
 
-pub use client::Client;
+pub use connection::Connection;
 pub use error::Error;
-pub use events::{Event, Events, Subscription};
+pub use events::{Change, Events};
 pub use herdr::Herdr;
-pub use pane::{Key, Pane, Process, Session, Status};
-pub use scroll::Scrollback;
-pub use selection::Point;
-pub use terminal::{Frame, Scroll, Terminal};
-pub use workspace::Workspace;
+pub use stream::Stream;
+pub use terminal::{Foreground, Run, Status, Terminal};

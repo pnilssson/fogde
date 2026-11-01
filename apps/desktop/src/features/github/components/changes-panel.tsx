@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Choice } from "@/components/choice";
 import { Bar, Layer } from "@/components/frame";
 import { TileStatus } from "@/components/tile-status";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Nothing } from "@/components/nothing";
 import { accountsQuery } from "@/features/github/api/accounts";
 import {
   checkoutsQuery,
@@ -12,13 +12,18 @@ import {
 } from "@/features/github/api/github";
 import { DiffFiles } from "@/features/github/components/diff-view";
 import { DiffTally } from "@/features/github/components/diff-tally";
-import { PullCard } from "@/features/github/components/pull-card";
-import { entriesOf, nowhere, pullFor } from "@/features/github/lib/scope";
+import { PullRow } from "@/features/github/components/pull-row";
+import {
+  entriesOf,
+  noChanges,
+  nowhere,
+  pullFor,
+} from "@/features/github/lib/scope";
 import { select, setTab } from "@/features/github/lib/state";
 import { setPanelScope, usePanel } from "@/features/github/lib/panel";
 import type { DiffScope } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
-import { openPage } from "@/lib/page";
+import { openPage, usePage } from "@/lib/page";
 
 const scopes = [
   { value: "turn", label: "Last turn" },
@@ -34,6 +39,7 @@ interface Props {
 
 export function ChangesPanel({ machine, path, agent }: Props) {
   const scope = usePanel((panel) => panel.scope);
+  const shown = usePage() === undefined;
 
   return (
     <Layer aria-label="Changes" className="w-96 shrink-0 xl:w-1/3">
@@ -45,8 +51,14 @@ export function ChangesPanel({ machine, path, agent }: Props) {
           onChange={setPanelScope}
         />
       </Bar>
-      <Pull machine={machine} path={path} />
-      <Changes machine={machine} path={path} scope={scope} agent={agent} />
+      <Pull machine={machine} path={path} shown={shown} />
+      <Changes
+        machine={machine}
+        path={path}
+        scope={scope}
+        agent={agent}
+        shown={shown}
+      />
     </Layer>
   );
 }
@@ -56,13 +68,14 @@ interface ChangesProps {
   path: string;
   scope: DiffScope;
   agent: string | null;
+  shown: boolean;
 }
 
-function Changes({ machine, path, scope, agent }: ChangesProps) {
+function Changes({ machine, path, scope, agent, shown }: ChangesProps) {
   const waiting = scope === "turn" && !agent;
   const diff = useQuery({
     ...diffQuery(machine, path, scope, scope === "turn" ? agent : null),
-    enabled: !waiting,
+    enabled: shown && !waiting,
   });
 
   if (waiting) {
@@ -84,7 +97,7 @@ function Changes({ machine, path, scope, agent }: ChangesProps) {
     return <TileStatus notice="Reading the changes…" busy fill />;
   }
   if (diff.data.files.length === 0) {
-    return <Nothing title={emptyTitle(scope, diff.data.base)} />;
+    return <Nothing title={noChanges(scope, diff.data.base)} />;
   }
 
   return (
@@ -95,8 +108,17 @@ function Changes({ machine, path, scope, agent }: ChangesProps) {
   );
 }
 
-function Pull({ machine, path }: { machine: Machine; path: string }) {
-  const checkouts = useQuery(checkoutsQuery(machine, [path]));
+interface PullProps {
+  machine: Machine;
+  path: string;
+  shown: boolean;
+}
+
+function Pull({ machine, path, shown }: PullProps) {
+  const checkouts = useQuery({
+    ...checkoutsQuery(machine, [path]),
+    enabled: shown,
+  });
   const accounts = useQuery(accountsQuery(machine));
   const checkout = checkouts.data?.[0];
   const repo = checkout?.repo ?? undefined;
@@ -105,23 +127,20 @@ function Pull({ machine, path }: { machine: Machine; path: string }) {
     accounts.data?.some(({ host }) => host === repo.host) === true;
   const open = useQuery({
     ...listQuery(machine, "pull", repo ?? nowhere, "open"),
-    enabled: online,
+    enabled: shown && online,
   });
   const pull =
     checkout && online
       ? pullFor(entriesOf(repo, open.data), checkout)
       : undefined;
-  if (!checkout?.branch || !pull) {
+  if (!pull) {
     return null;
   }
 
   return (
     <div className="px-2 pb-2">
-      <PullCard
-        branch={checkout.branch}
+      <PullRow
         pull={pull}
-        canOpen={false}
-        primary={false}
         onShow={(entry) => {
           select(machine.id, {
             kind: "pull",
@@ -131,29 +150,7 @@ function Pull({ machine, path }: { machine: Machine; path: string }) {
           setTab("pull");
           openPage("github", machine.id);
         }}
-        onCreate={() => undefined}
       />
     </div>
   );
-}
-
-function Nothing({ title }: { title: string }) {
-  return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyTitle>{title}</EmptyTitle>
-      </EmptyHeader>
-    </Empty>
-  );
-}
-
-function emptyTitle(scope: DiffScope, base: string | null) {
-  if (scope === "turn") {
-    return "No changes in the last turn";
-  }
-  if (scope === "uncommitted") {
-    return "No uncommitted changes";
-  }
-
-  return `No changes${base ? ` since ${base}` : ""}`;
 }

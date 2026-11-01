@@ -35,3 +35,14 @@ export function blockers(pull: PullDetail) {
 
   return found;
 }
+
+export function merging(pull: PullDetail) {
+  if (pull.merge === "conflicts" || pull.methods.length === 0) {
+    return null;
+  }
+  if (pull.merge === "blocked" || pull.merge === "behind") {
+    return pull.automerge ? "later" : null;
+  }
+
+  return "now";
+}

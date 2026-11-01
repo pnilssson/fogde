@@ -16,13 +16,8 @@ pub struct Wrap {
 }
 
 impl Wrap {
-    pub fn pane_env(
-        &self,
-        base: &BTreeMap<String, String>,
-        gh: Option<&Path>,
-    ) -> BTreeMap<String, String> {
-        let mut env = base.clone();
-        env.extend(self.vars.clone());
+    pub fn env(&self, gh: Option<&Path>) -> BTreeMap<String, String> {
+        let mut env = self.vars.clone();
         let first: Vec<PathBuf> = gh
             .and_then(Path::parent)
             .map(Path::to_path_buf)

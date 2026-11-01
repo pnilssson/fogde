@@ -1019,12 +1019,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "doctest-file"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2db04e74f0a9a93103b50e90b96024c9b2bdca8bce6a632ec71b88736d3d359"
-
-[[package]]
 name = "dom_query"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1052,6 +1046,7 @@ dependencies = [
  "hex",
  "process",
  "sha2 0.11.1",
+ "tempfile",
  "thiserror 2.0.21",
  "tokio",
 ]
@@ -1347,6 +1342,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a31d2a3fbaaeb2af2368bbdd904aa8e812d3c04a1ee10d3171f52d556e5d0a3"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1432,6 +1442,7 @@ version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc"
 dependencies = [
+ "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
@@ -1809,12 +1820,12 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 name = "herdr-client"
 version = "0.1.0"
 dependencies = [
- "base64 0.23.1",
  "download",
- "interprocess",
+ "hex",
  "process",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
@@ -1865,7 +1876,6 @@ dependencies = [
  "github",
  "herdr-client",
  "hex",
- "interprocess",
  "notify-debouncer-mini",
  "protocol",
  "remote",
@@ -2218,21 +2228,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c033f80b2c113cdf91ab7a33faa9cbc014726dcad99880c8609af2a370edf37d"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "interprocess"
-version = "2.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7529951166d4dd4d2a6b9f0bb97919b810623f75eeb76e81ee9e6644886cae37"
-dependencies = [
- "doctest-file",
- "futures-core",
- "libc",
- "recvmsg",
- "tokio",
- "widestring",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3479,7 +3474,22 @@ dependencies = [
 name = "process"
 version = "0.1.0"
 dependencies = [
+ "process-wrap",
  "tokio",
+ "windows",
+]
+
+[[package]]
+name = "process-wrap"
+version = "10.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f21b97672d2dc848e7b25701ab4535618b92f4861c13cc3f7f7bed52ad3c8da"
+dependencies = [
+ "futures",
+ "indexmap 2.14.2",
+ "nix",
+ "tokio",
+ "windows",
 ]
 
 [[package]]
@@ -3578,12 +3588,6 @@ name = "raw-window-handle"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
-
-[[package]]
-name = "recvmsg"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3edd4d5d42c92f0a659926464d4cce56b562761267ecf0f469d85b7de384175"
 
 [[package]]
 name = "redox_syscall"
@@ -6072,12 +6076,6 @@ name = "whoami"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "626c4bac6755d76ffc12cb01b2eac751db1996b9e0041de9aa02c8c211ddc82c"
-
-[[package]]
-name = "widestring"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72069c3113ab32ab29e5584db3c6ec55d416895e60715417b5b883a357c3e471"
 
 [[package]]
 name = "winapi"

@@ -19,6 +19,7 @@ import type {
   Workspace,
 } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { report } from "@/lib/report";
 import { closePage } from "@/lib/page";
 
 const placing = new Set<string>();
@@ -186,11 +187,7 @@ export function useDeleteWorkspace(machine: Machine, onDeleted: () => void) {
       onDeleted();
     },
     onError: (error) => {
-      toast.add({
-        type: "error",
-        title: "Could not delete the workspace",
-        description: error.message,
-      });
+      report("Could not delete the workspace", error);
     },
     onSettled: () => queries.invalidateQueries(workspacesQuery(machine)),
   });
@@ -213,11 +210,7 @@ export function useCreateWorkspace(machine: Machine, onCreated: () => void) {
       onCreated();
     },
     onError: (error) => {
-      toast.add({
-        type: "error",
-        title: "Could not create the workspace",
-        description: error.message,
-      });
+      report("Could not create the workspace", error);
     },
   });
 }

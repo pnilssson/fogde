@@ -1,13 +1,14 @@
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
+use tokio::process::Command;
 
 use crate::Error;
 use crate::keys::Key;
-use crate::ssh::{Failure, Server, spawn_error};
+use crate::ssh::{Failure, Server};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Check {
@@ -92,20 +93,12 @@ impl Server {
             .await
             .map_err(io::Error::other)??;
         let file = dir.path().join("known_hosts");
-        let known = format!(
-            "UserKnownHostsFile=\"{}\"",
-            file.display().to_string().replace('\\', "/")
-        );
-        let options = [
-            "-o",
-            "StrictHostKeyChecking=accept-new",
-            "-o",
-            known.as_str(),
-            "-o",
-            "GlobalKnownHostsFile=none",
-        ];
 
-        let output = self.run(&options, "exit").await;
+        let output = self
+            .scan(&file)
+            .output()
+            .await
+            .map_err(process::not_found(Error::Missing));
         let lines = fs::read_to_string(&file).await.unwrap_or_default();
         let listed = process::command("ssh-keygen")
             .args(["-l", "-f"])
@@ -118,11 +111,38 @@ impl Server {
         if lines.trim().is_empty() {
             return Err(self.error(&output?.stderr));
         }
-        let listed = listed.map_err(spawn_error)?;
+        let listed = listed.map_err(process::not_found(Error::Missing))?;
         let fingerprint = fingerprint(&String::from_utf8_lossy(&listed.stdout))
             .ok_or_else(|| Error::Ssh("could not read the server's key".to_owned()))?;
 
         Ok(HostKey { lines, fingerprint })
+    }
+
+    fn scan(&self, file: &Path) -> Command {
+        let known = format!(
+            "UserKnownHostsFile=\"{}\"",
+            file.display().to_string().replace('\\', "/")
+        );
+        let options = [
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            known.as_str(),
+            "-o",
+            "GlobalKnownHostsFile=none",
+            "-o",
+            "PreferredAuthentications=none",
+            "-o",
+            "ForwardAgent=no",
+            "-o",
+            "ClearAllForwardings=yes",
+            "-o",
+            "PermitLocalCommand=no",
+            "-o",
+            "ControlPath=none",
+        ];
+
+        self.command(&options, "exit")
     }
 
     async fn remember(&self, key: &HostKey) -> Result<(), Error> {
@@ -150,7 +170,7 @@ impl Server {
             .stdin(Stdio::null())
             .output()
             .await
-            .map_err(spawn_error)?;
+            .map_err(process::not_found(Error::Missing))?;
         let config = String::from_utf8_lossy(&config.stdout);
         let files = config
             .lines()
@@ -159,16 +179,9 @@ impl Server {
 
         Ok(first_file(files, &home))
     }
-
-    fn error(&self, stderr: &[u8]) -> Error {
-        match self.failure(stderr) {
-            Failure::Error(error) => error,
-            Failure::Unknown => Error::Unreachable(self.target().to_owned()),
-        }
-    }
 }
 
-fn first_file(files: &str, home: &std::path::Path) -> PathBuf {
+fn first_file(files: &str, home: &Path) -> PathBuf {
     let default = format!("{}/.ssh/known_hosts", home.display());
     if files == default || files.starts_with(&format!("{default} ")) {
         return home.join(".ssh").join("known_hosts");
@@ -224,6 +237,37 @@ mod tests {
             Some("SHA256:1xhQxh3KyDnfLvxchalhj4cVWnO3ddWky0QCMYyW14o")
         );
         assert_eq!(fingerprint(""), None);
+    }
+
+    #[test]
+    fn reads_the_host_key_without_logging_in() {
+        let scan = Server::new("my-vps")
+            .unwrap()
+            .scan(Path::new("/tmp/scan/known_hosts"));
+        let args: Vec<String> = scan
+            .as_std()
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .take_while(|arg| arg != "--")
+            .collect();
+        let options: Vec<&str> = args
+            .windows(2)
+            .filter(|pair| pair[0] == "-o")
+            .map(|pair| pair[1].as_str())
+            .collect();
+
+        for option in [
+            "StrictHostKeyChecking=accept-new",
+            "UserKnownHostsFile=\"/tmp/scan/known_hosts\"",
+            "GlobalKnownHostsFile=none",
+            "PreferredAuthentications=none",
+            "ForwardAgent=no",
+            "ClearAllForwardings=yes",
+            "PermitLocalCommand=no",
+            "ControlPath=none",
+        ] {
+            assert!(options.contains(&option), "missing {option}");
+        }
     }
 
     #[test]

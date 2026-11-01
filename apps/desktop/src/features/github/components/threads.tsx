@@ -5,7 +5,7 @@ import { useId } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RenderedHtml } from "@/features/github/components/rendered-html";
-import { ago } from "@/features/github/lib/scope";
+import { ago } from "@/lib/time";
 import type { Thread } from "@/generated/protocol";
 
 export function Threads({ threads }: { threads: Thread[] }) {

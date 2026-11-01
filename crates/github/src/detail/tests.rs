@@ -148,3 +148,62 @@ fn reports_a_missing_pull_request() {
 
     assert!(pull(reply, 9).is_err());
 }
+
+const PAGED_REPLY: &str = r#"{"repository":{"mergeCommitAllowed":true,"squashMergeAllowed":true,"rebaseMergeAllowed":true,"autoMergeAllowed":false,"pullRequest":{
+  "id":"PR_kwDOAAAAAc8AAAABJwiFQg","number":42,"title":"Add login","url":"https://github.com/acme/app/pull/42","state":"OPEN","createdAt":"2026-10-21T10:05:39Z",
+  "body":"","bodyHTML":"","viewerCanUpdate":true,"isDraft":false,
+  "headRefName":"feature/login","headRefOid":"3f2a9b1c0d4e5f60718293a4b5c6d7e8f9012345","baseRefName":"main","mergeStateStatus":"BLOCKED",
+  "reviewThreads":{"pageInfo":{"hasNextPage":true,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0xMC0yMlQwODowMjowMFo="},"nodes":[
+    {"isResolved":false,"isOutdated":false,"path":"src/login.rs","line":36,"originalLine":36,"comments":{"nodes":[{"id":"PRRC_1","url":"https://github.com/acme/app/pull/42#discussion_r1","createdAt":"2026-10-22T08:01:00Z","bodyHTML":"<p>Rename this</p>","author":{"login":"reviewer"}}]}}
+  ]},
+  "commits":{"nodes":[{"commit":{"statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":true,"endCursor":"MTAw"},"nodes":[
+    {"__typename":"CheckRun","databaseId":84988385122,"name":"test","isRequired":true,"status":"COMPLETED","conclusion":"SUCCESS","detailsUrl":null,"checkSuite":null}
+  ]}}}}]}
+}}}"#;
+
+const THREADS_PAGE: &str = r#"{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":"Y3Vyc29yOnYyOpK0MjAyNi0xMC0yM1QwODowMjowMFo="},"nodes":[
+  {"isResolved":false,"isOutdated":false,"path":"src/app.rs","line":12,"originalLine":12,"comments":{"nodes":[{"id":"PRRC_2","url":"https://github.com/acme/app/pull/42#discussion_r2","createdAt":"2026-10-23T08:02:00Z","bodyHTML":"<p>Handle the error</p>","author":{"login":"reviewer"}}]}}
+]}}}}"#;
+
+const CHECKS_PAGE: &str = r#"{"repository":{"object":{"statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":false,"endCursor":"MjAw"},"nodes":[
+  {"__typename":"CheckRun","databaseId":84988385189,"name":"lint","isRequired":true,"status":"COMPLETED","conclusion":"FAILURE","detailsUrl":null,"checkSuite":null}
+]}}}}}"#;
+
+#[test]
+fn keeps_review_threads_and_checks_past_the_first_page() {
+    let mut reply: Reply<PullRepo> = serde_json::from_str(PAGED_REPLY).unwrap();
+    let raw = reply
+        .repository
+        .as_mut()
+        .and_then(|repo| repo.pull_request.as_mut())
+        .unwrap();
+    assert!(raw.review_threads.as_ref().and_then(Page::after).is_some());
+    assert_eq!(
+        contexts(raw).and_then(|page| page.after()).as_deref(),
+        Some("MTAw")
+    );
+
+    add_threads(raw, serde_json::from_str(THREADS_PAGE).unwrap());
+    add_checks(raw, serde_json::from_str(CHECKS_PAGE).unwrap());
+
+    assert_eq!(raw.review_threads.as_ref().and_then(Page::after), None);
+    assert_eq!(contexts(raw).and_then(|page| page.after()), None);
+    let pull = pull(reply, 42).unwrap().pull.unwrap();
+    assert_eq!(
+        pull.threads
+            .iter()
+            .map(|thread| thread.path.as_str())
+            .collect::<Vec<_>>(),
+        ["src/login.rs", "src/app.rs"]
+    );
+    assert_eq!(
+        pull.checks
+            .iter()
+            .map(|check| (check.name.as_str(), check.state, check.required))
+            .collect::<Vec<_>>(),
+        [
+            ("test", CheckState::Success, true),
+            ("lint", CheckState::Failure, true)
+        ]
+    );
+}

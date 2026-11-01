@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use crate::Error;
+use crate::history::unfinished;
 use crate::run::{failure, git, git_with_input};
 use crate::status::{Change, status};
 
@@ -18,10 +19,12 @@ pub async fn commit(root: &Path, paths: &[String], message: &str) -> Result<(), 
         .files
         .iter()
         .any(|file| file.change == Change::Conflicted && chosen(&file.path));
-    if conflicted || merging(root).await {
-        return Err(Error::Git(
-            "finish or abort the merge in a terminal first".to_owned(),
-        ));
+    let operation = unfinished(root).await?;
+    if conflicted || operation.is_some() {
+        return Err(Error::Git(format!(
+            "finish or abort the {} in a terminal first",
+            operation.unwrap_or("merge")
+        )));
     }
 
     let untracked: Vec<&str> = current
@@ -74,12 +77,6 @@ async fn record(root: &Path, paths: &[String], message: &str) -> Result<(), Erro
     }
 
     Ok(())
-}
-
-async fn merging(root: &Path) -> bool {
-    git(root, ["rev-parse", "--quiet", "--verify", "MERGE_HEAD"])
-        .await
-        .is_ok()
 }
 
 #[cfg(test)]

@@ -3,7 +3,7 @@ import { GearSixIcon } from "@phosphor-icons/react";
 import { Layer } from "@/components/frame";
 import { NavItem } from "@/components/nav-item";
 import { SidebarMenu } from "@/components/ui/sidebar";
-import { UpdateItem } from "@/components/update-item";
+import { UpdateItem } from "@/app/update-item";
 import { MonitorItem } from "@/features/monitor/components/monitor-item";
 import { UsageMeters } from "@/features/usage/components/usage-meters";
 import type { Machine } from "@/lib/machines";

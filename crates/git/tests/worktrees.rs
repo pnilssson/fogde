@@ -1,47 +1,9 @@
-use std::path::{Path, PathBuf};
-
-use git::{
-    add_detached, add_worktree, clean, discard_worktree, heads, remove_merged_branch,
-    remove_worktree, worktrees,
-};
+use git::{add_detached, add_worktree, discard_worktree, heads, remove_worktree, worktrees};
 use tokio::fs;
-use tokio::process::Command;
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+mod common;
 
-async fn run(repo: &Path, args: &[&str]) -> Result<String> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
-        .args(args)
-        .output()
-        .await?;
-    if !output.status.success() {
-        return Err(format!("git {args:?} failed").into());
-    }
-
-    Ok(String::from_utf8(output.stdout)?)
-}
-
-async fn repo(root: &Path, files: &[(&str, &str)]) -> Result<PathBuf> {
-    let repo = root.join("repo");
-    fs::create_dir_all(&repo).await?;
-    run(&repo, &["init", "--quiet", "--initial-branch", "main"]).await?;
-    fs::write(repo.join(".gitignore"), ".env\nbuild/\n").await?;
-    run(&repo, &["add", ".gitignore"]).await?;
-    run(&repo, &["commit", "--quiet", "-m", "first"]).await?;
-
-    for (file, text) in files {
-        let path = repo.join(file);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).await?;
-        }
-        fs::write(path, text).await?;
-    }
-
-    Ok(repo)
-}
+use common::{repo, run};
 
 #[tokio::test]
 async fn copies_ignored_files_listed_in_worktreeinclude() {
@@ -115,87 +77,49 @@ async fn skips_nested_repositories() {
 }
 
 #[tokio::test]
-async fn reuses_a_name_after_its_worktree_is_removed() {
+async fn a_bare_layout_has_no_main_checkout() {
     let dir = tempfile::tempdir().unwrap();
-    let repo = repo(dir.path(), &[]).await.unwrap();
-    let worktree = dir.path().join("worktrees").join("login");
-
-    add_worktree(&repo, &worktree, "feature/login")
-        .await
-        .unwrap();
-    remove_worktree(&repo, &worktree).await.unwrap();
-    add_worktree(&repo, &worktree, "feature/login")
-        .await
-        .unwrap();
-
-    assert!(worktree.exists());
-}
-
-#[tokio::test]
-async fn a_worktree_git_refuses_to_remove_is_not_clean() {
-    let dir = tempfile::tempdir().unwrap();
-    let repo = repo(dir.path(), &[]).await.unwrap();
-    let worktree = dir.path().join("worktrees").join("login");
-    add_worktree(&repo, &worktree, "feature/login")
-        .await
-        .unwrap();
-
-    assert!(clean(&worktree).await.unwrap());
-
-    fs::write(worktree.join("draft.txt"), "draft")
-        .await
-        .unwrap();
-
-    assert!(!clean(&worktree).await.unwrap());
-    assert!(remove_worktree(&repo, &worktree).await.is_err());
-}
-
-#[tokio::test]
-async fn removes_a_merged_branch() {
-    let dir = tempfile::tempdir().unwrap();
-    let repo = repo(dir.path(), &[]).await.unwrap();
-    let worktree = dir.path().join("worktrees").join("login");
-    add_worktree(&repo, &worktree, "feature/login")
-        .await
-        .unwrap();
-
-    let branch = remove_worktree(&repo, &worktree).await.unwrap();
-
-    assert_eq!(branch.as_deref(), Some("feature/login"));
-    assert!(remove_merged_branch(&repo, "feature/login").await.unwrap());
-    assert_eq!(
-        run(&repo, &["branch", "--list", "feature/login"])
-            .await
-            .unwrap(),
-        ""
-    );
-}
-
-#[tokio::test]
-async fn keeps_a_branch_with_new_commits_and_reuses_it() {
-    let dir = tempfile::tempdir().unwrap();
-    let repo = repo(dir.path(), &[]).await.unwrap();
-    let worktree = dir.path().join("worktrees").join("login");
-    add_worktree(&repo, &worktree, "feature/login")
-        .await
-        .unwrap();
+    let source = repo(dir.path(), &[]).await.unwrap();
     run(
-        &worktree,
-        &["commit", "--quiet", "--allow-empty", "-m", "work"],
+        dir.path(),
+        &[
+            "clone",
+            "--quiet",
+            "--bare",
+            source.to_str().unwrap(),
+            "app.git",
+        ],
+    )
+    .await
+    .unwrap();
+    let bare = dir.path().join("app.git");
+    let main = dir.path().join("main");
+    let login = dir.path().join("login");
+    run(
+        &bare,
+        &["worktree", "add", "--quiet", main.to_str().unwrap(), "main"],
+    )
+    .await
+    .unwrap();
+    run(
+        &bare,
+        &[
+            "worktree",
+            "add",
+            "--quiet",
+            "-b",
+            "feature/login",
+            login.to_str().unwrap(),
+        ],
     )
     .await
     .unwrap();
 
-    remove_worktree(&repo, &worktree).await.unwrap();
+    let listed = worktrees(&main).await.unwrap();
 
-    assert!(!remove_merged_branch(&repo, "feature/login").await.unwrap());
-    add_worktree(&repo, &worktree, "feature/login")
-        .await
-        .unwrap();
-    assert_eq!(
-        run(&worktree, &["log", "-1", "--format=%s"]).await.unwrap(),
-        "work\n"
-    );
+    assert_eq!(listed.len(), 2);
+    assert!(listed.iter().all(|worktree| !worktree.main));
+    assert!(worktrees(&source).await.unwrap()[0].main);
 }
 
 #[tokio::test]

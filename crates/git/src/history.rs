@@ -3,14 +3,17 @@ use std::path::Path;
 use tokio::fs;
 
 use crate::Error;
-use crate::run::{git, git_paths};
+use crate::dirs::Dirs;
+use crate::run::git;
 
-const UNFINISHED: [(&str, &str); 5] = [
+const UNFINISHED: [(&str, &str); 7] = [
     ("MERGE_HEAD", "merge"),
     ("rebase-merge", "rebase"),
     ("rebase-apply", "rebase"),
     ("CHERRY_PICK_HEAD", "cherry-pick"),
     ("REVERT_HEAD", "revert"),
+    ("sequencer", "cherry-pick or revert"),
+    ("BISECT_LOG", "bisect"),
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,11 +74,11 @@ pub async fn undo(root: &Path, sha: &str) -> Result<(), Error> {
         .map(drop)
 }
 
-async fn unfinished(root: &Path) -> Result<Option<&'static str>, Error> {
-    let paths = git_paths(root, &UNFINISHED.map(|(path, _)| path)).await?;
+pub(crate) async fn unfinished(root: &Path) -> Result<Option<&'static str>, Error> {
+    let dirs = Dirs::of(root).await?;
 
-    for (path, (_, operation)) in paths.into_iter().zip(UNFINISHED) {
-        if fs::try_exists(path).await? {
+    for (name, operation) in UNFINISHED {
+        if fs::try_exists(dirs.path(name)).await? {
             return Ok(Some(operation));
         }
     }

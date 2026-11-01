@@ -41,7 +41,6 @@ semver.workspace = true
 
 [dev-dependencies]
 filetime.workspace = true
-interprocess.workspace = true
 tempfile.workspace = true
 ts-rs.workspace = true
 

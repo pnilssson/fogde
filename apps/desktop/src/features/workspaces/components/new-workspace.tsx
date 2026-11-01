@@ -1,13 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
-import { open as pick } from "@tauri-apps/plugin-dialog";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { FolderDialog } from "@/components/folder-dialog";
 import { useCreateWorkspace } from "@/features/workspaces/hooks/use-workspaces";
 import { reposFolderQuery } from "@/lib/folders";
 import type { Machine } from "@/lib/machines";
+import { pickFolder } from "@/lib/pick-folder";
+import { report } from "@/lib/report";
 
 export function useNewWorkspace(machine: Machine) {
+  const queries = useQueryClient();
   const [browsing, setBrowsing] = useState(false);
   const create = useCreateWorkspace(machine, () => {
     setBrowsing(false);
@@ -15,22 +17,26 @@ export function useNewWorkspace(machine: Machine) {
   const { data: repos } = useQuery(reposFolderQuery(machine));
 
   const start = async () => {
-    if (!machine.local) {
-      setBrowsing(true);
-      return;
-    }
-
-    const picked = await pick({ directory: true, defaultPath: repos });
-    if (picked) {
-      create.mutate(picked);
+    try {
+      const folder = machine.local
+        ? (repos ?? (await queries.query(reposFolderQuery(machine))))
+        : undefined;
+      const picked = await pickFolder(machine, folder, () => {
+        setBrowsing(true);
+      });
+      if (picked) {
+        create.mutate(picked);
+      }
+    } catch (error) {
+      report("Could not browse the folders", error);
     }
   };
 
-  const dialog = repos !== undefined && (
+  const dialog = (
     <FolderDialog
       machine={machine}
       open={browsing}
-      start={repos}
+      start={repos ?? "/"}
       title="New workspace"
       action="Create workspace"
       busy={create.isPending}

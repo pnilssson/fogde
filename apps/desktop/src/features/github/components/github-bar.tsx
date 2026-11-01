@@ -1,16 +1,13 @@
 import { ColumnsIcon, RowsIcon } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { Choice } from "@/components/choice";
 import { PageBar } from "@/components/page-bar";
-import { diffQuery } from "@/features/github/api/github";
 import { BranchMenu } from "@/features/github/components/branch-menu";
 import {
   CheckoutPicker,
   type Group,
 } from "@/features/github/components/checkout-picker";
-import { DiffTally } from "@/features/github/components/diff-tally";
 import {
   FetchButton,
   SyncButton,
@@ -20,7 +17,6 @@ import { useOpenCheckout } from "@/features/github/lib/open";
 import { type Entry, pullFor } from "@/features/github/lib/scope";
 import {
   setDiffStyle,
-  useDiffScope,
   useDiffStyle,
   useGitHubState,
 } from "@/features/github/lib/state";
@@ -73,7 +69,6 @@ export function GitHubBar({
           onOpen={open}
         />
       )}
-      {changes && <DiffSummary machine={machine} checkout={checkout} />}
       <span className="flex-1" />
       {changes && (
         <Choice
@@ -121,24 +116,5 @@ function CheckoutControls({
         primary={next === "sync"}
       />
     </>
-  );
-}
-
-interface SummaryProps {
-  machine: Machine;
-  checkout: CheckoutStatus;
-}
-
-function DiffSummary({ machine, checkout }: SummaryProps) {
-  const scope = useDiffScope(checkout.files.length);
-  const diff = useQuery(diffQuery(machine, checkout.path, scope));
-  if (!diff.data) {
-    return null;
-  }
-
-  return (
-    <span className="flex min-w-0 px-2">
-      <DiffTally diff={diff.data} scope={scope} />
-    </span>
   );
 }

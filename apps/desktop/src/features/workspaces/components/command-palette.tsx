@@ -16,11 +16,11 @@ import {
   setPaletteOpen,
   usePaletteOpen,
 } from "@/features/workspaces/lib/palette";
+import { Confirmations } from "@/features/workspaces/components/confirmations";
 import { NewWorktree } from "@/features/workspaces/components/new-worktree";
 import { PalettePages } from "@/features/workspaces/components/palette-pages";
 import { PaletteTiles } from "@/features/workspaces/components/palette-tiles";
 import { PaletteWorkspace } from "@/features/workspaces/components/palette-workspace";
-import { RemoveWorktree } from "@/features/workspaces/components/remove-worktree";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
 import {
   findWorkspace,
@@ -35,7 +35,7 @@ import {
   selectWorkspace,
 } from "@/features/workspaces/lib/tiles";
 import type { RenderPaletteNotes } from "@/features/workspaces/lib/slot";
-import type { Checkout, Workspace } from "@/generated/protocol";
+import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 import { closePage, openNote, openPage } from "@/lib/page";
 import { shortcuts } from "@/lib/shortcuts";
@@ -46,7 +46,6 @@ interface CommandsProps {
   run: Run;
   notes: RenderPaletteNotes;
   onNewWorktree: () => void;
-  onRemoveWorktree: (checkout: Checkout) => void;
 }
 
 export function CommandPalette({ notes }: { notes: RenderPaletteNotes }) {
@@ -55,8 +54,6 @@ export function CommandPalette({ notes }: { notes: RenderPaletteNotes }) {
   const open = usePaletteOpen();
   const pending = useRef<(() => void) | undefined>(undefined);
   const [naming, setNaming] = useState(false);
-  const [removing, setRemoving] = useState<Checkout>();
-  const [confirming, setConfirming] = useState(false);
 
   const run: Run = (action) => {
     pending.current = action;
@@ -91,10 +88,6 @@ export function CommandPalette({ notes }: { notes: RenderPaletteNotes }) {
               onNewWorktree={() => {
                 setNaming(true);
               }}
-              onRemoveWorktree={(checkout) => {
-                setRemoving(checkout);
-                setConfirming(true);
-              }}
             />
           </CommandList>
         </Command>
@@ -107,25 +100,12 @@ export function CommandPalette({ notes }: { notes: RenderPaletteNotes }) {
           onOpenChange={setNaming}
         />
       )}
-      {found && removing && (
-        <RemoveWorktree
-          machine={found.group.machine}
-          workspace={found.workspace}
-          checkout={removing}
-          open={confirming}
-          onOpenChange={setConfirming}
-        />
-      )}
+      <Confirmations />
     </>
   );
 }
 
-function Commands({
-  run,
-  notes,
-  onNewWorktree,
-  onRemoveWorktree,
-}: CommandsProps) {
+function Commands({ run, notes, onNewWorktree }: CommandsProps) {
   const { groups, workspace } = useContext(WorkspaceContext);
   const found = findWorkspace(groups, workspace);
   const notesMachine = found?.group.machine ?? groups[0]?.machine;
@@ -179,7 +159,6 @@ function Commands({
           view={workspace}
           run={run}
           onNewWorktree={onNewWorktree}
-          onRemoveWorktree={onRemoveWorktree}
         />
       )}
       {notesMachine &&

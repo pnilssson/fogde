@@ -29,7 +29,7 @@ jobs:
           node-version: lts/*
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
-      - run: npm ci --prefix apps/desktop
+      - run: npm ci --ignore-scripts --prefix apps/desktop
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: just,cargo-deny,cargo-shear,cargo-nextest,typos,zizmor,sqlx-cli

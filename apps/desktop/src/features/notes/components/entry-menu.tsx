@@ -19,7 +19,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Keys } from "@/components/keys";
-import { NameDialog } from "@/features/notes/components/name-dialog";
+import { NameDialog } from "@/components/name-dialog";
 import type { Entry } from "@/features/notes/hooks/use-note-files";
 import { copyPath } from "@/features/notes/lib/copy";
 import { pressed, shortcuts } from "@/lib/shortcuts";

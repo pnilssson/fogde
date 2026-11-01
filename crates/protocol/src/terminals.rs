@@ -6,10 +6,7 @@ use ts_rs::TS;
 use crate::Method;
 use crate::agents::Agent;
 
-pub use events::{
-    EndedEvent, FailedEvent, FrameEvent, ScrolledEvent, StateEvent, TerminalEnded, TerminalFailed,
-    TerminalFrame, TerminalScrolled, Viewport,
-};
+pub use events::{EndedEvent, OutputEvent, StateEvent, TerminalEnded, TerminalOutput};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
 pub struct Terminal {
@@ -86,67 +83,19 @@ pub struct Size {
 pub struct WatchTerminalParams {
     pub id: String,
     pub size: Size,
+    pub token: u32,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct ResizeTerminalParams {
+    pub id: String,
+    pub size: Size,
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
 pub struct TerminalInputParams {
     pub id: String,
     pub data: String,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub enum Key {
-    ShiftEnter,
-    CtrlEnter,
-}
-
-#[derive(Clone, Debug, Deserialize, TS)]
-pub struct TerminalKeyParams {
-    pub id: String,
-    pub key: Key,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, TS)]
-#[serde(rename_all = "lowercase")]
-pub enum Scroll {
-    Up,
-    Down,
-}
-
-#[derive(Clone, Debug, Deserialize, TS)]
-pub struct ScrollTerminalParams {
-    pub id: String,
-    pub direction: Scroll,
-    pub lines: u16,
-    pub column: u16,
-    pub row: u16,
-}
-
-#[derive(Clone, Debug, Deserialize, TS)]
-pub struct ClickTerminalParams {
-    pub id: String,
-    pub column: u16,
-    pub row: u16,
-}
-
-#[derive(Clone, Debug, Deserialize, TS)]
-pub struct SeekTerminalParams {
-    pub id: String,
-    pub offset: u32,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, TS)]
-pub struct TextPoint {
-    pub row: u32,
-    pub column: u16,
-}
-
-#[derive(Clone, Debug, Deserialize, TS)]
-pub struct SelectionParams {
-    pub id: String,
-    pub start: TextPoint,
-    pub end: TextPoint,
 }
 
 pub const IMAGE_LIMIT: usize = 10 * 1024 * 1024;
@@ -207,52 +156,12 @@ impl Method for TerminalInput {
     type Result = ();
 }
 
-pub struct TerminalKey;
-
-impl Method for TerminalKey {
-    const NAME: &'static str = "terminals.key";
-    type Params = TerminalKeyParams;
-    type Result = ();
-}
-
 pub struct ResizeTerminal;
 
 impl Method for ResizeTerminal {
     const NAME: &'static str = "terminals.resize";
-    type Params = WatchTerminalParams;
+    type Params = ResizeTerminalParams;
     type Result = ();
-}
-
-pub struct ScrollTerminal;
-
-impl Method for ScrollTerminal {
-    const NAME: &'static str = "terminals.scroll";
-    type Params = ScrollTerminalParams;
-    type Result = ();
-}
-
-pub struct ClickTerminal;
-
-impl Method for ClickTerminal {
-    const NAME: &'static str = "terminals.click";
-    type Params = ClickTerminalParams;
-    type Result = ();
-}
-
-pub struct SeekTerminal;
-
-impl Method for SeekTerminal {
-    const NAME: &'static str = "terminals.seek";
-    type Params = SeekTerminalParams;
-    type Result = ();
-}
-
-pub struct ReadSelection;
-
-impl Method for ReadSelection {
-    const NAME: &'static str = "terminals.selection";
-    type Params = SelectionParams;
-    type Result = String;
 }
 
 pub struct PasteImage;

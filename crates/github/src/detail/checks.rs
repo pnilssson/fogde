@@ -1,7 +1,7 @@
 use protocol::github::{Check, CheckState, MergeMethod, MergeState};
 use serde::Deserialize;
 
-use crate::list::Nodes;
+use super::Page;
 
 #[derive(Deserialize)]
 pub(super) struct CommitNode {
@@ -16,7 +16,7 @@ pub(super) struct Commit {
 
 #[derive(Deserialize)]
 pub(super) struct Rollup {
-    pub(super) contexts: Nodes<Context>,
+    pub(super) contexts: Page<Context>,
 }
 
 #[derive(Deserialize)]

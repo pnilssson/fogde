@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use tokio::fs;
 
 use super::*;
+use crate::base::fetch;
 use crate::commit::commit;
 use crate::run::git;
 use crate::testing::{log, repo, write};
@@ -140,7 +141,7 @@ async fn fetching_counts_incoming_commits_and_records_the_time() {
         .unwrap();
     push(&other).await.unwrap();
 
-    refresh(&app).await.unwrap();
+    fetch(&app).await.unwrap();
 
     assert_eq!(status(&app).await.unwrap().behind, 1);
     assert!(fetched(&app).await.is_some());
@@ -166,7 +167,7 @@ async fn records_the_fetch_time_of_a_linked_worktree() {
     .unwrap();
     assert!(fetched(&login).await.is_none());
 
-    refresh(&login).await.unwrap();
+    fetch(&login).await.unwrap();
 
     assert!(fetched(&login).await.is_some());
 }
@@ -190,7 +191,7 @@ async fn a_fetch_in_one_checkout_counts_for_its_worktrees() {
     .await
     .unwrap();
 
-    refresh(&app).await.unwrap();
+    fetch(&app).await.unwrap();
 
     assert!(fetched(&login).await.is_some());
 }
@@ -200,7 +201,7 @@ async fn fetching_without_a_remote_says_so() {
     let dir = tempfile::tempdir().unwrap();
     repo(dir.path()).await;
 
-    let error = refresh(dir.path()).await.unwrap_err();
+    let error = fetch(dir.path()).await.unwrap_err();
 
     assert!(error.to_string().contains("add a remote"), "{error}");
     assert!(fetched(dir.path()).await.is_none());

@@ -7,8 +7,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ActionButton } from "@/components/action-button";
 import { useWrite } from "@/features/github/hooks/use-write";
-import { ago } from "@/features/github/lib/scope";
+import { ago } from "@/lib/time";
 import type { Sync } from "@/features/github/lib/sync";
 import type { CheckoutStatus } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
@@ -75,11 +76,11 @@ export function SyncButton({ machine, checkout, sync, primary }: SyncProps) {
   const { action, label, busy } = describe(sync);
 
   return (
-    <Button
-      size="sm"
+    <ActionButton
       variant={primary ? "default" : "ghost"}
-      disabled={write.isPending}
-      aria-busy={write.isPending}
+      label={label}
+      busy={busy}
+      pending={write.isPending}
       onClick={() => {
         write.mutate((client) =>
           client.call(
@@ -88,10 +89,7 @@ export function SyncButton({ machine, checkout, sync, primary }: SyncProps) {
           ),
         );
       }}
-    >
-      {write.isPending && <Spinner aria-hidden data-icon="inline-start" />}
-      {write.isPending ? busy : label}
-    </Button>
+    />
   );
 }
 

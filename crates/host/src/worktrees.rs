@@ -43,11 +43,9 @@ pub struct Tree {
 }
 
 pub async fn for_pull(worktrees: &Path, root: &Path, number: u32) -> Result<Tree, Failure> {
-    let main = crate::workspaces::checkouts(root)
+    let main = crate::workspaces::main_checkout(root)
         .await
-        .into_iter()
-        .find(|checkout| checkout.main)
-        .map_or_else(|| root.to_owned(), |checkout| PathBuf::from(checkout.path));
+        .unwrap_or_else(|| root.to_owned());
     let project = main
         .file_name()
         .ok_or_else(|| Failure::new(SERVER_ERROR, "choose a repository folder"))?;
@@ -71,13 +69,12 @@ pub async fn for_pull(worktrees: &Path, root: &Path, number: u32) -> Result<Tree
 }
 
 async fn listed(repo: &Path, path: &Path) -> Option<String> {
-    let wanted = fs::canonicalize(path).await.ok()?;
+    if !fs::try_exists(path).await.unwrap_or(false) {
+        return None;
+    }
 
     for checkout in crate::workspaces::checkouts(repo).await {
-        if fs::canonicalize(&checkout.path)
-            .await
-            .is_ok_and(|real| real == wanted)
-        {
+        if folders::identical(path, Path::new(&checkout.path)).await {
             return Some(checkout.path);
         }
     }
@@ -90,12 +87,7 @@ impl Handler for RemoveWorktree {
         let repo = folders::absolute(&params.repo).map_err(failure)?;
         let path = folders::absolute(&params.path).map_err(failure)?;
 
-        if !git::clean(&path).await.map_err(failure)? {
-            return Err(Failure::new(
-                SERVER_ERROR,
-                "commit or discard its changes first",
-            ));
-        }
+        git::removable(&repo, &path).await.map_err(failure)?;
         crate::workspaces::close_terminals_in(session, &path).await?;
 
         let branch = git::remove_worktree(&repo, &path).await.map_err(failure)?;

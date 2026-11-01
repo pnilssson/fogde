@@ -1,11 +1,73 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
-pub fn measure(paths: &[PathBuf]) -> Vec<Option<u64>> {
-    let skip: HashSet<&Path> = paths.iter().map(PathBuf::as_path).collect();
+const KEEP: Duration = Duration::from_secs(120);
 
-    paths.iter().map(|path| size(path, &skip)).collect()
+#[derive(Default)]
+pub struct Sizes(Mutex<HashMap<PathBuf, Measured>>);
+
+struct Measured {
+    at: Instant,
+    size: Option<u64>,
+    skip: BTreeSet<PathBuf>,
+}
+
+impl Sizes {
+    pub fn measure(&self, paths: &[PathBuf]) -> Vec<Option<u64>> {
+        let now = Instant::now();
+        let stale: Vec<&PathBuf> = {
+            let known = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+            paths
+                .iter()
+                .filter(|path| {
+                    known.get(*path).is_none_or(|measured| {
+                        now.duration_since(measured.at) >= KEEP
+                            || measured.skip != nested(path, paths)
+                    })
+                })
+                .collect()
+        };
+        let skip: HashSet<&Path> = paths.iter().map(PathBuf::as_path).collect();
+        let measured: Vec<(PathBuf, Measured)> = stale
+            .into_iter()
+            .map(|path| {
+                let measured = Measured {
+                    at: now,
+                    size: size(path, &skip),
+                    skip: nested(path, paths),
+                };
+
+                (path.clone(), measured)
+            })
+            .collect();
+
+        let mut known = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        known.extend(measured);
+        known.retain(|path, measured| {
+            now.duration_since(measured.at) < KEEP || skip.contains(path.as_path())
+        });
+
+        paths
+            .iter()
+            .map(|path| known.get(path).and_then(|measured| measured.size))
+            .collect()
+    }
+}
+
+fn nested(root: &Path, paths: &[PathBuf]) -> BTreeSet<PathBuf> {
+    paths
+        .iter()
+        .filter(|path| path.as_path() != root && path.starts_with(root))
+        .cloned()
+        .collect()
+}
+
+#[cfg(test)]
+fn measure(paths: &[PathBuf]) -> Vec<Option<u64>> {
+    Sizes::default().measure(paths)
 }
 
 fn size(root: &Path, skip: &HashSet<&Path>) -> Option<u64> {
@@ -69,6 +131,36 @@ mod tests {
         write(&login.join("README.md"), 40);
 
         assert_eq!(measure(&[app, login]), [Some(10), Some(40)]);
+    }
+
+    #[test]
+    fn measures_a_folder_again_only_after_a_while() {
+        let dir = tempfile::tempdir().unwrap();
+        let app = dir.path().join("app");
+        let sizes = Sizes::default();
+        write(&app.join("README.md"), 10);
+
+        let first = sizes.measure(std::slice::from_ref(&app));
+        write(&app.join("target").join("app"), 500);
+        let again = sizes.measure(std::slice::from_ref(&app));
+
+        assert_eq!([first, again], [[Some(10)], [Some(10)]]);
+    }
+
+    #[test]
+    fn measures_again_once_a_nested_checkout_is_counted_on_its_own() {
+        let dir = tempfile::tempdir().unwrap();
+        let app = dir.path().join("app");
+        let login = app.join(".worktrees").join("login");
+        let sizes = Sizes::default();
+        write(&app.join("README.md"), 10);
+        write(&login.join("README.md"), 40);
+
+        let alone = sizes.measure(std::slice::from_ref(&app));
+        let both = sizes.measure(&[app, login]);
+
+        assert_eq!(alone, [Some(50)]);
+        assert_eq!(both, [Some(10), Some(40)]);
     }
 
     #[test]

@@ -1,7 +1,6 @@
 import type { DockviewPanelApi } from "dockview-react";
 import { useContext } from "react";
 
-import { CloseTerminal } from "@/features/workspaces/components/close-terminal";
 import { TerminalIcon } from "@/features/workspaces/components/terminal-icon";
 import { TileBar } from "@/features/workspaces/components/tile-bar";
 import { useClose } from "@/features/workspaces/hooks/use-close";
@@ -49,12 +48,6 @@ export function TerminalPane({ panel, machine, terminal }: Props) {
         }}
       />
       {render({ panel, machine, id: terminal.id })}
-      <CloseTerminal
-        machine={machine}
-        terminal={terminal}
-        open={close.confirming}
-        onOpenChange={close.setConfirming}
-      />
     </section>
   );
 }

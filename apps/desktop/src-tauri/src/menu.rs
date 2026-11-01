@@ -4,6 +4,7 @@ use tauri::{Emitter, Manager};
 pub fn install(app: &tauri::App) -> tauri::Result<()> {
     const CLOSE_TILE: &str = "close-tile";
     const CLOSE_WINDOW: &str = "close-window";
+    const QUIT: &str = "quit";
 
     let handle = app.handle();
     let info = handle.package_info();
@@ -28,7 +29,13 @@ pub fn install(app: &tauri::App) -> tauri::Result<()> {
                     &PredefinedMenuItem::hide(handle, None)?,
                     &PredefinedMenuItem::hide_others(handle, None)?,
                     &PredefinedMenuItem::separator(handle)?,
-                    &PredefinedMenuItem::quit(handle, None)?,
+                    &MenuItem::with_id(
+                        handle,
+                        QUIT,
+                        format!("Quit {}", info.name),
+                        true,
+                        Some("Cmd+Q"),
+                    )?,
                 ],
             )?,
             &Submenu::with_items(
@@ -85,11 +92,18 @@ pub fn install(app: &tauri::App) -> tauri::Result<()> {
             if let Err(error) = app.emit(CLOSE_TILE, ()) {
                 tracing::warn!(%error, "could not ask the window to close a tile");
             }
-        } else if id == CLOSE_WINDOW
-            && let Some(window) = app.get_webview_window("main")
-            && let Err(error) = window.close()
-        {
-            tracing::warn!(%error, "could not close the window");
+        } else if id == CLOSE_WINDOW || id == QUIT {
+            match app.get_webview_window("main") {
+                Some(window) => {
+                    if let Err(error) = window.close() {
+                        tracing::warn!(%error, "could not close the window");
+                    }
+                }
+                None if id == QUIT => {
+                    app.exit(0);
+                }
+                None => {}
+            }
         }
     });
 

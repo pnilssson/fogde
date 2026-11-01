@@ -1,7 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { ActionButton } from "@/components/action-button";
 import { WorktreeForm } from "@/features/workspaces/components/new-worktree";
-import { RemoveWorktree } from "@/features/workspaces/components/remove-worktree";
 import { useRemoval } from "@/features/workspaces/hooks/use-worktrees";
 import { checkoutOf, mainCheckout } from "@/features/workspaces/lib/checkouts";
 import { closeStart } from "@/features/workspaces/lib/opening";
@@ -46,29 +44,14 @@ interface RemovalProps {
 }
 
 function Removal({ machine, workspace, checkout }: RemovalProps) {
-  const removal = useRemoval(machine, workspace, checkout.path);
+  const removal = useRemoval(machine, workspace, checkout);
 
   return (
-    <>
-      <Button
-        variant="secondary"
-        size="sm"
-        disabled={removal.pending}
-        aria-busy={removal.pending}
-        onClick={() => {
-          removal.request();
-        }}
-      >
-        {removal.pending && <Spinner aria-hidden data-icon="inline-start" />}
-        {removal.pending ? "Removing…" : "Remove worktree"}
-      </Button>
-      <RemoveWorktree
-        machine={machine}
-        workspace={workspace}
-        checkout={checkout}
-        open={removal.confirming}
-        onOpenChange={removal.setConfirming}
-      />
-    </>
+    <ActionButton
+      label="Remove worktree"
+      busy="Removing…"
+      pending={removal.pending}
+      onClick={removal.request}
+    />
   );
 }

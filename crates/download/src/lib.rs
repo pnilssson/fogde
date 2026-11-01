@@ -38,7 +38,18 @@ pub async fn install(url: &str, sha256: &str, packing: Packing, dir: &Path) -> R
     let path = staging.join(file);
     run(
         curl(),
-        &["-fsSL".into(), "-o".into(), path.clone().into(), url.into()],
+        &[
+            "-fsSL".into(),
+            "--connect-timeout".into(),
+            "15".into(),
+            "--speed-limit".into(),
+            "1024".into(),
+            "--speed-time".into(),
+            "30".into(),
+            "-o".into(),
+            path.clone().into(),
+            url.into(),
+        ],
     )
     .await?;
 
@@ -121,7 +132,33 @@ fn tar() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+    use std::io::{Read, Write};
+    use std::time::Duration;
+
     use super::*;
+
+    #[tokio::test]
+    async fn gives_up_on_a_stalled_download() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/app", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0; 1024];
+            let _ = stream.read(&mut request);
+            let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4096\r\n\r\napp");
+            std::thread::sleep(Duration::from_secs(120));
+        });
+        let dir = tempfile::tempdir().unwrap();
+
+        let result = tokio::time::timeout(
+            Duration::from_secs(90),
+            install(&url, "", Packing::Binary("app"), &dir.path().join("app")),
+        )
+        .await
+        .expect("the download never gave up");
+
+        assert!(matches!(result, Err(Error::Failed(_))));
+    }
 
     #[test]
     fn hashes_like_sha256sum() {

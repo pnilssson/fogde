@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
+import { ActionButton } from "@/components/action-button";
 import { DoneBadge } from "@/components/done-badge";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import type { Status } from "@/lib/connection";
 
 interface Props {
@@ -41,20 +41,13 @@ export function Connection({
               Cancel
             </Button>
           )}
-          <Button
-            variant="secondary"
-            size="sm"
+          <ActionButton
+            label={action}
+            busy={pending}
+            pending={busy}
             aria-label={`${action} ${name}`}
-            aria-busy={busy}
-            onClick={() => {
-              if (!busy) {
-                onConnect();
-              }
-            }}
-          >
-            {busy && <Spinner aria-hidden data-icon="inline-start" />}
-            {busy ? pending : action}
-          </Button>
+            onClick={onConnect}
+          />
         </div>
       )}
     </div>

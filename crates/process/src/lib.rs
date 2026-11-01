@@ -2,12 +2,27 @@ mod feed;
 
 use std::env;
 use std::ffi::{OsStr, OsString};
+use std::io;
 use std::path::PathBuf;
-use std::process::Stdio;
+use std::process::{ExitStatus, Stdio};
 
-use tokio::process::Command;
+#[cfg(unix)]
+use process_wrap::tokio::ProcessGroup;
+use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
+#[cfg(windows)]
+use process_wrap::tokio::{CreationFlags, JobObject};
+use tokio::process::{ChildStderr, ChildStdin, ChildStdout, Command};
+#[cfg(windows)]
+use windows::Win32::System::Threading::CREATE_NO_WINDOW;
 
 pub use feed::feed;
+
+pub const UNPROMPTED: [(&str, &str); 4] = [
+    ("GIT_TERMINAL_PROMPT", "0"),
+    ("GCM_INTERACTIVE", "never"),
+    ("GIT_ASKPASS", ""),
+    ("SSH_ASKPASS_REQUIRE", "never"),
+];
 
 pub fn command(program: impl AsRef<OsStr>) -> Command {
     let mut command = hidden(program);
@@ -23,10 +38,7 @@ pub fn hidden(program: impl AsRef<OsStr>) -> Command {
     command.kill_on_drop(true);
 
     #[cfg(windows)]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        command.creation_flags(CREATE_NO_WINDOW);
-    }
+    command.creation_flags(CREATE_NO_WINDOW.0);
 
     command
 }
@@ -48,6 +60,65 @@ pub fn parentless(program: impl AsRef<OsStr>, args: &[&str]) -> Command {
     command
 }
 
+pub struct Tree {
+    child: Box<dyn ChildWrapper>,
+    done: bool,
+}
+
+impl Tree {
+    pub fn stdin(&mut self) -> Option<ChildStdin> {
+        self.child.stdin().take()
+    }
+
+    pub fn stdout(&mut self) -> Option<ChildStdout> {
+        self.child.stdout().take()
+    }
+
+    pub fn stderr(&mut self) -> Option<ChildStderr> {
+        self.child.stderr().take()
+    }
+
+    pub async fn wait(&mut self) -> io::Result<ExitStatus> {
+        let status = self.child.wait().await?;
+        self.done = true;
+
+        Ok(status)
+    }
+}
+
+impl Drop for Tree {
+    fn drop(&mut self) {
+        if !self.done {
+            let _ = self.child.start_kill();
+        }
+    }
+}
+
+pub fn tree(command: Command) -> io::Result<Tree> {
+    let mut command = CommandWrap::from(command);
+    command.wrap(KillOnDrop);
+
+    #[cfg(unix)]
+    command.wrap(ProcessGroup::leader());
+
+    #[cfg(windows)]
+    command
+        .wrap(CreationFlags(CREATE_NO_WINDOW))
+        .wrap(JobObject);
+
+    command.spawn().map(|child| Tree { child, done: false })
+}
+
+pub fn not_found<E: From<io::Error>>(missing: E) -> impl FnOnce(io::Error) -> E {
+    move |error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            return missing;
+        }
+
+        E::from(error)
+    }
+}
+
 fn scrubbed(mut command: Command) -> Command {
     for name in leaked(env::vars_os()) {
         command.env_remove(name);
@@ -57,10 +128,7 @@ fn scrubbed(mut command: Command) -> Command {
     command.process_group(0);
 
     #[cfg(windows)]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        command.creation_flags(CREATE_NO_WINDOW);
-    }
+    command.creation_flags(CREATE_NO_WINDOW.0);
 
     command
 }
@@ -139,7 +207,7 @@ fn leaked(vars: impl IntoIterator<Item = (OsString, OsString)>) -> Vec<OsString>
     vars.into_iter()
         .filter(|(name, value)| {
             let name = name.to_string_lossy();
-            name.starts_with("HERDR_") || (name.starts_with("XDG_") && value.is_empty())
+            name.starts_with("HC_") || (name.starts_with("XDG_") && value.is_empty())
         })
         .map(|(name, _)| name)
         .collect()
@@ -162,124 +230,4 @@ pub fn find_in(dirs: impl IntoIterator<Item = PathBuf>, name: &str) -> Option<Pa
 }
 
 #[cfg(test)]
-mod tests {
-    use std::ffi::OsString;
-
-    use super::*;
-
-    #[cfg(windows)]
-    #[tokio::test]
-    async fn leaves_no_parent_behind() {
-        let marker = "127.0.0.77";
-        detached("ping", &["-n", "4", marker])
-            .spawn()
-            .unwrap()
-            .wait()
-            .await
-            .unwrap();
-
-        let query = format!(
-            "$found = Get-CimInstance Win32_Process -Filter \"Name = 'ping.exe' and CommandLine like '%{marker}%'\" | Select-Object -First 1; if (-not $found) {{ 'missing' }} elseif (Get-Process -Id $found.ParentProcessId -ErrorAction SilentlyContinue) {{ 'parented' }} else {{ 'orphaned' }}"
-        );
-        let output = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", &query])
-            .output()
-            .unwrap();
-
-        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "orphaned");
-    }
-
-    #[cfg(windows)]
-    #[tokio::test]
-    async fn leaves_ctrl_c_working_for_its_children() {
-        let marker = "127.0.0.79";
-        let script = env::temp_dir().join(format!("process-ctrl-c-{}.ps1", std::process::id()));
-        std::fs::write(
-            &script,
-            format!(
-                "Add-Type -Namespace W -Name K -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern bool GenerateConsoleCtrlEvent(uint e, uint g);'\n\
-                 Start-Process ping -ArgumentList '-t','{marker}' -NoNewWindow\n\
-                 Start-Sleep 1\n\
-                 [W.K]::GenerateConsoleCtrlEvent(0, 0)\n\
-                 Start-Sleep 5\n"
-            ),
-        )
-        .unwrap();
-
-        detached(
-            "powershell",
-            &["-NoProfile", "-File", script.to_str().unwrap()],
-        )
-        .spawn()
-        .unwrap()
-        .wait()
-        .await
-        .unwrap();
-        tokio::time::sleep(std::time::Duration::from_secs(4)).await;
-
-        let query = format!(
-            "Get-CimInstance Win32_Process -Filter \"Name = 'ping.exe' and CommandLine like '%{marker}%'\" | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force; 'running' }}"
-        );
-        let output = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", &query])
-            .output()
-            .unwrap();
-        std::fs::remove_file(&script).unwrap();
-
-        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "");
-    }
-
-    #[cfg(windows)]
-    #[tokio::test]
-    async fn keeps_its_pipes_without_a_parent() {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-        let mut echo = parentless("findstr", &["x"]);
-        echo.stdin(Stdio::piped()).stdout(Stdio::piped());
-        let mut child = echo.spawn().unwrap();
-        let mut stdin = child.stdin.take().unwrap();
-        stdin.write_all(b"xhello\r\n").await.unwrap();
-        drop(stdin);
-        let mut echoed = String::new();
-        child
-            .stdout
-            .take()
-            .unwrap()
-            .read_to_string(&mut echoed)
-            .await
-            .unwrap();
-
-        assert_eq!(echoed.trim(), "xhello");
-    }
-
-    fn vars(pairs: &[(&str, &str)]) -> Vec<(OsString, OsString)> {
-        pairs
-            .iter()
-            .map(|(name, value)| (OsString::from(name), OsString::from(value)))
-            .collect()
-    }
-
-    #[test]
-    fn leaves_the_pane_it_was_started_in() {
-        let pane = vars(&[
-            ("HERDR_ENV", "1"),
-            ("HERDR_PANE_ID", "w1:p1"),
-            ("HERDR_SOCKET_PATH", "/home/dev/.config/herdr/herdr.sock"),
-            ("XDG_CONFIG_HOME", ""),
-            ("XDG_STATE_HOME", ""),
-            ("XDG_DATA_HOME", "/home/dev/.local/share"),
-            ("PATH", "/usr/bin"),
-        ]);
-
-        assert_eq!(
-            leaked(pane),
-            [
-                "HERDR_ENV",
-                "HERDR_PANE_ID",
-                "HERDR_SOCKET_PATH",
-                "XDG_CONFIG_HOME",
-                "XDG_STATE_HOME",
-            ]
-        );
-    }
-}
+mod tests;

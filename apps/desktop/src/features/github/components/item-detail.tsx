@@ -8,7 +8,7 @@ import { TileStatus } from "@/components/tile-status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { detailQuery, type Kind } from "@/features/github/api/github";
-import { ActionButton } from "@/features/github/components/action-button";
+import { ActionButton } from "@/components/action-button";
 import { Conversation } from "@/features/github/components/conversation";
 import { PickMenu } from "@/features/github/components/pick-menu";
 import { PullPanel } from "@/features/github/components/pull-panel";
@@ -18,9 +18,9 @@ import { TextDialog } from "@/features/github/components/text-dialog";
 import { Threads } from "@/features/github/components/threads";
 import { useReported } from "@/features/github/hooks/use-reported";
 import { useWrite } from "@/features/github/hooks/use-write";
-import { ago } from "@/features/github/lib/scope";
 import type { CheckoutStatus, Detail, Repo } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { ago } from "@/lib/time";
 
 interface Props {
   machine: Machine;

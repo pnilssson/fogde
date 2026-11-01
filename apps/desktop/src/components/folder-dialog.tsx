@@ -2,6 +2,7 @@ import { ArrowUpIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { ActionButton } from "@/components/action-button";
 import { FolderRow } from "@/components/folder-row";
 import { NewFolder } from "@/components/new-folder";
 import { Button } from "@/components/ui/button";
@@ -151,20 +152,16 @@ function FolderBrowser({
         <DialogClose render={<Button variant="ghost" size="sm" />}>
           Cancel
         </DialogClose>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={!data || busy}
-          aria-busy={busy}
+        <ActionButton
+          label={action}
+          pending={busy}
+          disabled={!data}
           onClick={() => {
             if (data) {
               onChoose(data.path);
             }
           }}
-        >
-          {busy && <Spinner aria-hidden data-icon="inline-start" />}
-          {action}
-        </Button>
+        />
       </DialogFooter>
     </>
   );

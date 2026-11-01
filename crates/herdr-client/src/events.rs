@@ -1,174 +1,188 @@
-use serde::de::IgnoredAny;
-use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
-use crate::client::{Connection, reply};
-use crate::{Client, Error, Scrollback};
+use serde::Deserialize;
+use serde_json::Value;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(tag = "type")]
-pub enum Subscription {
-    #[serde(rename = "workspace.created")]
-    WorkspaceCreated,
-    #[serde(rename = "workspace.closed")]
-    WorkspaceClosed,
-    #[serde(rename = "workspace.renamed")]
-    WorkspaceRenamed,
-    #[serde(rename = "pane.created")]
-    PaneCreated,
-    #[serde(rename = "pane.closed")]
-    PaneClosed,
-    #[serde(rename = "pane.exited")]
-    PaneExited,
-    #[serde(rename = "pane.updated")]
-    PaneUpdated,
-    #[serde(rename = "pane.agent_detected")]
-    AgentDetected,
-    #[serde(rename = "pane.agent_status_changed")]
-    AgentStatus { pane_id: String },
-    #[serde(rename = "pane.scroll_changed")]
-    ScrollChanged { pane_id: String },
+use crate::connection::{Channel, Chunk};
+use crate::terminal::{Empty, Status, Terminal};
+use crate::{Connection, Error};
+
+pub struct Events {
+    channel: Channel,
+    buffer: Vec<u8>,
+    seq: u64,
+    terminals: BTreeMap<String, Terminal>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Event {
-    Scrolled {
-        pane: String,
-        scrollback: Scrollback,
-    },
-    Other,
+pub enum Change {
+    All,
+    Turn(String),
+    Terminal(String),
 }
 
-pub struct Events(Connection);
+impl Connection {
+    pub async fn events(&self) -> Result<Events, Error> {
+        let (subscribed, channel): (Subscribed, _) =
+            self.open_channel("events.subscribe", Empty {}).await?;
 
-impl Client {
-    pub async fn subscribe(&self, subscriptions: &[Subscription]) -> Result<Events, Error> {
-        let mut connection = self
-            .open("events.subscribe", Subscribe { subscriptions })
-            .await?;
-        reply::<IgnoredAny>(&connection.line().await?)?;
-
-        Ok(Events(connection))
+        Ok(Events {
+            channel,
+            buffer: Vec::new(),
+            seq: subscribed.seq,
+            terminals: by_address(subscribed.terminals),
+        })
     }
 }
 
 impl Events {
-    pub async fn next(&mut self) -> Result<(), Error> {
-        self.event().await.map(drop)
+    pub fn terminals(&self) -> &BTreeMap<String, Terminal> {
+        &self.terminals
     }
 
-    pub async fn event(&mut self) -> Result<Event, Error> {
-        read(&self.0.line().await?)
+    pub async fn changed(&mut self) -> Result<Change, Error> {
+        loop {
+            while let Some(end) = self.buffer.iter().position(|&byte| byte == b'\n') {
+                let line: Vec<u8> = self.buffer.drain(..=end).collect();
+                if let Some(change) = self.apply(&line)? {
+                    return Ok(change);
+                }
+            }
+
+            match self.channel.chunks.recv().await {
+                Some(Chunk::Data(bytes)) => {
+                    self.channel.credit(bytes.len());
+                    self.buffer.extend(bytes);
+                }
+                Some(Chunk::Closed(reason)) => {
+                    return Err(reason.map_or(Error::Closed, Error::Ended));
+                }
+                None => return Err(Error::Closed),
+            }
+        }
+    }
+
+    fn apply(&mut self, line: &[u8]) -> Result<Option<Change>, Error> {
+        match serde_json::from_slice(line)? {
+            Notification::Event(event) => Ok(self.event(event)),
+            Notification::Missed(missed) => {
+                self.seq = missed.seq;
+                self.terminals = by_address(missed.terminals);
+
+                Ok(Some(Change::All))
+            }
+            Notification::Heartbeat {} => Ok(None),
+        }
+    }
+
+    fn event(&mut self, event: Event) -> Option<Change> {
+        if event.seq <= self.seq {
+            return None;
+        }
+        self.seq = event.seq;
+
+        let address = event.terminal?;
+        match event.kind.as_str() {
+            "created" | "restarted" => {
+                let terminal: Terminal = serde_json::from_value(event.data).ok()?;
+                self.terminals.insert(address.clone(), terminal);
+            }
+            "finished" | "removed" => {
+                self.terminals.remove(&address)?;
+            }
+            kind => {
+                let terminal = self.terminals.get_mut(&address)?;
+                match kind {
+                    "lost" => {
+                        terminal.pid = None;
+                        terminal.foreground = None;
+                    }
+                    "status" => {
+                        let reported: Reported = serde_json::from_value(event.data).ok()?;
+                        terminal.status = reported.status;
+                    }
+                    "turn" => {
+                        let ended: Ended = serde_json::from_value(event.data).ok()?;
+                        terminal.turn = ended.turn;
+
+                        return Some(Change::Turn(address));
+                    }
+                    "title" => {
+                        let titled: Titled = serde_json::from_value(event.data).ok()?;
+                        terminal.title = titled.title;
+                    }
+                    "labels" => {
+                        let labelled: Labelled = serde_json::from_value(event.data).ok()?;
+                        terminal.labels = labelled.labels;
+                    }
+                    "foreground" => {
+                        terminal.foreground = serde_json::from_value(event.data).ok()?;
+                    }
+                    _ => return None,
+                }
+            }
+        }
+
+        Some(Change::Terminal(address))
     }
 }
 
-fn read(line: &str) -> Result<Event, Error> {
-    match serde_json::from_str(line)? {
-        Line::Scrolled { data, .. } => Ok(Event::Scrolled {
-            pane: data.pane_id,
-            scrollback: data.scroll,
-        }),
-        Line::Event { .. } => Ok(Event::Other),
-        Line::Reply(_) => reply::<IgnoredAny>(line).map(|_| Event::Other),
-    }
-}
-
-#[derive(Serialize)]
-struct Subscribe<'a> {
-    subscriptions: &'a [Subscription],
+fn by_address(terminals: Vec<Terminal>) -> BTreeMap<String, Terminal> {
+    terminals
+        .into_iter()
+        .map(|terminal| (terminal.address.clone(), terminal))
+        .collect()
 }
 
 #[derive(Deserialize)]
-#[serde(untagged)]
-enum Line {
-    Scrolled {
-        #[serde(rename = "event")]
-        _event: ScrollChanged,
-        data: ScrollData,
-    },
-    Event {
-        #[serde(rename = "event")]
-        _event: String,
-    },
-    Reply(IgnoredAny),
+struct Subscribed {
+    seq: u64,
+    terminals: Vec<Terminal>,
 }
 
 #[derive(Deserialize)]
-enum ScrollChanged {
-    #[serde(rename = "pane.scroll_changed")]
-    Changed,
+#[serde(tag = "method", content = "params", rename_all = "lowercase")]
+enum Notification {
+    Event(Event),
+    Missed(Missed),
+    Heartbeat {},
 }
 
 #[derive(Deserialize)]
-struct ScrollData {
-    pane_id: String,
-    scroll: Scrollback,
+struct Event {
+    seq: u64,
+    #[serde(rename = "type")]
+    kind: String,
+    terminal: Option<String>,
+    #[serde(default)]
+    data: Value,
+}
+
+#[derive(Deserialize)]
+struct Missed {
+    seq: u64,
+    terminals: Vec<Terminal>,
+}
+
+#[derive(Deserialize)]
+struct Reported {
+    status: Option<Status>,
+}
+
+#[derive(Deserialize)]
+struct Ended {
+    turn: u64,
+}
+
+#[derive(Deserialize)]
+struct Titled {
+    title: String,
+}
+
+#[derive(Deserialize)]
+struct Labelled {
+    labels: BTreeMap<String, String>,
 }
 
 #[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::*;
-
-    #[test]
-    fn writes_subscriptions() {
-        let subscriptions = [
-            Subscription::PaneCreated,
-            Subscription::AgentStatus {
-                pane_id: "w1:p1".into(),
-            },
-            Subscription::ScrollChanged {
-                pane_id: "w1:p1".into(),
-            },
-        ];
-
-        assert_eq!(
-            serde_json::to_value(Subscribe {
-                subscriptions: &subscriptions
-            })
-            .unwrap(),
-            json!({"subscriptions": [
-                {"type": "pane.created"},
-                {"type": "pane.agent_status_changed", "pane_id": "w1:p1"},
-                {"type": "pane.scroll_changed", "pane_id": "w1:p1"},
-            ]})
-        );
-    }
-
-    #[test]
-    fn reads_events() {
-        let status = r#"{"data":{"agent":"claude","agent_status":"blocked","pane_id":"w1:p1","workspace_id":"w1"},"event":"pane.agent_status_changed"}"#;
-        let renamed = r#"{"data":{"label":"renamed","type":"workspace_renamed","workspace_id":"w1"},"event":"workspace_renamed"}"#;
-
-        assert_eq!(read(status).unwrap(), Event::Other);
-        assert_eq!(read(renamed).unwrap(), Event::Other);
-    }
-
-    #[test]
-    fn reads_scroll_changes() {
-        let scrolled = r#"{"data":{"pane_id":"w1:p1","scroll":{"max_offset_from_bottom":240,"offset_from_bottom":12,"viewport_rows":30},"workspace_id":"w1"},"event":"pane.scroll_changed"}"#;
-
-        assert_eq!(
-            read(scrolled).unwrap(),
-            Event::Scrolled {
-                pane: "w1:p1".into(),
-                scrollback: Scrollback {
-                    offset: 12,
-                    max: 240,
-                    rows: 30,
-                },
-            }
-        );
-    }
-
-    #[test]
-    fn reports_lost_events() {
-        let lost =
-            r#"{"id":"fogde","error":{"code":"events_lost","message":"subscriber fell behind"}}"#;
-
-        assert!(matches!(
-            read(lost),
-            Err(Error::Herdr { code, .. }) if code == "events_lost"
-        ));
-    }
-}
+mod tests;

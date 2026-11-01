@@ -4,9 +4,10 @@ use std::process::Stdio;
 use protocol::repos::Repo;
 use serde::Deserialize;
 use tokio::fs;
+use tokio::process::Command;
 
 use crate::Error;
-use crate::gh::{Gh, failure, spawn_error};
+use crate::gh::{Gh, failure};
 use crate::remote::{remote, same, segment};
 
 const REPOS: &str =
@@ -45,22 +46,26 @@ impl Gh {
             return Err(Error::Exists(path));
         }
 
-        let output = self
-            .command()
-            .args(["repo", "clone"])
-            .arg(format!("{}/{}/{}", repo.host, repo.owner, repo.name))
-            .arg(&path)
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .stdin(Stdio::null())
+        let output = cloning(self.command(), repo, &path)
             .output()
             .await
-            .map_err(spawn_error)?;
+            .map_err(process::not_found(Error::Missing))?;
         if !output.status.success() {
             return Err(failure(&output.stderr));
         }
 
         Ok(())
     }
+}
+
+fn cloning(mut gh: Command, repo: &Repo, path: &Path) -> Command {
+    gh.args(["repo", "clone"])
+        .arg(format!("{}/{}/{}", repo.host, repo.owner, repo.name))
+        .arg(path)
+        .envs(process::UNPROMPTED)
+        .stdin(Stdio::null());
+
+    gh
 }
 
 pub async fn cloned(repo: &Repo, into: &Path) -> bool {
@@ -99,6 +104,8 @@ fn visible(host: &str, entries: Vec<Entry>) -> impl Iterator<Item = Repo> {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::OsStr;
+
     use super::*;
 
     fn repo(host: &str, owner: &str, name: &str) -> Repo {
@@ -120,6 +127,23 @@ mod tests {
                 repo("github.com", "octocat", "blog"),
             ]
         );
+    }
+
+    #[test]
+    fn clones_without_prompting_for_credentials() {
+        let clone = cloning(
+            Command::new("gh"),
+            &repo("github.com", "octocat", "hello-world"),
+            Path::new("/repos/hello-world"),
+        );
+        let env: Vec<(&OsStr, Option<&OsStr>)> = clone.as_std().get_envs().collect();
+
+        for (name, value) in process::UNPROMPTED {
+            assert!(
+                env.contains(&(OsStr::new(name), Some(OsStr::new(value)))),
+                "missing {name}"
+            );
+        }
     }
 
     #[test]

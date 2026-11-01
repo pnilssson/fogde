@@ -9,7 +9,6 @@ use protocol::checkouts::{
 };
 use protocol::repos::Repo;
 use protocol::rpc::Failure;
-use tokio::fs;
 
 use crate::folders;
 use crate::rpc::{Handler, Router, failure};
@@ -83,7 +82,12 @@ async fn checkout(root: &Path, hosts: &[String]) -> Option<CheckoutStatus> {
 
         Ok::<_, git::Error>((status, published))
     };
-    let (read, fetched, last) = tokio::join!(read, git::fetched(root), git::last(root));
+    let (read, fetched, last, commits) = tokio::join!(
+        read,
+        git::fetched(root),
+        git::last(root),
+        git::commits(root)
+    );
     let (status, published) = match read {
         Ok(read) => read,
         Err(error) => {
@@ -102,6 +106,7 @@ async fn checkout(root: &Path, hosts: &[String]) -> Option<CheckoutStatus> {
         upstream: status.upstream,
         ahead: status.ahead,
         behind: status.behind,
+        commits,
         files: status.files.into_iter().take(FILES).map(file).collect(),
         fetched: fetched
             .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
@@ -162,8 +167,11 @@ impl Handler for Commit {
 }
 
 impl Handler for Push {
-    async fn handle(_: &Session, path: String) -> Result<(), Failure> {
-        git::push(&root(&path).await?).await.map_err(failure)
+    async fn handle(session: &Session, path: String) -> Result<(), Failure> {
+        git::push(&root(&path).await?).await.map_err(failure)?;
+        session.shared.tracker.recount();
+
+        Ok(())
     }
 }
 
@@ -193,7 +201,7 @@ impl Handler for CreateBranch {
 
 impl Handler for Fetch {
     async fn handle(_: &Session, path: String) -> Result<(), Failure> {
-        git::refresh(&root(&path).await?).await.map_err(failure)
+        git::fetch(&root(&path).await?).await.map_err(failure)
     }
 }
 
@@ -202,13 +210,7 @@ impl Handler for GetDiff {
         let diff = match params.scope {
             DiffScope::Turn => {
                 let turn = match params.terminal {
-                    Some(terminal) => {
-                        session
-                            .shared
-                            .tracker
-                            .turn(&session.shared.turns(), &terminal)
-                            .await
-                    }
+                    Some(terminal) => session.shared.tracker.turn(&terminal).await,
                     None => None,
                 };
                 match turn {
@@ -265,28 +267,26 @@ impl Handler for CleanUp {
         let branch = git::landed(&root, &params.sha, &params.base)
             .await
             .map_err(failure)?;
-        let main = crate::workspaces::checkouts(&root)
-            .await
-            .into_iter()
-            .find(|checkout| checkout.main)
-            .map_or_else(|| root.clone(), |checkout| PathBuf::from(checkout.path));
-        if same(&main, &root).await {
+        let main = crate::workspaces::main_checkout(&root).await;
+        if let Some(main) = &main
+            && folders::identical(main, &root).await
+        {
             return git::leave(&root, &branch, &params.base)
                 .await
                 .map_err(failure);
         }
 
+        let repo = match main {
+            Some(main) => main,
+            None => git::common(&root)
+                .await
+                .ok_or_else(|| failure("could not find the repository"))?,
+        };
+        git::removable(&repo, &root).await.map_err(failure)?;
         crate::workspaces::close_terminals_in(session, &root).await?;
-        git::remove_worktree(&main, &root).await.map_err(failure)?;
+        git::remove_worktree(&repo, &root).await.map_err(failure)?;
 
-        git::delete_branch(&main, &branch).await.map_err(failure)
-    }
-}
-
-async fn same(a: &Path, b: &Path) -> bool {
-    match (fs::canonicalize(a).await, fs::canonicalize(b).await) {
-        (Ok(a), Ok(b)) => a == b,
-        _ => a == b,
+        git::delete_branch(&repo, &branch).await.map_err(failure)
     }
 }
 

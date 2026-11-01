@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { open as pick } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
 
+import { ActionButton } from "@/components/action-button";
 import { FolderDialog } from "@/components/folder-dialog";
-import { Button } from "@/components/ui/button";
 import { notesFolderQuery } from "@/lib/folders";
 import {
   SettingsRow,
   SettingsSection,
 } from "@/features/settings/components/settings-section";
 import type { Machine } from "@/lib/machines";
+import { pickFolder } from "@/lib/pick-folder";
 import { report } from "@/lib/report";
 
 function failed(error: unknown) {
@@ -30,12 +30,9 @@ export function NotesSettings({ machine }: { machine: Machine }) {
   });
 
   const change = async () => {
-    if (!machine.local) {
+    const picked = await pickFolder(machine, folder, () => {
       setBrowsing(true);
-      return;
-    }
-
-    const picked = await pick({ directory: true, defaultPath: folder });
+    });
     if (picked) {
       save.mutate(picked);
     }
@@ -48,18 +45,17 @@ export function NotesSettings({ machine }: { machine: Machine }) {
       hint="Use a folder you already have, like an Obsidian vault."
     >
       <SettingsRow label="Folder" detail={folder}>
-        <Button
+        <ActionButton
           variant="ghost"
-          size="sm"
+          label="Change"
+          busy="Saving…"
+          pending={save.isPending}
           aria-label="Change the notes folder"
-          aria-busy={save.isPending}
-          disabled={folder === undefined || save.isPending}
+          disabled={folder === undefined}
           onClick={() => {
             change().catch(failed);
           }}
-        >
-          {save.isPending ? "Saving…" : "Change"}
-        </Button>
+        />
         {folder !== undefined && (
           <FolderDialog
             machine={machine}

@@ -1,6 +1,8 @@
-import { type ReactNode, type RefObject, useEffect, useRef } from "react";
+import { type ReactNode, type RefObject, useRef } from "react";
 
 import { Layer } from "@/components/frame";
+import { useWindowKey } from "@/hooks/use-window-key";
+import { editable } from "@/lib/dialogs";
 import { PageClose } from "@/lib/page-close";
 
 interface Props {
@@ -51,38 +53,14 @@ function useEscape(
   frame: RefObject<HTMLElement | null>,
   onClose: (() => void) | undefined,
 ) {
-  useEffect(() => {
-    if (!onClose) {
-      return;
-    }
+  useWindowKey((event) => {
+    const target = event.target;
+    const inside =
+      target === document.body ||
+      (target instanceof Node && frame.current?.contains(target) === true);
 
-    const down = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) {
-        return;
-      }
-
-      const target = event.target;
-      const inside =
-        target === document.body ||
-        (target instanceof Node && frame.current?.contains(target) === true);
-      if (inside && !editable(target)) {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", down);
-
-    return () => {
-      window.removeEventListener("keydown", down);
-    };
-  }, [frame, onClose]);
-}
-
-function editable(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement)
-  );
+    return event.key === "Escape" && inside && !editable(target)
+      ? onClose
+      : undefined;
+  }, false);
 }

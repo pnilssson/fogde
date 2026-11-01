@@ -19,11 +19,13 @@ import {
   Selection,
   type View,
 } from "@/features/workspaces/lib/selection";
-import { leavePage } from "@/lib/page";
+import { currentPage, leavePage } from "@/lib/page";
 
 let current: DockviewApi | undefined;
 let pending: Selection | undefined;
 let loading = false;
+let saving = 0;
+const settle = 300;
 
 export function dockview() {
   return current;
@@ -95,6 +97,7 @@ export function selectWorkspace(next: View) {
     return;
   }
 
+  flush();
   store.setState({ workspace: next });
   if (current) {
     load(current);
@@ -107,6 +110,7 @@ export function leaveWorkspace(gone: Selection) {
     return;
   }
 
+  flush();
   store.setState({ workspace: undefined });
   if (current) {
     load(current);
@@ -190,8 +194,17 @@ export function activate(panel: DockviewPanelApi) {
   panel.group.api.setActive();
 }
 
-export function isShown(selection: Selection) {
+export function hasTile(selection: Selection) {
   return current?.getPanel(tileId(selection)) !== undefined;
+}
+
+export function isShown(selection: Selection) {
+  const panel = current?.getPanel(tileId(selection));
+  if (!current || !panel || currentPage()) {
+    return false;
+  }
+
+  return !current.hasMaximizedGroup() || panel.api.isMaximized();
 }
 
 export function sync(
@@ -202,6 +215,7 @@ export function sync(
     return;
   }
 
+  const zoomed = current.panels.find((panel) => panel.api.isMaximized());
   const ids = new Set(tiles.map(tileId));
   for (const panel of [...current.panels]) {
     const selection = selectionOf(panel);
@@ -226,8 +240,12 @@ export function sync(
     }
   }
 
+  if (zoomed && current.getPanel(zoomed.id) && !zoomed.api.isMaximized()) {
+    zoomed.api.maximize();
+  }
+
   const next = pending;
-  if (next && isShown(next)) {
+  if (next && hasTile(next)) {
     pending = undefined;
     show(next);
   }
@@ -235,6 +253,13 @@ export function sync(
 
 export function restore(api: DockviewApi) {
   load(api);
+}
+
+function flush() {
+  window.clearTimeout(saving);
+  if (current) {
+    save(current);
+  }
 }
 
 function save(api: DockviewApi) {
@@ -253,7 +278,10 @@ export function attach(api: DockviewApi) {
     focus(panel);
   });
   const laidOut = api.onDidLayoutChange(() => {
-    save(api);
+    window.clearTimeout(saving);
+    saving = window.setTimeout(() => {
+      save(api);
+    }, settle);
   });
 
   focus(api.activePanel);
@@ -262,6 +290,7 @@ export function attach(api: DockviewApi) {
     added.dispose();
     changed.dispose();
     laidOut.dispose();
+    flush();
     current = undefined;
     focus(undefined);
   };

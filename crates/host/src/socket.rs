@@ -104,7 +104,7 @@ pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: boo
     let mut checkouts = crate::workspaces::changes(&shared);
     let mut usage = crate::usage::changes(&shared);
     let mut notes = crate::notes::changes(&shared);
-    let session = Arc::new(Session::new(shared, local, replies.clone(), frames));
+    let session = Arc::new(Session::new(shared, local, frames));
 
     loop {
         tokio::select! {
@@ -140,8 +140,8 @@ pub(crate) async fn serve(mut socket: WebSocket, shared: Arc<Shared>, local: boo
             Ok(()) = checkouts.recv() => {
                 notify::<ChangedEvent>(&replies, ());
             }
-            Ok(()) = notes.recv() => {
-                notify::<NotesEvent>(&replies, ());
+            Some(update) = crate::notes::next(&mut notes) => {
+                notify::<NotesEvent>(&replies, update);
             }
             Ok(()) = usage.changed() => {
                 notify::<UsageEvent>(&replies, usage.borrow_and_update().clone());

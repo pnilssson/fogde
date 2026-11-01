@@ -30,14 +30,13 @@ pub(super) async fn ask(
     requests: &str,
     reply: fn(&str) -> Answer,
 ) -> Result<Vec<Limit>, Error> {
-    let mut child = parentless(agent, args)
-        .await?
+    let mut command = parentless(agent, args).await?;
+    command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|error| Error::Io(agent, error))?;
-    let (Some(mut stdin), Some(stdout)) = (child.stdin.take(), child.stdout.take()) else {
+        .stderr(Stdio::null());
+    let mut child = process::tree(command).map_err(|error| Error::Io(agent, error))?;
+    let (Some(mut stdin), Some(stdout)) = (child.stdin(), child.stdout()) else {
         return Err(Error::Io(agent, io::Error::other("missing pipe")));
     };
 

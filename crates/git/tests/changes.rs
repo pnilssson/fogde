@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use git::{Base, Changes, Divergence, changes, fetch};
+use git::{Base, Changes, Divergence, Scope, add_worktree, changes, commits, diff, fetch};
 use tokio::fs;
 use tokio::process::Command;
 
@@ -147,4 +147,118 @@ async fn counts_from_the_last_commit_when_main_shares_no_history() {
             upstream: None,
         })
     );
+}
+
+#[tokio::test]
+async fn a_fork_starts_from_and_compares_with_the_upstream_main() {
+    let dir = tempfile::tempdir().unwrap();
+    let upstream = dir.path().join("upstream.git");
+    let fork = dir.path().join("fork.git");
+    let app = dir.path().join("app");
+    let login = dir.path().join("login");
+    run(dir.path(), &["init", "--quiet", "--bare", "upstream.git"])
+        .await
+        .unwrap();
+    run(
+        dir.path(),
+        &["clone", "--quiet", upstream.to_str().unwrap(), "seed"],
+    )
+    .await
+    .unwrap();
+    let seed = dir.path().join("seed");
+    commit(&seed, "readme.md", "one\n").await.unwrap();
+    run(&seed, &["push", "--quiet", "origin", "main"])
+        .await
+        .unwrap();
+    run(
+        dir.path(),
+        &[
+            "clone",
+            "--quiet",
+            "--bare",
+            upstream.to_str().unwrap(),
+            "fork.git",
+        ],
+    )
+    .await
+    .unwrap();
+    commit(&seed, "news.md", "news\n").await.unwrap();
+    run(&seed, &["push", "--quiet", "origin", "main"])
+        .await
+        .unwrap();
+    run(
+        dir.path(),
+        &["clone", "--quiet", fork.to_str().unwrap(), "app"],
+    )
+    .await
+    .unwrap();
+    run(
+        &app,
+        &["remote", "add", "upstream", upstream.to_str().unwrap()],
+    )
+    .await
+    .unwrap();
+
+    fetch(&app).await.unwrap();
+
+    assert_eq!(
+        changes(&app).await.and_then(|changes| changes.base),
+        Some(Base {
+            name: "main".to_owned(),
+            behind: 1,
+        })
+    );
+
+    add_worktree(&app, &login, "feature/login").await.unwrap();
+    commit(&login, "login.rs", "login\n").await.unwrap();
+
+    assert!(login.join("news.md").exists());
+    let branch = diff(&login, Scope::Branch).await.unwrap();
+    assert_eq!(branch.base.as_deref(), Some("main"));
+    assert_eq!(
+        branch
+            .files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>(),
+        ["login.rs"]
+    );
+}
+
+#[tokio::test]
+async fn counts_the_commits_a_branch_has_that_main_lacks() {
+    let dir = tempfile::tempdir().unwrap();
+    let origin = dir.path().join("origin.git");
+    let app = dir.path().join("app");
+    run(dir.path(), &["init", "--quiet", "--bare", "origin.git"])
+        .await
+        .unwrap();
+    run(
+        dir.path(),
+        &["clone", "--quiet", origin.to_str().unwrap(), "app"],
+    )
+    .await
+    .unwrap();
+    commit(&app, "readme.md", "one\n").await.unwrap();
+    run(&app, &["push", "--quiet", "-u", "origin", "main"])
+        .await
+        .unwrap();
+    run(&app, &["switch", "--quiet", "-c", "feature/login"])
+        .await
+        .unwrap();
+
+    assert_eq!(commits(&app).await, Some(0));
+
+    commit(&app, "login.rs", "login\n").await.unwrap();
+
+    assert_eq!(commits(&app).await, Some(1));
+}
+
+#[tokio::test]
+async fn knows_no_commit_count_without_a_main_to_compare_with() {
+    let dir = tempfile::tempdir().unwrap();
+    run(dir.path(), &["init", "--quiet"]).await.unwrap();
+    commit(dir.path(), "readme.md", "one\n").await.unwrap();
+
+    assert_eq!(commits(dir.path()).await, None);
 }

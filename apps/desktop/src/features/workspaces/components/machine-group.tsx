@@ -4,7 +4,7 @@ import {
 } from "@phosphor-icons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { cn } from "cn";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { BarTitle } from "@/components/bar-title";
 import { Bar, Layer } from "@/components/frame";
@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/tooltip";
 import { useNewWorkspace } from "@/features/workspaces/components/new-workspace";
 import { WorkspaceItem } from "@/features/workspaces/components/workspace-item";
-import { useStatus } from "@/features/workspaces/hooks/use-terminals";
+import { useIds } from "@/features/workspaces/hooks/use-ids";
+import { useMachineStatus } from "@/features/workspaces/hooks/use-terminals";
 import { useArrangeWorkspace } from "@/features/workspaces/hooks/use-workspaces";
 import { changes } from "@/features/workspaces/lib/order";
 import type { Selection, View } from "@/features/workspaces/lib/selection";
@@ -54,12 +55,21 @@ export function MachineGroup({
 }: Props) {
   const bar = useRef<HTMLElement>(null);
   const content = useRef<HTMLDivElement>(null);
-  const status = useStatus(machine, workspaces);
+  const status = useMachineStatus(machine, workspaces);
   const down = status.disconnected || status.failed;
   const loading = workspaces.isPending && !down;
   const newWorkspace = useNewWorkspace(machine);
   const arrange = useArrangeWorkspace(machine);
-  const ids = workspaces.data?.map(({ id }) => id) ?? [];
+  const ids = useIds(workspaces.data ?? []);
+  const { mutate } = arrange;
+  const reorder = useCallback(
+    (workspace: string, before: string | null) => {
+      if (changes(ids, workspace, before)) {
+        mutate({ workspace, before });
+      }
+    },
+    [ids, mutate],
+  );
 
   const create = () => {
     void newWorkspace.start();
@@ -174,11 +184,7 @@ export function MachineGroup({
                 siblings={ids}
                 onSelect={onSelect}
                 onStart={onStart}
-                onArrange={(workspace, before) => {
-                  if (changes(ids, workspace, before)) {
-                    arrange.mutate({ workspace, before });
-                  }
-                }}
+                onArrange={reorder}
               />
             ))}
           </SidebarMenu>

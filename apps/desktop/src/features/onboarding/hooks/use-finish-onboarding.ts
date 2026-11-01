@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 
 import { onboardedQuery } from "@/features/onboarding/api/onboarding";
 import { callOwn } from "@/lib/host";
+import { report } from "@/lib/report";
 
 export function useFinishOnboarding() {
   const queries = useQueryClient();
@@ -13,7 +14,9 @@ export function useFinishOnboarding() {
       queries.setQueryData(onboardedQuery.queryKey, true);
       return navigate({ to: "/" });
     },
-    throwOnError: true,
+    onError: (error) => {
+      report("Could not finish setting up", error);
+    },
   });
 
   return {

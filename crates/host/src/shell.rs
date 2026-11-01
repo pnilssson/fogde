@@ -40,14 +40,7 @@ impl Handler for SetShell {
         session
             .shared
             .settings
-            .set_shell(shell.program.clone())
-            .await
-            .map_err(failure)?;
-
-        session
-            .herdr()
-            .await?
-            .set_shell(&program(shell.program).await)
+            .set_shell(shell.program)
             .await
             .map_err(failure)
     }

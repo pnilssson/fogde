@@ -1,3 +1,4 @@
+mod disk;
 mod files;
 mod watch;
 
@@ -19,8 +20,9 @@ use crate::folders;
 use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
 use crate::shared::Shared;
+use disk::replace;
 
-pub use watch::{Notes, changes};
+pub use watch::{Notes, changes, next};
 
 pub fn register(router: &mut Router) {
     router.add::<GetNotesFolder>();
@@ -229,7 +231,7 @@ async fn write(root: &Path, path: &Path, text: &str, expected: &str) -> io::Resu
         return Ok(Written::Changed);
     }
 
-    fs::write(&file, text).await?;
+    replace(&file, text.as_bytes()).await?;
 
     Ok(Written::Saved {
         version: version(text.as_bytes()),

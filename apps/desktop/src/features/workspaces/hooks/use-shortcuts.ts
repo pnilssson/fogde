@@ -1,5 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 import { closeActive } from "@/features/workspaces/lib/closing";
 import { moveTile } from "@/features/workspaces/lib/drag";
@@ -14,6 +14,8 @@ import { focusTile } from "@/features/workspaces/lib/tile-focus";
 import { openStart } from "@/features/workspaces/lib/opening";
 import { revealNext, toggleZoom } from "@/features/workspaces/lib/tiles";
 import { leavePage, openPage } from "@/lib/page";
+import { useWindowKey } from "@/hooks/use-window-key";
+import { inDialog } from "@/lib/dialogs";
 import { arrowSide, pressed, shortcuts, tileNumber } from "@/lib/shortcuts";
 
 type Groups = ReturnType<typeof useGroups>;
@@ -24,25 +26,9 @@ interface Context {
 }
 
 export function useShortcuts(groups: Groups, workspace: View | undefined) {
-  const current = useRef<Context>({ groups, workspace });
+  useWindowKey((event) => actionFor(event, { groups, workspace }));
 
   useEffect(() => {
-    current.current = { groups, workspace };
-  }, [groups, workspace]);
-
-  useEffect(() => {
-    const down = (event: KeyboardEvent) => {
-      const action = actionFor(event, current.current);
-      if (!action) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      action();
-    };
-
-    window.addEventListener("keydown", down, { capture: true });
     const stopMenu = listen("close-tile", () => {
       if (!inDialog(document.activeElement)) {
         closeActive();
@@ -50,7 +36,6 @@ export function useShortcuts(groups: Groups, workspace: View | undefined) {
     });
 
     return () => {
-      window.removeEventListener("keydown", down, { capture: true });
       void stopMenu.then((stop) => {
         stop();
       });
@@ -119,11 +104,4 @@ function actionFor(event: KeyboardEvent, { groups, workspace }: Context) {
         });
       }
     : undefined;
-}
-
-export function inDialog(target: EventTarget | null) {
-  return (
-    target instanceof Element &&
-    target.closest('[role="dialog"], [role="alertdialog"]') !== null
-  );
 }

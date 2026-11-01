@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-import { NoteSession } from "@/features/notes/lib/session";
+import { NoteSession, resume, saveAll } from "@/features/notes/lib/session";
 import type { Written } from "@/generated/protocol";
 
 class File {
@@ -41,10 +41,9 @@ function open(file: File) {
     },
     {
       write: (text, version) => Promise.resolve(file.write(text, version)),
+      read: () =>
+        Promise.resolve({ text: file.text, version: String(file.version) }),
       saved: () => undefined,
-      reload: () => {
-        session.loaded(file.text, String(file.version));
-      },
       kept,
       failed: (error) => {
         throw error;
@@ -148,11 +147,12 @@ test("a failed save waits for the next edit instead of retrying", async () => {
     },
     {
       write,
+      read: () => Promise.reject(new Error("gone")),
       saved: () => undefined,
-      reload: () => undefined,
       kept: () => undefined,
       failed,
     },
+    "waits",
   );
 
   shown = "# Plan\n\n- login\n";
@@ -167,6 +167,9 @@ test("a failed save waits for the next edit instead of retrying", async () => {
   await vi.advanceTimersByTimeAsync(10_000);
 
   expect(write).toHaveBeenCalledTimes(2);
+  session.close();
+  await vi.runAllTimersAsync();
+  expect(resume("waits")?.text).toBe("# Plan\n\n- login\n- signup\n");
 });
 
 test("never writes a note that was only opened", async () => {
@@ -177,4 +180,120 @@ test("never writes a note that was only opened", async () => {
   await vi.runAllTimersAsync();
 
   expect(file.version).toBe(1);
+});
+
+test("a save after the editor closed merges an agent's change instead of retrying", async () => {
+  const file = new File("# Plan\n\n- login\n");
+  const editor = open(file);
+  const write = vi.spyOn(file, "write");
+
+  editor.type("# Plan for login\n\n- login\n");
+  file.agent("# Plan\n\n- login\n- signup\n");
+  editor.session.close();
+  await vi.advanceTimersByTimeAsync(10_000);
+
+  expect(file.text).toBe("# Plan for login\n\n- login\n- signup\n");
+  expect(editor.shown()).toBe("# Plan for login\n\n- login\n");
+  expect(write).toHaveBeenCalledTimes(2);
+  expect(editor.kept).not.toHaveBeenCalled();
+});
+
+test("a save after the editor closed keeps the user's line where an agent changed it too", async () => {
+  const file = new File("# Plan\n\n- login\n");
+  const editor = open(file);
+
+  editor.type("# Plan\n\n- login with email\n");
+  file.agent("# Plan\n\n- login with SSO\n");
+  editor.session.close();
+  await vi.advanceTimersByTimeAsync(10_000);
+
+  expect(file.text).toBe("# Plan\n\n- login with email\n");
+  expect(editor.kept).toHaveBeenCalledOnce();
+});
+
+test("quitting saves what was typed before the pause ran out", async () => {
+  const file = new File("one\n");
+  const { type } = open(file);
+
+  type("one\ntwo\n");
+
+  expect(await saveAll()).toBe(true);
+  expect(file.text).toBe("one\ntwo\n");
+});
+
+test("quitting while an agent changed the note saves the merged text", async () => {
+  const file = new File("# Plan\n\n- login\n");
+  const editor = open(file);
+
+  editor.type("# Plan for login\n\n- login\n");
+  file.agent("# Plan\n\n- login\n- signup\n");
+
+  expect(await saveAll()).toBe(true);
+  expect(file.text).toBe("# Plan for login\n\n- login\n- signup\n");
+});
+
+test("quitting reports a note it could not save", async () => {
+  let shown = "# Plan\n";
+  const session = new NoteSession(
+    shown,
+    "1",
+    {
+      text: () => shown,
+      replace: (text) => {
+        shown = text;
+      },
+    },
+    {
+      write: () => Promise.reject(new Error("gone")),
+      read: () => Promise.reject(new Error("gone")),
+      saved: () => undefined,
+      kept: () => undefined,
+      failed: () => undefined,
+    },
+    "reports",
+  );
+
+  shown = "# Plan\n\n- login\n";
+  session.edited();
+
+  expect(await saveAll()).toBe(false);
+  session.close();
+  await vi.runAllTimersAsync();
+  expect(resume("reports")?.text).toBe("# Plan\n\n- login\n");
+});
+
+test("quitting retries a closed note whose save failed", async () => {
+  const file = new File("one\n");
+  let online = false;
+  let shown = "one\n";
+  const session = new NoteSession(
+    shown,
+    "1",
+    {
+      text: () => shown,
+      replace: (text) => {
+        shown = text;
+      },
+    },
+    {
+      write: (text, version) =>
+        online
+          ? Promise.resolve(file.write(text, version))
+          : Promise.reject(new Error("offline")),
+      read: () =>
+        Promise.resolve({ text: file.text, version: String(file.version) }),
+      saved: () => undefined,
+      kept: () => undefined,
+      failed: () => undefined,
+    },
+  );
+
+  shown = "one\ntwo\n";
+  session.edited();
+  session.close();
+  await vi.runAllTimersAsync();
+  online = true;
+
+  expect(await saveAll()).toBe(true);
+  expect(file.text).toBe("one\ntwo\n");
 });

@@ -5,7 +5,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ActionButton } from "@/features/github/components/action-button";
+import { ActionButton } from "@/components/action-button";
 import { CheckList } from "@/features/github/components/check-list";
 import { CheckoutMenu } from "@/features/github/components/checkout-menu";
 import { MergeButton } from "@/features/github/components/merge-button";
@@ -162,7 +162,9 @@ function Status({ pull }: { pull: PullDetail }) {
       <p className="type-body">
         {pull.auto
           ? "GitHub merges it automatically once these are done:"
-          : "Before it can merge:"}
+          : pull.automerge
+            ? "Before it can merge:"
+            : "Auto-merge is off in this repo, so merge once these are done:"}
       </p>
       <ul className="flex list-disc flex-col gap-2 pl-8 type-body">
         {reasons.map((reason) => (

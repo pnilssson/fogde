@@ -22,14 +22,3 @@ export const swap = {
   animate: { opacity: 1, y: 0, transition: enter },
   exit: { opacity: 0, y: -8, transition: leave },
 } satisfies MotionProps;
-
-export const expand = {
-  initial: { opacity: 0, height: 0, overflow: "hidden" },
-  animate: {
-    opacity: 1,
-    height: "auto",
-    transition: enter,
-    transitionEnd: { overflow: "visible" },
-  },
-  exit: { opacity: 0, height: 0, overflow: "hidden", transition: leave },
-} satisfies MotionProps;

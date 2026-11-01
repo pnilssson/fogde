@@ -6,6 +6,8 @@ use tracing_subscriber::fmt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+use crate::shared;
+
 pub fn log(name: &str, console: bool) -> io::Result<()> {
     let (file, error) = match appender(name) {
         Ok(file) => (Some(fmt::layer().with_ansi(false).with_writer(file)), None),
@@ -31,6 +33,6 @@ fn appender(name: &str) -> io::Result<RollingFileAppender> {
         .filename_prefix(name)
         .filename_suffix("log")
         .max_log_files(7)
-        .build(crate::shared::fogde()?.join(".app").join("logs"))
+        .build(shared::app(&shared::fogde()?)?.join("logs"))
         .map_err(io::Error::other)
 }

@@ -5,7 +5,7 @@ use tokio::io::{AsyncBufReadExt, BufReader, Lines};
 use tokio::process::{Child, ChildStderr, ChildStdin};
 
 use crate::Error;
-use crate::gh::{Gh, failure, spawn_error};
+use crate::gh::{Gh, failure};
 
 const LOGIN: [&str; 8] = [
     "auth",
@@ -38,7 +38,7 @@ impl SignIn {
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(spawn_error)?;
+            .map_err(process::not_found(Error::Missing))?;
 
         let (Some(stdin), Some(stderr)) = (child.stdin.take(), child.stderr.take()) else {
             return Err(Error::Io(io::Error::other("missing pipe")));

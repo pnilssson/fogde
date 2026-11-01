@@ -1,6 +1,10 @@
-import { keepPreviousData, queryOptions } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  type QueryClient,
+  queryOptions,
+} from "@tanstack/react-query";
 
-import type { DiffScope, Filter, Repo } from "@/generated/protocol";
+import type { DiffScope, Filter, Repo, Status } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
 const refresh = 60_000;
@@ -89,3 +93,38 @@ export const logQuery = (machine: Machine, repo: Repo, job: number) =>
     queryFn: () => machine.client.call("github.log", { repo, job }),
     staleTime: Infinity,
   });
+
+export function follow(queries: QueryClient, machine: Machine) {
+  const statuses = new Map<string, Status>();
+  const stops = [
+    machine.client.listen("workspaces.changed", () => {
+      void queries.invalidateQueries({
+        predicate: ({ queryKey: [id, method] }) =>
+          id === machine.id &&
+          (method === "checkouts.status" || method === "checkouts.diff"),
+      });
+    }),
+    machine.client.listen("terminals.state", ({ id, status }) => {
+      const before = statuses.get(id);
+      statuses.set(id, status);
+      if (status === "working" || before === status) {
+        return;
+      }
+
+      void queries.invalidateQueries({
+        queryKey: [machine.id, "checkouts.diff"],
+        predicate: ({ queryKey }) =>
+          queryKey[3] === "turn" && queryKey[4] === id,
+      });
+    }),
+    machine.client.listen("terminals.ended", ({ id }) => {
+      statuses.delete(id);
+    }),
+  ];
+
+  return () => {
+    for (const stop of stops) {
+      stop();
+    }
+  };
+}

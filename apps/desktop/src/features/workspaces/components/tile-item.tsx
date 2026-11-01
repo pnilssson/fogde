@@ -1,29 +1,21 @@
-import { cn } from "cn";
 import type { ReactNode } from "react";
 
-import { Keys } from "@/components/keys";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { DropLine } from "@/features/workspaces/components/drop-line";
+import { RowContext } from "@/features/workspaces/components/row-menu";
 import { Since } from "@/features/workspaces/components/since";
 import { StateIcon } from "@/features/workspaces/components/state-icon";
+import { useReorder } from "@/features/workspaces/hooks/use-reorder";
 import {
   dragProps,
-  hover,
   isListed,
   useDragging,
-  useOver,
 } from "@/features/workspaces/lib/drag";
-import { beforeOf, changes } from "@/features/workspaces/lib/order";
+import { moves } from "@/features/workspaces/lib/order";
 import type { Selection } from "@/features/workspaces/lib/selection";
 import type { Status } from "@/generated/protocol";
 import { shortcuts } from "@/lib/shortcuts";
@@ -40,7 +32,6 @@ interface Props {
   onSelect: () => void;
   onArrange: (tile: string, before: string | null) => void;
   onClose: () => void;
-  children?: ReactNode;
 }
 
 export function TileItem({
@@ -55,11 +46,8 @@ export function TileItem({
   onSelect,
   onArrange,
   onClose,
-  children,
 }: Props) {
   const dragging = useDragging();
-  const over = useOver(tile.id);
-  const index = siblings.indexOf(tile.id);
   const moving =
     dragging &&
     isListed(dragging) &&
@@ -68,58 +56,11 @@ export function TileItem({
     siblings.includes(dragging.id)
       ? dragging.id
       : undefined;
+  const drop = useReorder(tile.id, siblings, moving, onArrange);
 
   return (
-    <SidebarMenuSubItem
-      onDragOver={(event) => {
-        if (!moving) {
-          return;
-        }
-
-        const box = event.currentTarget.getBoundingClientRect();
-        const edge =
-          event.clientY < box.top + box.height / 2 ? "above" : "below";
-        const before = beforeOf(siblings, moving, tile.id, edge);
-        if (!changes(siblings, moving, before)) {
-          hover(undefined);
-          return;
-        }
-
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-        hover({ id: tile.id, edge });
-      }}
-      onDragLeave={(event) => {
-        if (
-          event.relatedTarget instanceof Node &&
-          event.currentTarget.contains(event.relatedTarget)
-        ) {
-          return;
-        }
-
-        hover(undefined);
-      }}
-      onDrop={(event) => {
-        if (!moving || !over) {
-          return;
-        }
-
-        event.preventDefault();
-        onArrange(moving, beforeOf(siblings, moving, tile.id, over));
-        hover(undefined);
-      }}
-    >
-      {moving && over && (
-        <span
-          aria-hidden
-          className={cn(
-            "pointer-events-none absolute inset-x-0 h-0.5 rounded-full bg-sidebar-ring",
-            over === "above"
-              ? "-top-0.5 -translate-y-1/2"
-              : "-bottom-0.5 translate-y-1/2",
-          )}
-        />
-      )}
+    <SidebarMenuSubItem {...drop.target}>
+      <DropLine edge={drop.over} />
       <ContextMenu>
         <ContextMenuTrigger
           render={
@@ -138,33 +79,20 @@ export function TileItem({
           {since !== undefined && status !== "working" && <Since at={since} />}
           {status && <StateIcon status={status} />}
         </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem
-            disabled={index <= 0}
-            onClick={() => {
-              onArrange(tile.id, siblings[index - 1] ?? null);
-            }}
-          >
-            Move up
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={index === siblings.length - 1}
-            onClick={() => {
-              onArrange(tile.id, siblings[index + 2] ?? null);
-            }}
-          >
-            Move down
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem disabled={!closable} onClick={onClose}>
-            Close
-            <ContextMenuShortcut>
-              <Keys letter={shortcuts.close} />
-            </ContextMenuShortcut>
-          </ContextMenuItem>
-        </ContextMenuContent>
+        <RowContext
+          groups={[
+            moves(tile.id, siblings, onArrange),
+            [
+              {
+                label: "Close",
+                disabled: !closable,
+                shortcut: shortcuts.close,
+                onSelect: onClose,
+              },
+            ],
+          ]}
+        />
       </ContextMenu>
-      {children}
     </SidebarMenuSubItem>
   );
 }

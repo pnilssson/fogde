@@ -12,7 +12,7 @@ import { EnterpriseForm } from "@/features/github/components/enterprise-form";
 import { useSignIn } from "@/features/github/hooks/use-sign-in";
 import { statusOf } from "@/lib/connection";
 import type { Machine } from "@/lib/machines";
-import { expand, swap } from "@/lib/motion";
+import { swap } from "@/lib/motion";
 
 const github = "github.com";
 
@@ -27,7 +27,7 @@ export function ConnectGitHub({ machine, onBack, onContinue }: Props) {
     ...accountsQuery(machine),
     refetchOnWindowFocus: true,
   });
-  const { prompt, starting, begin } = useSignIn(machine);
+  const { prompt, starting, begin, cancel } = useSignIn(machine);
   const [enterprise, setEnterprise] = useState(false);
 
   const hasGitHub = accounts.some((account) => account.host === github);
@@ -38,7 +38,12 @@ export function ConnectGitHub({ machine, onBack, onContinue }: Props) {
     <AnimatePresence mode="wait" initial={false}>
       {prompt ? (
         <m.div key="code" {...swap}>
-          <DeviceCode code={prompt.code} url={prompt.url} site="GitHub" />
+          <DeviceCode
+            code={prompt.code}
+            url={prompt.url}
+            site="GitHub"
+            onCancel={cancel}
+          />
         </m.div>
       ) : (
         <m.section
@@ -70,13 +75,11 @@ export function ConnectGitHub({ machine, onBack, onContinue }: Props) {
             />
             <AnimatePresence initial={false}>
               {enterprise && !hasEnterprise && (
-                <m.div key="enterprise" {...expand} className="-mt-2">
-                  <div className="pt-2">
-                    <EnterpriseForm
-                      starting={startingEnterprise}
-                      onSubmit={begin}
-                    />
-                  </div>
+                <m.div key="enterprise" {...swap}>
+                  <EnterpriseForm
+                    starting={startingEnterprise}
+                    onSubmit={begin}
+                  />
                 </m.div>
               )}
             </AnimatePresence>

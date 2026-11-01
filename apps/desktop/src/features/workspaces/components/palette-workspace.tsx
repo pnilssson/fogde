@@ -16,16 +16,15 @@ import {
   useChoices,
   useCreateTerminal,
 } from "@/features/workspaces/hooks/use-terminals";
-import { useRemoveWorktree } from "@/features/workspaces/hooks/use-worktrees";
+import { useRemoveRequest } from "@/features/workspaces/hooks/use-worktrees";
 import {
   checkoutName,
   checkoutOf,
   mainCheckout,
-  working,
 } from "@/features/workspaces/lib/checkouts";
 import { viewFolder, type View } from "@/features/workspaces/lib/selection";
 import { openStart } from "@/features/workspaces/lib/opening";
-import type { Checkout, Workspace } from "@/generated/protocol";
+import type { Workspace } from "@/generated/protocol";
 import { useConnection } from "@/hooks/use-connection";
 import { agents, allAgents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
@@ -43,7 +42,6 @@ interface Props {
   view: View | undefined;
   run: (action: () => void) => void;
   onNewWorktree: () => void;
-  onRemoveWorktree: (checkout: Checkout) => void;
 }
 
 export function PaletteWorkspace({
@@ -52,12 +50,11 @@ export function PaletteWorkspace({
   view,
   run,
   onNewWorktree,
-  onRemoveWorktree,
 }: Props) {
   const connection = useConnection(machine);
   const choices = useChoices(machine);
   const create = useCreateTerminal();
-  const remove = useRemoveWorktree(machine, workspace);
+  const remove = useRemoveRequest(machine, workspace);
   if (connection.state !== "connected") {
     return null;
   }
@@ -139,15 +136,9 @@ export function PaletteWorkspace({
             value="remove worktree"
             keywords={["remove", "delete"]}
             onSelect={() => {
-              if (working(workspace, checkout.path).length > 0) {
-                run(() => {
-                  onRemoveWorktree(checkout);
-                });
-                return;
-              }
-
-              remove.mutate(checkout.path);
-              run(() => undefined);
+              run(() => {
+                remove(checkout);
+              });
             }}
           >
             <TrashIcon />

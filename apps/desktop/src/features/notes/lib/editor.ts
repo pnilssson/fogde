@@ -13,6 +13,7 @@ import {
   EditorState,
   type Extension,
   Text,
+  Transaction,
 } from "@codemirror/state";
 import {
   type Command,
@@ -161,7 +162,7 @@ export function replaceText(view: EditorView, text: string) {
   if (change) {
     view.dispatch({
       changes: { ...change, insert: Text.of(change.insert.split("\n")) },
-      annotations: external.of(true),
+      annotations: [external.of(true), Transaction.addToHistory.of(false)],
     });
   }
 }

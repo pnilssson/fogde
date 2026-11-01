@@ -1,7 +1,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { ActionButton } from "@/components/action-button";
 import { useSignIn } from "@/features/github/hooks/use-sign-in";
 import type { Machine } from "@/lib/machines";
 
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function SignInNotice({ machine, host }: Props) {
-  const { prompt, starting, begin } = useSignIn(machine);
+  const { prompt, starting, begin, cancel } = useSignIn(machine);
 
   if (prompt) {
     return (
@@ -19,14 +19,18 @@ export function SignInNotice({ machine, host }: Props) {
         <p className="type-body">
           Enter <span className="type-code">{prompt.code}</span> on {host}.
         </p>
-        <Button
-          size="sm"
-          variant="secondary"
-          className="w-fit"
-          onClick={() => void openUrl(prompt.url)}
-        >
-          Open {host}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => void openUrl(prompt.url)}
+          >
+            Open {host}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={cancel}>
+            Cancel
+          </Button>
+        </div>
       </div>
     );
   }
@@ -36,20 +40,16 @@ export function SignInNotice({ machine, host }: Props) {
       <p className="type-body">
         Sign in to {host} to see its pull requests and issues.
       </p>
-      <Button
-        size="sm"
+      <ActionButton
+        variant="default"
         className="w-fit"
-        disabled={starting !== undefined}
-        aria-busy={starting !== undefined}
+        label="Sign in"
+        busy="Signing in…"
+        pending={starting !== undefined}
         onClick={() => {
           begin(host);
         }}
-      >
-        {starting !== undefined && (
-          <Spinner aria-hidden data-icon="inline-start" />
-        )}
-        {starting !== undefined ? "Signing in…" : "Sign in"}
-      </Button>
+      />
     </div>
   );
 }

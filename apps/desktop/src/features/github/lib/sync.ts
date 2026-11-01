@@ -33,6 +33,12 @@ export function syncOf({
   return { kind: "fetch" };
 }
 
+export function openable(checkout: CheckoutStatus, base: string | null) {
+  const { branch, commits } = checkout;
+
+  return branch !== null && base !== null && branch !== base && commits !== 0;
+}
+
 export type Next = "commit" | "sync" | "pull-request" | null;
 
 export function nextStep(

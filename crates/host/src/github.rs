@@ -4,14 +4,22 @@ mod items;
 use github::SignIn;
 use protocol::github::{Account, CancelSignIn, FinishSignIn, GetAccounts, SignInCode, StartSignIn};
 use protocol::rpc::{Failure, SERVER_ERROR};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, oneshot};
 
 use crate::rpc::{Handler, Router, cancelled, failure};
 use crate::session::Session;
 
 #[derive(Default)]
 pub struct State {
-    signin: Mutex<Option<SignIn>>,
+    signin: Mutex<Flow>,
+}
+
+#[derive(Default)]
+enum Flow {
+    #[default]
+    Idle,
+    Waiting(Box<SignIn>),
+    Finishing(oneshot::Sender<()>),
 }
 
 pub fn register(router: &mut Router) {
@@ -47,7 +55,10 @@ impl Handler for StartSignIn {
             code: signin.code.clone(),
             url: signin.url.clone(),
         };
-        *session.github.signin.lock().await = Some(signin);
+        stop(std::mem::replace(
+            &mut *session.github.signin.lock().await,
+            Flow::Waiting(Box::new(signin)),
+        ));
 
         Ok(code)
     }
@@ -55,12 +66,24 @@ impl Handler for StartSignIn {
 
 impl Handler for FinishSignIn {
     async fn handle(session: &Session, (): ()) -> Result<(), Failure> {
-        let Some(signin) = session.github.signin.lock().await.take() else {
-            return Err(Failure::new(SERVER_ERROR, "no sign-in is in progress"));
+        let (cancel, stopped) = oneshot::channel();
+        let signin = {
+            let mut flow = session.github.signin.lock().await;
+            match std::mem::take(&mut *flow) {
+                Flow::Waiting(signin) => {
+                    *flow = Flow::Finishing(cancel);
+                    signin
+                }
+                other => {
+                    *flow = other;
+                    return Err(Failure::new(SERVER_ERROR, "no sign-in is in progress"));
+                }
+            }
         };
 
         tokio::select! {
             result = signin.finish() => result.map_err(failure),
+            _ = stopped => Err(cancelled()),
             () = session.closed() => Err(cancelled()),
         }
     }
@@ -68,8 +91,14 @@ impl Handler for FinishSignIn {
 
 impl Handler for CancelSignIn {
     async fn handle(session: &Session, (): ()) -> Result<(), Failure> {
-        session.github.signin.lock().await.take();
+        stop(std::mem::take(&mut *session.github.signin.lock().await));
 
         Ok(())
+    }
+}
+
+fn stop(flow: Flow) {
+    if let Flow::Finishing(cancel) = flow {
+        let _ = cancel.send(());
     }
 }

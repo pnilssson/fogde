@@ -1,5 +1,11 @@
 use protocol::agents::Agent;
 
+pub fn strip(title: &str) -> &str {
+    title.trim_start_matches(|glyph: char| {
+        glyph.is_whitespace() || (!glyph.is_ascii() && !glyph.is_alphanumeric())
+    })
+}
+
 pub fn task(agent: Agent, title: &str, stripped: &str) -> Option<String> {
     let task = match agent {
         Agent::Claude => Some(stripped).filter(|task| *task != title && *task != "Claude Code"),
@@ -57,6 +63,26 @@ mod tests {
                 task(Agent::Copilot, "GitHub Copilot", "GitHub Copilot"),
             ],
             [None, None, None, None, None, None]
+        );
+    }
+
+    #[test]
+    fn strips_the_spinner_agents_put_before_their_title() {
+        let shell = r"C:\Program Files\PowerShell\7\pwsh.exe";
+
+        assert_eq!(
+            [
+                strip("✳ Rust crates in folder"),
+                strip("⠂ Respond to greeting | app"),
+                strip("Ärende i app"),
+                strip(shell),
+            ],
+            [
+                "Rust crates in folder",
+                "Respond to greeting | app",
+                "Ärende i app",
+                shell
+            ]
         );
     }
 

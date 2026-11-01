@@ -1,8 +1,9 @@
+use std::collections::HashSet;
 use std::time::Duration;
 
 use tokio::sync::broadcast;
 
-use super::watch::{start, visible};
+use super::watch::{classify, known, start, visible};
 use super::*;
 
 pub(super) fn create(path: &Path) {
@@ -109,6 +110,87 @@ async fn writes_a_note_only_over_the_version_it_was_read_at() {
 }
 
 #[tokio::test]
+async fn saves_a_note_in_one_step_without_leaving_temp_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_path_buf();
+    let path = root.join("plan.md");
+    std::fs::write(&path, "# Plan\n\n- login\n").unwrap();
+    let earlier = root.join(".earlier");
+    std::fs::hard_link(&path, &earlier).unwrap();
+    let loaded = read(&root, &path).await.unwrap();
+
+    write(&root, &path, "# Plan\n\n- signup\n", &loaded.version)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        "# Plan\n\n- signup\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&earlier).unwrap(),
+        "# Plan\n\n- login\n"
+    );
+    let mut names: Vec<_> = std::fs::read_dir(&root)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(names, [".earlier", "plan.md"]);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn keeps_the_mode_of_a_saved_note() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_path_buf();
+    let path = root.join("plan.md");
+    std::fs::write(
+        &path, "# Plan
+",
+    )
+    .unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let loaded = read(&root, &path).await.unwrap();
+
+    write(
+        &root,
+        &path,
+        "# Plan
+
+- login
+",
+        &loaded.version,
+    )
+    .await
+    .unwrap();
+
+    let mode = std::fs::metadata(&path).unwrap().permissions().mode();
+    assert_eq!(mode & 0o777, 0o600);
+}
+
+#[tokio::test]
+async fn leaves_a_read_only_note_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_path_buf();
+    let path = root.join("plan.md");
+    std::fs::write(&path, "# Plan\n").unwrap();
+    let writable = std::fs::metadata(&path).unwrap().permissions();
+    let mut locked = writable.clone();
+    locked.set_readonly(true);
+    std::fs::set_permissions(&path, locked).unwrap();
+    let loaded = read(&root, &path).await.unwrap();
+
+    let written = write(&root, &path, "# Plan\n\n- login\n", &loaded.version).await;
+
+    assert!(written.is_err());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "# Plan\n");
+    std::fs::set_permissions(&path, writable).unwrap();
+}
+
+#[tokio::test]
 async fn refuses_to_read_a_note_that_is_not_utf8() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("plan.md");
@@ -145,8 +227,44 @@ async fn reports_an_edited_note() {
     tokio::time::sleep(Duration::from_millis(100)).await;
     std::fs::write(root.join("plan.md"), "# Edited").unwrap();
 
-    tokio::time::timeout(Duration::from_secs(10), changes.recv())
+    let update = tokio::time::timeout(Duration::from_secs(10), changes.recv())
         .await
         .unwrap()
         .unwrap();
+
+    assert!(!update.listing);
+    assert_eq!(update.notes.len(), 1);
+    assert_eq!(update.notes[0].path, shown(&root.join("plan.md")));
+}
+
+#[test]
+fn tells_an_edit_from_a_note_that_came_or_went() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_path_buf();
+    let plan = root.join("app").join("plan.md");
+    create(&plan);
+    let mut known = known(&root);
+    let changed = |paths: &[&Path], known: &mut HashSet<PathBuf>| {
+        classify(paths.iter().map(|path| path.to_path_buf()).collect(), known)
+    };
+
+    std::fs::write(&plan, "# Edited").unwrap();
+    let edited = changed(&[&plan, &root.join("app"), &root], &mut known);
+    assert!(!edited.listing);
+    assert_eq!(edited.notes.len(), 1);
+
+    let idea = root.join("app").join("idea.md");
+    create(&idea);
+    assert!(changed(&[&idea], &mut known).listing);
+    assert!(!changed(&[&idea], &mut known).listing);
+
+    std::fs::remove_dir_all(root.join("app")).unwrap();
+    assert!(changed(&[&root.join("app")], &mut known).listing);
+    create(&plan);
+    assert!(changed(&[&plan], &mut known).listing);
+
+    std::fs::write(root.join("image.png"), "png").unwrap();
+    let other = changed(&[&root.join("image.png")], &mut known);
+    assert!(!other.listing);
+    assert_eq!(other.notes, []);
 }

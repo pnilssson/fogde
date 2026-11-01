@@ -9,7 +9,7 @@ import { noteQuery } from "@/features/notes/api/notes";
 import { NoteTitle } from "@/features/notes/components/note-title";
 import { noteState, replaceText } from "@/features/notes/lib/editor";
 import { resolveHref, resolveWikilink } from "@/features/notes/lib/links";
-import { NoteSession } from "@/features/notes/lib/session";
+import { NoteSession, resume } from "@/features/notes/lib/session";
 import type { Note, NoteText } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 import { report } from "@/lib/report";
@@ -37,6 +37,7 @@ export function NoteEditor({
   const editor = useRef<EditorView>(undefined);
   const links = useRef({ note, notes, onOpen });
   const latest = useRef(loaded);
+  const { id, client } = machine;
 
   useEffect(() => {
     links.current = { note, notes, onOpen };
@@ -48,11 +49,17 @@ export function NoteEditor({
       return;
     }
 
-    const query = noteQuery(machine, note.path);
+    const query = noteQuery({ id, client }, note.path);
     const view = new EditorView({ parent: element });
+    const key = `${id}:${note.path}`;
+    const start = resume(key) ?? {
+      base: latest.current.text,
+      version: latest.current.version,
+      text: latest.current.text,
+    };
     const current = new NoteSession(
-      latest.current.text,
-      latest.current.version,
+      start.base,
+      start.version,
       {
         text: () => view.state.sliceDoc(),
         replace: (text) => {
@@ -61,16 +68,14 @@ export function NoteEditor({
       },
       {
         write: (text, version) =>
-          machine.client.call("notes.write", {
+          client.call("notes.write", {
             path: note.path,
             text,
             version,
           }),
+        read: () => queries.query({ ...query, staleTime: 0 }),
         saved: (text, version) => {
           queries.setQueryData(query.queryKey, { text, version });
-        },
-        reload: () => {
-          void queries.invalidateQueries(query);
         },
         kept: () => {
           toast.add({
@@ -84,10 +89,11 @@ export function NoteEditor({
           report("Could not save the note", error);
         },
       },
+      key,
     );
     view.setState(
       noteState(
-        latest.current.text,
+        start.text,
         {
           wikilink: (target) => {
             const { note: from, notes: all, onOpen: open } = links.current;
@@ -115,22 +121,25 @@ export function NoteEditor({
     );
     session.current = current;
     editor.current = view;
+    if (start.text !== start.base) {
+      current.edited();
+    }
     const left = () => {
       current.flush();
     };
     view.contentDOM.addEventListener("blur", left);
-    if (latest.current.text === "") {
+    if (start.text === "") {
       view.focus();
     }
 
     return () => {
       view.contentDOM.removeEventListener("blur", left);
-      current.flush();
+      current.close();
       view.destroy();
       session.current = undefined;
       editor.current = undefined;
     };
-  }, [machine, note.path, queries]);
+  }, [id, client, note.path, queries]);
 
   useEffect(() => {
     latest.current = loaded;

@@ -1,6 +1,5 @@
 mod changes;
 pub mod codex;
-mod herdr;
 mod images;
 mod input;
 mod launch;
@@ -9,16 +8,16 @@ mod title;
 mod tracker;
 mod turns;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::future;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use futures_util::future::join_all;
+use herdr_client::Run;
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::terminals::{
-    ClickTerminal, CloseTerminal, CreateTerminal, CreateTerminalParams, PasteImage, ReadSelection,
-    ResizeTerminal, ScrollTerminal, SeekTerminal, Status, Terminal, TerminalInput, TerminalKey,
-    UnwatchTerminal, ViewTerminal, WatchTerminal, WatchTerminalParams,
+    CloseTerminal, CreateTerminal, CreateTerminalParams, PasteImage, ResizeTerminal, Status,
+    Terminal, TerminalInput, UnwatchTerminal, ViewTerminal, WatchTerminal, WatchTerminalParams,
 };
 use tokio::sync::mpsc;
 
@@ -27,9 +26,12 @@ use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
 pub use changes::count;
 pub use images::prune;
-use launch::{Launch, Launches};
+use launch::Launches;
 use stream::Control;
 pub use tracker::Tracker;
+
+const OWNER: &str = "fogde";
+const SEEN: &str = "herdr.seen";
 
 #[derive(Default)]
 pub struct State {
@@ -71,26 +73,24 @@ pub fn register(router: &mut Router) {
     router.add::<WatchTerminal>();
     router.add::<UnwatchTerminal>();
     router.add::<TerminalInput>();
-    router.add::<TerminalKey>();
     router.add::<ResizeTerminal>();
-    router.add::<ScrollTerminal>();
-    router.add::<ClickTerminal>();
-    router.add::<SeekTerminal>();
-    router.add::<ReadSelection>();
     router.add::<PasteImage>();
     router.add::<ViewTerminal>();
 }
 
-pub async fn list(session: &Session) -> Result<Vec<Terminal>, Failure> {
-    let client = session.herdr().await?.client();
-    let (workspaces, panes) =
-        tokio::try_join!(client.workspaces(), client.panes()).map_err(failure)?;
+pub fn owned(terminal: &herdr_client::Terminal) -> bool {
+    terminal.labels.contains_key(OWNER)
+}
 
-    Ok(workspaces
+pub async fn list(session: &Session) -> Result<Vec<Terminal>, Failure> {
+    let client = session.herdr().await?.client().await.map_err(failure)?;
+    let terminals = client.terminals().await.map_err(failure)?;
+
+    Ok(terminals
         .iter()
-        .map(|workspace| {
-            let pane = panes.iter().find(|pane| pane.workspace == workspace.id);
-            let state = session.shared.tracker.state(workspace, pane);
+        .filter(|terminal| owned(terminal))
+        .map(|terminal| {
+            let state = session.shared.tracker.state(terminal);
 
             Terminal {
                 id: state.id,
@@ -116,14 +116,9 @@ pub async fn close(session: &Session, ids: &[String]) -> Result<(), Failure> {
     for id in ids {
         session.terminals.forget(id);
     }
-    let client = session.herdr().await?.client();
-    let open = client.workspaces().await.map_err(failure)?;
-    let closing = open
-        .iter()
-        .filter(|workspace| ids.contains(&workspace.id))
-        .map(|workspace| client.close_workspace(&workspace.id));
+    let client = session.herdr().await?.client().await.map_err(failure)?;
 
-    join_all(closing)
+    join_all(ids.iter().map(|id| client.kill(id)))
         .await
         .into_iter()
         .collect::<Result<(), _>>()
@@ -134,43 +129,46 @@ impl Handler for CreateTerminal {
     async fn handle(session: &Session, params: CreateTerminalParams) -> Result<Terminal, Failure> {
         let herdr = session.herdr().await?;
         let folder = folders::absolute(&params.folder).map_err(failure)?;
+        let shell =
+            crate::shell::program(session.shared.settings.shell().await.map_err(failure)?).await;
         let name = match params.agent {
             Some(agent) => agent.spec().short.to_owned(),
-            None => crate::shell::name(&herdr.shell()),
+            None => crate::shell::name(&shell),
         };
         let gh = if params.agent.is_some_and(|agent| agent.spec().github) {
             Some(session.gh().await?.program().to_path_buf())
         } else {
             None
         };
-        let env = session
-            .shared
-            .codex()
-            .await
-            .pane_env(herdr.pane_env(), gh.as_deref());
+        let env = session.shared.codex().await.env(gh.as_deref());
+        let labels = BTreeMap::from([
+            (OWNER.to_owned(), name.clone()),
+            (SEEN.to_owned(), "0".to_owned()),
+        ]);
 
         let checkouts = crate::workspaces::checkouts(&folder).await;
         let checkout = crate::workspaces::worktree_of(&folder, &checkouts);
 
+        let client = herdr.client().await.map_err(failure)?;
         let placing = session.shared.placing.lock().await;
-        let pane = herdr
-            .client()
-            .create_workspace(&folder, &name, &env)
+        let started = client
+            .run(Run {
+                argv: &[shell],
+                cwd: &folder,
+                env: &env,
+                labels: &labels,
+            })
             .await
             .map_err(failure)?;
-        let workspace = pane.workspace.clone();
-        crate::workspaces::place(session, &workspace, &params.workspace, checkout.as_deref())
-            .await?;
+        let id = started.address;
+        crate::workspaces::place(session, &id, &params.workspace, checkout.as_deref()).await?;
         drop(placing);
         if let Some(agent) = params.agent {
-            session
-                .terminals
-                .launches
-                .hold(workspace.clone(), Launch { pane, agent });
+            session.terminals.launches.hold(id.clone(), agent);
         }
 
         Ok(Terminal {
-            id: workspace,
+            id,
             name,
             agent: params.agent,
             model: None,
@@ -186,15 +184,7 @@ impl Handler for CreateTerminal {
 
 impl Handler for CloseTerminal {
     async fn handle(session: &Session, id: String) -> Result<(), Failure> {
-        session.terminals.forget(&id);
-
-        session
-            .herdr()
-            .await?
-            .client()
-            .close_workspace(&id)
-            .await
-            .map_err(failure)
+        close(session, &[id]).await
     }
 }
 

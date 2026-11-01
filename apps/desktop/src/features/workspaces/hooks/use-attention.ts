@@ -1,11 +1,11 @@
 import { focusManager, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
 
 import { applyState } from "@/features/workspaces/api/workspaces";
 import { viewOf } from "@/features/workspaces/lib/selection";
 import { needsYou } from "@/features/workspaces/lib/status";
 import { isShown, reveal } from "@/features/workspaces/lib/tiles";
 import type { Status } from "@/generated/protocol";
+import { useMachineEvent } from "@/hooks/use-machine-event";
 import type { Machine } from "@/lib/machines";
 import { bringForward, notificationsQuery, notify } from "@/lib/notifications";
 import { chime } from "@/lib/sound";
@@ -18,49 +18,39 @@ const messages: Partial<Record<Status, string>> = {
 export function useAttention(machines: Machine[]) {
   const queries = useQueryClient();
 
-  useEffect(() => {
-    const stops = machines.map((machine) =>
-      machine.client.listen("terminals.state", (state) => {
-        const applied = applyState(queries, machine, state);
-        const message = messages[state.status];
-        if (!applied || !message || needsYou(applied.before.status)) {
-          return;
+  useMachineEvent(machines, "terminals.state", (machine, state) => {
+    const applied = applyState(queries, machine, state);
+    const message = messages[state.status];
+    if (!applied || !message || needsYou(applied.before.status)) {
+      return;
+    }
+
+    const terminal = { machine: machine.id, id: state.id };
+    if (focusManager.isFocused() && isShown(terminal)) {
+      return;
+    }
+
+    void queries
+      .query(notificationsQuery)
+      .then(async ({ enabled, sound }) => {
+        if (sound) {
+          void chime().catch(() => undefined);
         }
 
-        const terminal = { machine: machine.id, id: state.id };
-        if (focusManager.isFocused() && isShown(terminal)) {
-          return;
+        if (enabled) {
+          await notify({
+            title: state.name,
+            body: `${message} ${applied.workspace.name}`,
+            onClick: () => {
+              void bringForward();
+              reveal(
+                viewOf(machine.id, applied.workspace, applied.before),
+                terminal,
+              );
+            },
+          });
         }
-
-        void queries
-          .query(notificationsQuery)
-          .then(async ({ enabled, sound }) => {
-            if (sound) {
-              void chime().catch(() => undefined);
-            }
-
-            if (enabled) {
-              await notify({
-                title: state.name,
-                body: `${message} ${applied.workspace.name}`,
-                onClick: () => {
-                  void bringForward();
-                  reveal(
-                    viewOf(machine.id, applied.workspace, applied.before),
-                    terminal,
-                  );
-                },
-              });
-            }
-          })
-          .catch(() => undefined);
-      }),
-    );
-
-    return () => {
-      for (const stop of stops) {
-        stop();
-      }
-    };
-  }, [machines, queries]);
+      })
+      .catch(() => undefined);
+  });
 }

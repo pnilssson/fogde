@@ -2,10 +2,10 @@ import { AgentIcon } from "@/components/agent-icon";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Connection } from "@/components/connection";
-import { toast } from "@/components/ui/toast";
 import type { Agent, AgentState } from "@/generated/protocol";
 import { agents, agentsQuery } from "@/lib/agents";
 import { statusOf } from "@/lib/connection";
+import { report } from "@/lib/report";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -38,11 +38,7 @@ export function AgentSignIn({
     mutationFn: () => machine.client.call("agents.install", agent),
     onSuccess: () => queries.invalidateQueries(agentsQuery(machine)),
     onError: (error) => {
-      toast.add({
-        type: "error",
-        title: `Could not install ${name}`,
-        description: error.message,
-      });
+      report(`Could not install ${name}`, error);
     },
   });
 

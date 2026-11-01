@@ -15,7 +15,6 @@ pub struct Session {
     pub id: u64,
     pub shared: Arc<Shared>,
     pub local: bool,
-    pub outgoing: mpsc::UnboundedSender<Message>,
     pub frames: mpsc::Sender<Message>,
     pub github: crate::github::State,
     pub agents: crate::agents::State,
@@ -25,17 +24,11 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(
-        shared: Arc<Shared>,
-        local: bool,
-        outgoing: mpsc::UnboundedSender<Message>,
-        frames: mpsc::Sender<Message>,
-    ) -> Self {
+    pub fn new(shared: Arc<Shared>, local: bool, frames: mpsc::Sender<Message>) -> Self {
         Self {
             id: NEXT.fetch_add(1, Ordering::Relaxed),
             shared,
             local,
-            outgoing,
             frames,
             github: crate::github::State::default(),
             agents: crate::agents::State::default(),
@@ -69,7 +62,7 @@ impl Session {
         self.shared.gh().await.map_err(failure)
     }
 
-    pub async fn herdr(&self) -> Result<&Herdr, Failure> {
+    pub async fn herdr(&self) -> Result<&Arc<Herdr>, Failure> {
         self.shared.herdr().await.map_err(failure)
     }
 }

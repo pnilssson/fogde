@@ -1,7 +1,7 @@
 mod probe;
 mod sizes;
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::future;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, Once, PoisonError};
@@ -27,6 +27,7 @@ const KEEP: usize = 300;
 pub struct Monitor {
     state: Mutex<State>,
     started: Once,
+    sizes: Arc<sizes::Sizes>,
 }
 
 impl Default for Monitor {
@@ -34,6 +35,7 @@ impl Default for Monitor {
         Self {
             state: Mutex::default(),
             started: Once::new(),
+            sizes: Arc::default(),
         }
     }
 }
@@ -103,13 +105,14 @@ impl Handler for ListSamples {
 }
 
 impl Handler for ListSpaces {
-    async fn handle(_: &Session, paths: Vec<String>) -> Result<Vec<Space>, Failure> {
+    async fn handle(session: &Session, paths: Vec<String>) -> Result<Vec<Space>, Failure> {
         let folders = paths
             .iter()
             .map(|path| folders::absolute(path))
             .collect::<Result<Vec<PathBuf>, _>>()
             .map_err(failure)?;
-        let measured = task::spawn_blocking(move || sizes::measure(&folders))
+        let sizes = Arc::clone(&session.shared.monitor.sizes);
+        let measured = task::spawn_blocking(move || sizes.measure(&folders))
             .await
             .map_err(failure)?;
 
@@ -143,13 +146,11 @@ async fn run(shared: Arc<Shared>) {
     ticks.set_missed_tick_behavior(MissedTickBehavior::Delay);
     let mut probe = None;
     let mut repos = None;
-    let mut known = HashMap::new();
 
     loop {
         ticks.tick().await;
         if !shared.monitor.wanted() {
             probe = None;
-            known.clear();
             continue;
         }
 
@@ -158,7 +159,7 @@ async fn run(shared: Arc<Shared>) {
             repos = shared.repos().await.ok();
             continue;
         };
-        let shells = shells(&shared, &mut known).await;
+        let shells = shells(&shared).await;
         let herdr = shared
             .running_herdr()
             .map(|herdr| herdr.program().to_path_buf());
@@ -186,40 +187,32 @@ async fn start() -> Option<Probe> {
         .ok()
 }
 
-async fn shells(shared: &Shared, known: &mut HashMap<String, u32>) -> Vec<Shell> {
+async fn shells(shared: &Shared) -> Vec<Shell> {
     let Some(herdr) = shared.running_herdr() else {
         return Vec::new();
     };
-    let client = herdr.client();
-    let panes = match client.panes().await {
-        Ok(panes) => panes,
+    let listed = match herdr.client().await {
+        Ok(client) => client.terminals().await,
+        Err(error) => Err(error),
+    };
+    let terminals = match listed {
+        Ok(terminals) => terminals,
         Err(error) => {
             tracing::debug!(%error, "could not list the terminals to sample");
             return Vec::new();
         }
     };
 
-    known.retain(|pane, _| panes.iter().any(|open| &open.id == pane));
-    let mut shells = Vec::new();
-    for pane in panes {
-        let pid = match known.get(&pane.id) {
-            Some(pid) => Some(*pid),
-            None => client.shell(&pane.id).await.unwrap_or_else(|error| {
-                tracing::debug!(%error, pane = %pane.id, "could not find the terminal's shell");
-                None
-            }),
-        };
-
-        if let Some(pid) = pid {
-            known.insert(pane.id, pid);
-            shells.push(Shell {
-                terminal: pane.workspace,
-                pid,
-            });
-        }
-    }
-
-    shells
+    terminals
+        .into_iter()
+        .filter(crate::terminals::owned)
+        .filter_map(|terminal| {
+            Some(Shell {
+                pid: terminal.pid?,
+                terminal: terminal.address,
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]

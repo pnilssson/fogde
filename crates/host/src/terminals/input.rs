@@ -2,13 +2,12 @@ use std::future;
 
 use protocol::rpc::Failure;
 use protocol::terminals::{
-    ClickTerminal, ClickTerminalParams, PasteImage, PasteImageParams, ResizeTerminal,
-    ScrollTerminal, ScrollTerminalParams, TerminalInput, TerminalInputParams, TerminalKey,
-    TerminalKeyParams, WatchTerminalParams,
+    PasteImage, PasteImageParams, ResizeTerminal, ResizeTerminalParams, TerminalInput,
+    TerminalInputParams,
 };
 
+use super::images;
 use super::stream::Control;
-use super::{herdr, images};
 use crate::rpc::{Handler, failure};
 use crate::session::Session;
 
@@ -27,59 +26,18 @@ impl Handler for TerminalInput {
     }
 }
 
-impl Handler for TerminalKey {
-    const ORDERED: bool = true;
-
-    fn handle(
-        session: &Session,
-        params: TerminalKeyParams,
-    ) -> impl Future<Output = Result<(), Failure>> + Send {
-        future::ready(
-            session
-                .terminals
-                .send(&params.id, Control::Key(herdr::key(params.key))),
-        )
-    }
-}
-
 impl Handler for ResizeTerminal {
     const ORDERED: bool = true;
 
     fn handle(
         session: &Session,
-        params: WatchTerminalParams,
+        params: ResizeTerminalParams,
     ) -> impl Future<Output = Result<(), Failure>> + Send {
         future::ready(
             session
                 .terminals
                 .send(&params.id, Control::Resize(params.size)),
         )
-    }
-}
-
-impl Handler for ScrollTerminal {
-    const ORDERED: bool = true;
-
-    fn handle(
-        session: &Session,
-        params: ScrollTerminalParams,
-    ) -> impl Future<Output = Result<(), Failure>> + Send {
-        let id = params.id.clone();
-
-        future::ready(session.terminals.send(&id, Control::Scroll(params)))
-    }
-}
-
-impl Handler for ClickTerminal {
-    const ORDERED: bool = true;
-
-    fn handle(
-        session: &Session,
-        params: ClickTerminalParams,
-    ) -> impl Future<Output = Result<(), Failure>> + Send {
-        let id = params.id.clone();
-
-        future::ready(session.terminals.send(&id, Control::Click(params)))
     }
 }
 

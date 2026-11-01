@@ -13,9 +13,13 @@ import { closeTile } from "@/features/workspaces/lib/opening";
 import {
   activate,
   attach,
+  isShown,
   selectWorkspace,
   sync,
+  tileId,
+  toggleZoom,
 } from "@/features/workspaces/lib/tiles";
+import { closePage, openPage } from "@/lib/page";
 
 const a = { machine: "m1", id: "a" };
 const b = { machine: "m1", id: "b" };
@@ -52,6 +56,7 @@ function groupOf(api: DockviewApi, id: string) {
 }
 
 afterEach(() => {
+  closePage();
   detach?.();
   document.body.replaceChildren();
 });
@@ -218,6 +223,48 @@ test("closing a tile in another workspace removes it from its saved layout", () 
 
   closeTile("other:1", workspace);
   selectWorkspace(workspace);
+
+  expect(tiles(api)).toEqual([["m1:a"], ["m1:b"]]);
+});
+
+test("a tile behind an open page or a zoomed tile is not shown", () => {
+  const api = dockview();
+  selectWorkspace({ machine: "m1", id: "w1" });
+  sync([a, b], () => false);
+
+  const open = [isShown(a), isShown(b)];
+  openPage("notes");
+  const paged = [isShown(a), isShown(b)];
+  closePage();
+  toggleZoom(api.getPanel(tileId(a))?.api);
+  const zoomed = [isShown(a), isShown(b)];
+
+  expect(open).toEqual([true, true]);
+  expect(paged).toEqual([false, false]);
+  expect(zoomed).toEqual([true, false]);
+});
+
+test("a zoomed tile stays zoomed when another terminal comes or goes", () => {
+  const api = dockview();
+  selectWorkspace({ machine: "m1", id: "w1" });
+  sync([a, b], () => false);
+  toggleZoom(api.getPanel(tileId(a))?.api);
+
+  sync([a, b, c], () => false);
+  const added = api.getPanel(tileId(a))?.api.isMaximized();
+  sync([a, c], () => false);
+  const removed = api.getPanel(tileId(a))?.api.isMaximized();
+
+  expect([added, removed]).toEqual([true, true]);
+});
+
+test("switching workspace right after a change keeps that change", () => {
+  const api = dockview();
+  selectWorkspace({ machine: "m1", id: "w1" });
+  sync([a, b], () => false);
+
+  selectWorkspace({ machine: "m1", id: "w2" });
+  selectWorkspace({ machine: "m1", id: "w1" });
 
   expect(tiles(api)).toEqual([["m1:a"], ["m1:b"]]);
 });

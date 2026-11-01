@@ -168,18 +168,18 @@ test("reconnect replaces only the disconnected machine's socket", async () => {
 
 test("events never cross from one machine's connection to another", async () => {
   const frames = { local: 0, remote: 0 };
-  local.listen("terminals.frame", () => {
+  local.listen("terminals.output", () => {
     frames.local += 1;
   });
-  remote.listen("terminals.frame", () => {
+  remote.listen("terminals.output", () => {
     frames.remote += 1;
   });
   await local.call("workspaces.list");
   await remote.call("workspaces.list");
   const socket = sockets.find((socket) => socket.remote);
   const frame = {
-    method: "terminals.frame",
-    params: { id: "w1", cols: 80, rows: 24, full: true, data: "aGk=" },
+    method: "terminals.output",
+    params: { id: "t1", data: "aGk=" },
   };
 
   socket?.message(frame);
@@ -204,7 +204,11 @@ test("reconnect rejects old requests before the old socket finishes closing", as
   options.hold = true;
   options.deferClose = true;
   const outcome = remote
-    .call("terminals.watch", { id: "w1", size: { cols: 80, rows: 24 } })
+    .call("terminals.watch", {
+      id: "w1",
+      size: { cols: 80, rows: 24 },
+      token: 1,
+    })
     .then(
       () => "resolved",
       () => "rejected",

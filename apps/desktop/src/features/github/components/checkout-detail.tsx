@@ -1,9 +1,10 @@
 import { useState } from "react";
 
+import { CreatePull } from "@/features/github/components/create-pull";
 import { DiffView } from "@/features/github/components/diff-view";
 import { LandedCard } from "@/features/github/components/landed-card";
 import { NewPull } from "@/features/github/components/new-pull";
-import { PullCard } from "@/features/github/components/pull-card";
+import { PullRow } from "@/features/github/components/pull-row";
 import { usePlan } from "@/features/github/hooks/use-plan";
 import type { Entry } from "@/features/github/lib/scope";
 import { select } from "@/features/github/lib/state";
@@ -46,12 +47,9 @@ export function CheckoutDetail({
           linked={linked}
         />
       )}
-      {online && branch && (pull !== undefined || merged === undefined) && (
-        <PullCard
-          branch={branch}
+      {online && pull && (
+        <PullRow
           pull={pull}
-          canOpen={canOpen}
-          primary={next === "pull-request"}
           onShow={(entry) => {
             select(machine.id, {
               kind: "pull",
@@ -59,6 +57,12 @@ export function CheckoutDetail({
               number: entry.item.number,
             });
           }}
+        />
+      )}
+      {online && branch && !pull && !merged && canOpen && (
+        <CreatePull
+          branch={branch}
+          primary={next === "pull-request"}
           onCreate={() => {
             setOpening(true);
           }}

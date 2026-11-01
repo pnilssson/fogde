@@ -3,13 +3,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { Folder } from "@/generated/protocol";
+import { report } from "@/lib/report";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -25,11 +25,7 @@ export function FolderRow({ machine, folder, onOpen }: Props) {
     onSuccess: () =>
       queries.invalidateQueries({ queryKey: [machine.id, "folders.list"] }),
     onError: (error) => {
-      toast.add({
-        type: "error",
-        title: `Could not delete ${folder.name}`,
-        description: error.message,
-      });
+      report(`Could not delete ${folder.name}`, error);
     },
   });
 

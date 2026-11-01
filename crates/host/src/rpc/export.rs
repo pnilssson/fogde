@@ -4,7 +4,7 @@ use std::path::Path;
 
 use protocol::agents::{Agent, AgentSpec};
 use protocol::notes::NotesEvent;
-use protocol::terminals::{EndedEvent, FailedEvent, FrameEvent, ScrolledEvent, StateEvent};
+use protocol::terminals::{EndedEvent, OutputEvent, StateEvent};
 use protocol::usage::UsageEvent;
 use protocol::workspaces::ChangedEvent;
 use protocol::{Connection, Event, Frame};
@@ -74,10 +74,8 @@ fn export_protocol() {
         )
         .unwrap();
     }
-    let events = event::<FrameEvent>(&mut types)
-        + &event::<ScrolledEvent>(&mut types)
+    let events = event::<OutputEvent>(&mut types)
         + &event::<EndedEvent>(&mut types)
-        + &event::<FailedEvent>(&mut types)
         + &event::<StateEvent>(&mut types)
         + &event::<ChangedEvent>(&mut types)
         + &event::<UsageEvent>(&mut types)

@@ -1,167 +1,162 @@
-use std::collections::BTreeMap;
+use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, PoisonError};
+use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
 
-use serde::Deserialize;
 use serde::de::IgnoredAny;
-use tokio::fs;
+use sha2::{Digest, Sha256};
+use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
+use tokio::sync::{Mutex, oneshot};
 
-use crate::client::Empty;
 use crate::install::{self, VERSION};
-use crate::{Client, Error};
+use crate::terminal::Empty;
+use crate::{Connection, Error};
 
-const CONFIG: &str = "onboarding = false
-
-[update]
-version_check = false
-
-[ui.sound]
-enabled = false
-";
-
-fn config(shell: &str) -> String {
-    format!(
-        "{CONFIG}\n[terminal]\ndefault_shell = {}\n",
-        serde_json::Value::from(shell)
-    )
-}
-
-const PANE_ENV: [&str; 2] = ["XDG_CONFIG_HOME", "XDG_STATE_HOME"];
+const ATTEMPTS: usize = 50;
+const PAUSE: Duration = Duration::from_millis(100);
 
 pub struct Herdr {
     program: PathBuf,
-    home: PathBuf,
-    env: BTreeMap<String, String>,
-    shell: Mutex<String>,
+    env: Vec<(&'static str, PathBuf)>,
+    connection: Mutex<Option<Arc<Connection>>>,
 }
 
 impl Herdr {
-    pub async fn start(tools: &Path, home: &Path, shell: &str) -> Result<Self, Error> {
+    pub async fn start(tools: &Path, home: &Path) -> Result<Self, Error> {
         let herdr = Self {
             program: install::locate(tools).await?,
-            home: home.to_owned(),
-            env: PANE_ENV
-                .iter()
-                .map(|&name| (name.to_owned(), std::env::var(name).unwrap_or_default()))
-                .collect(),
-            shell: Mutex::new(shell.to_owned()),
+            env: env(home),
+            connection: Mutex::new(None),
         };
-        let changed = herdr.configure(shell).await?;
 
-        let client = herdr.client();
-        if let Ok(pong) = client.ping().await {
-            let running = pong.version;
-            if running == VERSION {
-                if changed {
-                    herdr.reload().await?;
-                }
-
-                return Ok(herdr);
-            }
-
-            tracing::info!(%running, "restarting Herdr on {VERSION}");
-            client
-                .request::<IgnoredAny>("server.stop", Empty {})
-                .await?;
-            herdr.wait(false).await?;
+        let running = herdr.client().await?.version().to_owned();
+        if running == VERSION {
+            return Ok(herdr);
         }
 
-        process::detached(&herdr.program, &["server"])
-            .env("XDG_CONFIG_HOME", herdr.config())
-            .env("XDG_STATE_HOME", herdr.home.join("state"))
-            .env_remove("FOGDE_HOME")
-            .spawn()
-            .map_err(Error::Start)?;
-        herdr.wait(true).await?;
+        tracing::info!(%running, "restarting Herdr on {VERSION}");
+        let restarted = herdr
+            .client()
+            .await?
+            .call::<IgnoredAny>("server.restart", Empty {})
+            .await;
+        if let Err(error) = restarted {
+            tracing::debug!(%error, "Herdr closed the connection while restarting");
+        }
+        herdr.forget().await;
 
-        Ok(herdr)
+        for _ in 0..ATTEMPTS {
+            tokio::time::sleep(PAUSE).await;
+            if let Ok(connection) = herdr.client().await {
+                if connection.version() == VERSION {
+                    return Ok(herdr);
+                }
+                herdr.forget().await;
+            }
+        }
+
+        Err(Error::Version {
+            running,
+            wanted: VERSION.to_owned(),
+        })
     }
 
-    pub fn client(&self) -> Client {
-        Client::new(&self.socket())
+    pub async fn client(&self) -> Result<Arc<Connection>, Error> {
+        let mut current = self.connection.lock().await;
+        if let Some(connection) = current
+            .as_ref()
+            .filter(|connection| !connection.is_closed())
+        {
+            return Ok(Arc::clone(connection));
+        }
+
+        let connection = Arc::new(self.connect().await?);
+        *current = Some(Arc::clone(&connection));
+
+        Ok(connection)
     }
 
     pub fn program(&self) -> &Path {
         &self.program
     }
 
-    pub fn socket(&self) -> PathBuf {
-        self.config().join("herdr").join("herdr.sock")
+    async fn forget(&self) {
+        *self.connection.lock().await = None;
     }
 
-    pub fn shell(&self) -> String {
-        self.shell
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
-    }
+    async fn connect(&self) -> Result<Connection, Error> {
+        let mut child = process::command(&self.program)
+            .arg("connect")
+            .envs(self.env.iter().map(|(name, value)| (name, value)))
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(Error::Start)?;
+        let (Some(stdin), Some(stdout), Some(stderr)) =
+            (child.stdin.take(), child.stdout.take(), child.stderr.take())
+        else {
+            return Err(Error::Start(io::Error::other("missing pipe")));
+        };
+        let (said, last) = oneshot::channel();
+        tokio::spawn(log(stderr, said));
 
-    pub async fn set_shell(&self, shell: &str) -> Result<(), Error> {
-        if self.configure(shell).await? {
-            self.reload().await?;
-        }
-
-        shell.clone_into(&mut self.shell.lock().unwrap_or_else(PoisonError::into_inner));
-
-        Ok(())
-    }
-
-    pub fn pane_env(&self) -> &BTreeMap<String, String> {
-        &self.env
-    }
-
-    fn config(&self) -> PathBuf {
-        self.home.join("config")
-    }
-
-    async fn configure(&self, shell: &str) -> Result<bool, Error> {
-        let dir = self.config().join("herdr");
-        let path = dir.join("config.toml");
-        let wanted = config(shell);
-        if fs::read_to_string(&path)
-            .await
-            .is_ok_and(|current| current == wanted)
-        {
-            return Ok(false);
-        }
-
-        fs::create_dir_all(&dir).await?;
-        fs::write(&path, wanted).await?;
-
-        Ok(true)
-    }
-
-    async fn reload(&self) -> Result<(), Error> {
-        self.client()
-            .request::<IgnoredAny>("server.reload_config", Empty {})
-            .await?;
-
-        Ok(())
-    }
-
-    async fn wait(&self, running: bool) -> Result<(), Error> {
-        for _ in 0..100 {
-            if self.client().ping().await.is_ok() == running {
-                return Ok(());
+        match Connection::open(stdout, stdin, Some(child)).await {
+            Err(Error::Closed) => {
+                let line = tokio::time::timeout(PAUSE * 10, last).await;
+                match line {
+                    Ok(Ok(Some(line))) => Err(Error::Start(io::Error::other(line))),
+                    _ => Err(Error::Closed),
+                }
             }
-
-            tokio::time::sleep(Duration::from_millis(100)).await;
+            opened => opened,
         }
-
-        Err(Error::Timeout)
     }
 }
 
-impl Client {
-    async fn ping(&self) -> Result<Pong, Error> {
-        self.request("ping", Empty {}).await
-    }
+fn env(home: &Path) -> Vec<(&'static str, PathBuf)> {
+    let session = session(home);
+
+    vec![
+        ("HC_SOCKET", socket(home, &session)),
+        ("HC_SESSION", PathBuf::from(session)),
+    ]
 }
 
-#[derive(Deserialize)]
-struct Pong {
-    version: String,
+#[cfg(unix)]
+fn socket(home: &Path, session: &str) -> PathBuf {
+    home.join(format!("{session}.sock"))
+}
+
+#[cfg(windows)]
+fn socket(_home: &Path, session: &str) -> PathBuf {
+    let user: String = std::env::var("USERNAME")
+        .unwrap_or_default()
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .collect();
+
+    PathBuf::from(format!(r"\\.\pipe\herdr-core-{user}-{session}.sock"))
+}
+
+async fn log(stderr: impl AsyncRead + Unpin, said: oneshot::Sender<Option<String>>) {
+    let mut lines = BufReader::new(stderr).lines();
+    let mut last = None;
+    while let Ok(Some(line)) = lines.next_line().await {
+        tracing::debug!(%line, "Herdr");
+        if !line.trim().is_empty() {
+            last = Some(line);
+        }
+    }
+
+    let _ = said.send(last);
+}
+
+fn session(home: &Path) -> String {
+    let digest = Sha256::digest(home.to_string_lossy().as_bytes());
+
+    format!("fogde-{}", &hex::encode(digest)[..12])
 }
 
 #[cfg(test)]
@@ -169,12 +164,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn writes_the_chosen_shell_as_an_escaped_string() {
-        let config = config(r"C:\Users\O'Brien\Git\bin\bash.exe");
+    fn gives_each_home_its_own_session() {
+        let home = session(Path::new("/home/dev/Fogde/.app/herdr"));
+        let dev = session(Path::new("/home/dev/Fogde-dev/.app/herdr"));
 
-        assert!(config.starts_with(CONFIG));
-        assert!(config.ends_with(
-            "[terminal]\ndefault_shell = \"C:\\\\Users\\\\O'Brien\\\\Git\\\\bin\\\\bash.exe\"\n"
-        ));
+        assert_ne!(home, dev);
+        assert_eq!(home, session(Path::new("/home/dev/Fogde/.app/herdr")));
+        assert!(home.starts_with("fogde-") && home.len() == 18);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn names_the_pipe_herdr_would_pick_for_the_session() {
+        let home = Path::new(r"C:\Users\dev\Fogde\.app\herdr-core");
+        let session = session(home);
+        let pipe = socket(home, &session);
+        let pipe = pipe.to_string_lossy();
+
+        assert!(pipe.starts_with(r"\\.\pipe\herdr-core-"), "{pipe}");
+        assert!(pipe.ends_with(&format!("-{session}.sock")), "{pipe}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn keeps_the_longest_socket_within_what_macos_allows() {
+        let home = Path::new("/Users/firstname.lastname/Fogde/.app/herdr-core");
+        let holder = socket(home, &session(home)).with_extension("holder.sock");
+
+        assert!(holder.as_os_str().len() + 9 <= 103, "{}", holder.display());
     }
 }

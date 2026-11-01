@@ -1,4 +1,3 @@
-use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Output;
 
@@ -31,16 +30,8 @@ impl Gh {
             .args(args)
             .output()
             .await
-            .map_err(spawn_error)
+            .map_err(process::not_found(Error::Missing))
     }
-}
-
-pub fn spawn_error(error: io::Error) -> Error {
-    if error.kind() == io::ErrorKind::NotFound {
-        return Error::Missing;
-    }
-
-    Error::Io(error)
 }
 
 pub fn failure(output: &[u8]) -> Error {

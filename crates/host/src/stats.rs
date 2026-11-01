@@ -22,6 +22,9 @@ impl Handler for SetStats {
             .settings
             .set_stats(stats)
             .await
-            .map_err(failure)
+            .map_err(failure)?;
+        session.shared.tracker.set_stats(stats);
+
+        Ok(())
     }
 }

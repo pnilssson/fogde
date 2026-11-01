@@ -1,14 +1,4 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useDeleteWorkspace } from "@/features/workspaces/hooks/use-workspaces";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
@@ -42,34 +32,23 @@ export function DeleteWorkspace({
   });
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{`Delete ${workspace.name}?`}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {`${outcome(workspace.terminals.length)} Your files in `}
-            <span className="wrap-anywhere">{workspace.folder}</span>
-            {" aren't touched."}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            size="sm"
-            disabled={remove.isPending}
-            aria-busy={remove.isPending}
-            onClick={() => {
-              remove.mutate(workspace.id);
-            }}
-          >
-            {remove.isPending && (
-              <Spinner aria-hidden data-icon="inline-start" />
-            )}
-            {remove.isPending ? "Deleting…" : "Delete"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Delete ${workspace.name}?`}
+      description={
+        <>
+          {`${outcome(workspace.terminals.length)} Your files in `}
+          <span className="wrap-anywhere">{workspace.folder}</span>
+          {" aren't touched."}
+        </>
+      }
+      action="Delete"
+      busy="Deleting…"
+      pending={remove.isPending}
+      onConfirm={() => {
+        remove.mutate(workspace.id);
+      }}
+    />
   );
 }

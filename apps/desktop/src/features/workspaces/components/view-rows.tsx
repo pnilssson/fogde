@@ -1,6 +1,9 @@
+import { useCallback } from "react";
+
 import { StartItem } from "@/features/workspaces/components/start-item";
 import { TerminalItem } from "@/features/workspaces/components/terminal-item";
 import { useFocused } from "@/features/workspaces/hooks/use-focused";
+import { useIds } from "@/features/workspaces/hooks/use-ids";
 import { useMoveTile } from "@/features/workspaces/hooks/use-workspaces";
 import { startId, useStart } from "@/features/workspaces/lib/layouts";
 import { changes } from "@/features/workspaces/lib/order";
@@ -36,15 +39,19 @@ export function ViewRows({
   const terminals = workspace.terminals.filter((terminal) =>
     inView(view, terminal),
   );
-  const ids = terminals.map(({ id }) => id);
+  const ids = useIds(terminals);
+  const { mutate } = move;
 
-  const arrange = (tile: string, before: string | null) => {
-    if (!changes(ids, tile, before)) {
-      return;
-    }
+  const arrange = useCallback(
+    (tile: string, before: string | null) => {
+      if (!changes(ids, tile, before)) {
+        return;
+      }
 
-    move.mutate({ machine, tile, before });
-  };
+      mutate({ machine, tile, before });
+    },
+    [ids, machine, mutate],
+  );
 
   return (
     <>
@@ -52,12 +59,11 @@ export function ViewRows({
         <TerminalItem
           key={terminal.id}
           machine={machine}
+          view={view}
           terminal={terminal}
           siblings={ids}
           active={focused === terminal.id}
-          onSelect={() => {
-            onSelect(view, { machine: machine.id, id: terminal.id });
-          }}
+          onSelect={onSelect}
           onArrange={arrange}
         />
       ))}

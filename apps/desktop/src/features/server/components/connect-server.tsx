@@ -4,11 +4,10 @@ import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
 
+import { ActionButton } from "@/components/action-button";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
 import {
   Tooltip,
   TooltipContent,
@@ -19,6 +18,7 @@ import { KeyHelp } from "@/features/server/components/key-help";
 import { TrustServer } from "@/features/server/components/trust-server";
 import type { ServerCheck } from "@/generated/protocol";
 import { callOwn } from "@/lib/host";
+import { report } from "@/lib/report";
 import { machinesQuery } from "@/lib/machines";
 
 type Phase = "connecting" | "settingUp";
@@ -92,11 +92,7 @@ export function ConnectServer({ onBack, onContinue }: Props) {
       await onContinue(machine);
     } catch (error) {
       setPhase(undefined);
-      toast.add({
-        type: "error",
-        title: `Could not connect to ${target}`,
-        description: error instanceof Error ? error.message : String(error),
-      });
+      report(`Could not connect to ${target}`, error);
     }
   };
 
@@ -197,16 +193,13 @@ export function ConnectServer({ onBack, onContinue }: Props) {
           <Button type="button" variant="ghost" size="sm" onClick={onBack}>
             Back
           </Button>
-          <Button
+          <ActionButton
             type="submit"
-            variant="secondary"
-            size="sm"
-            aria-busy={shown !== undefined}
+            label="Continue"
+            busy={shown && labels[shown]}
+            pending={shown !== undefined}
             disabled={phase !== undefined}
-          >
-            {shown && <Spinner aria-hidden data-icon="inline-start" />}
-            {shown ? labels[shown] : "Continue"}
-          </Button>
+          />
         </div>
       </form>
     </section>

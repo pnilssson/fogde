@@ -1,23 +1,5 @@
 import type { Note } from "@/generated/protocol";
-
-function parts(path: string) {
-  const windows = /^[a-z]:/i.test(path) || path.includes("\\");
-  const resolved: string[] = [];
-
-  for (const part of path.split(/[\\/]/)) {
-    if (part === "" || part === ".") {
-      continue;
-    }
-    if (part === "..") {
-      resolved.pop();
-      continue;
-    }
-
-    resolved.push(windows ? part.toLowerCase() : part);
-  }
-
-  return resolved;
-}
+import { parts } from "@/lib/folders";
 
 function key(path: string) {
   return parts(path).join("/");

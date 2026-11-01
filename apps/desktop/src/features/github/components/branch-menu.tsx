@@ -13,10 +13,10 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { branchesQuery } from "@/features/github/api/github";
 import { useWrite } from "@/features/github/hooks/use-write";
-import { ago, samePath } from "@/features/github/lib/scope";
 import type { Branch } from "@/generated/protocol";
-import { folderName } from "@/lib/folders";
 import type { Machine } from "@/lib/machines";
+import { folderName, samePath } from "@/lib/folders";
+import { ago } from "@/lib/time";
 
 interface Props {
   machine: Machine;

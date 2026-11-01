@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { blockers } from "@/features/github/lib/blockers";
+import { blockers, merging } from "@/features/github/lib/blockers";
 import type { Check, PullDetail } from "@/generated/protocol";
 
 const check = (name: string, state: Check["state"], required: boolean) => ({
@@ -60,5 +60,21 @@ describe("blockers", () => {
 
   it("lists nothing once GitHub says it can merge", () => {
     expect(blockers(pull({ merge: "clean", review: "changes" }))).toEqual([]);
+  });
+});
+
+describe("merging", () => {
+  it("merges now, or when ready where the repo allows auto-merge", () => {
+    expect(merging(pull({ merge: "clean" }))).toBe("now");
+    expect(merging(pull({ merge: "unstable" }))).toBe("now");
+    expect(merging(pull({ merge: "blocked" }))).toBe("later");
+    expect(merging(pull({ merge: "behind" }))).toBe("later");
+  });
+
+  it("offers no merge GitHub would refuse", () => {
+    expect(merging(pull({ merge: "blocked", automerge: false }))).toBe(null);
+    expect(merging(pull({ merge: "behind", automerge: false }))).toBe(null);
+    expect(merging(pull({ merge: "conflicts" }))).toBe(null);
+    expect(merging(pull({ merge: "clean", methods: [] }))).toBe(null);
   });
 });

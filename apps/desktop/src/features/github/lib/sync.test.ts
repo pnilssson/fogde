@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { nextStep, syncOf } from "@/features/github/lib/sync";
+import { nextStep, openable, syncOf } from "@/features/github/lib/sync";
 import type { CheckoutStatus } from "@/generated/protocol";
 
 const checkout = (changes: Partial<CheckoutStatus>): CheckoutStatus => ({
@@ -10,6 +10,7 @@ const checkout = (changes: Partial<CheckoutStatus>): CheckoutStatus => ({
   upstream: "origin/feature/login",
   ahead: 0,
   behind: 0,
+  commits: 1,
   files: [],
   truncated: false,
   owner: "acme",
@@ -30,6 +31,16 @@ describe("syncOf", () => {
     });
     expect(syncOf(checkout({ ahead: 2 }))).toEqual({ kind: "push", ahead: 2 });
     expect(syncOf(checkout({})).kind).toBe("fetch");
+  });
+});
+
+describe("openable", () => {
+  it("offers a pull request only for a branch with commits main lacks", () => {
+    expect(openable(checkout({}), "main")).toBe(true);
+    expect(openable(checkout({ commits: 0 }), "main")).toBe(false);
+    expect(openable(checkout({ commits: null }), "main")).toBe(true);
+    expect(openable(checkout({ branch: "main" }), "main")).toBe(false);
+    expect(openable(checkout({}), null)).toBe(false);
   });
 });
 

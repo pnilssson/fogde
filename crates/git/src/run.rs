@@ -1,8 +1,8 @@
 use std::ffi::OsStr;
-use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Output, Stdio};
 
+use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
 use crate::Error;
@@ -25,7 +25,7 @@ where
         .stdin(Stdio::null())
         .output()
         .await
-        .map_err(spawn_error)?;
+        .map_err(process::not_found(Error::Missing))?;
     if !output.status.success() {
         return Err(failure(&output));
     }
@@ -33,17 +33,35 @@ where
     Ok(output.stdout)
 }
 
-pub async fn git_paths(repo: &Path, names: &[&str]) -> Result<Vec<PathBuf>, Error> {
-    let mut args = vec!["rev-parse"];
-    for name in names {
-        args.extend(["--git-path", name]);
+pub async fn git_tree<I, S>(repo: &Path, args: I) -> Result<(), Error>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let mut command = command(repo, args);
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped());
+    let mut child = process::tree(command).map_err(process::not_found(Error::Missing))?;
+    let mut stderr = Vec::new();
+    let mut pipe = child.stderr();
+    let read = async {
+        if let Some(pipe) = pipe.as_mut() {
+            let _ = pipe.read_to_end(&mut stderr).await;
+        }
+    };
+    let (status, ()) = tokio::join!(child.wait(), read);
+    let status = status?;
+    if !status.success() {
+        return Err(failure(&Output {
+            status,
+            stdout: Vec::new(),
+            stderr,
+        }));
     }
-    let output = git(repo, args).await?;
 
-    Ok(String::from_utf8_lossy(&output)
-        .lines()
-        .map(|line| repo.join(line))
-        .collect())
+    Ok(())
 }
 
 pub async fn git_with_input<I, S>(repo: &Path, args: I, input: &[u8]) -> Result<Output, Error>
@@ -53,7 +71,7 @@ where
 {
     process::feed(&mut command(repo, args), input)
         .await
-        .map_err(spawn_error)
+        .map_err(process::not_found(Error::Missing))
 }
 
 pub fn failure(output: &Output) -> Error {
@@ -92,20 +110,9 @@ where
         .arg("-C")
         .arg(repo)
         .args(args)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GCM_INTERACTIVE", "never")
-        .env("GIT_ASKPASS", "")
-        .env("SSH_ASKPASS_REQUIRE", "never");
+        .envs(process::UNPROMPTED);
 
     command
-}
-
-fn spawn_error(error: io::Error) -> Error {
-    if error.kind() == io::ErrorKind::NotFound {
-        return Error::Missing;
-    }
-
-    Error::Io(error)
 }
 
 #[cfg(test)]

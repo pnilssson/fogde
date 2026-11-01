@@ -3,6 +3,7 @@ use std::path::Path;
 use tokio::fs;
 
 use crate::Error;
+use crate::base::mainline;
 use crate::run::git;
 
 const UNTRACKED_FILES: usize = 500;
@@ -31,12 +32,14 @@ pub struct Divergence {
 }
 
 pub async fn changes(root: &Path) -> Option<Changes> {
-    let remote = remote_head(root).await;
-    let merged = match &remote {
-        Some(remote) => read(root, ["merge-base", "HEAD", remote]).await.ok(),
+    let mainline = mainline(root).await;
+    let merged = match &mainline {
+        Some(mainline) => read(root, ["merge-base", "HEAD", &mainline.reference])
+            .await
+            .ok(),
         None => None,
     };
-    let base = remote.filter(|_| merged.is_some());
+    let base = mainline.filter(|_| merged.is_some());
     let start = match merged {
         Some(merged) => merged,
         None => read(root, ["rev-parse", "--verify", "--quiet", "HEAD"])
@@ -49,7 +52,7 @@ pub async fn changes(root: &Path) -> Option<Changes> {
         divergence(root, "@{upstream}"),
         async {
             match &base {
-                Some(base) => divergence(root, base).await,
+                Some(base) => divergence(root, &base.reference).await,
                 None => None,
             }
         },
@@ -59,44 +62,20 @@ pub async fn changes(root: &Path) -> Option<Changes> {
     Some(Changes {
         added: added.saturating_add(untracked),
         removed,
-        base: base.zip(behind).map(|(name, divergence)| Base {
-            name: name.strip_prefix("origin/").unwrap_or(&name).to_owned(),
+        base: base.zip(behind).map(|(base, divergence)| Base {
+            name: base.name,
             behind: divergence.behind,
         }),
         upstream,
     })
 }
 
-pub async fn fetch(repo: &Path) -> Result<(), Error> {
-    git(repo, ["fetch", "--quiet", "origin"]).await.map(drop)
-}
+pub async fn commits(root: &Path) -> Option<u32> {
+    let mainline = mainline(root).await?;
+    let range = format!("{}..HEAD", mainline.reference);
+    let counted = read(root, ["rev-list", "--count", &range]).await.ok()?;
 
-pub(crate) async fn remote_head(repo: &Path) -> Option<String> {
-    let head = read(
-        repo,
-        [
-            "symbolic-ref",
-            "--quiet",
-            "--short",
-            "refs/remotes/origin/HEAD",
-        ],
-    )
-    .await;
-    if let Ok(head) = head {
-        return Some(head);
-    }
-
-    for name in ["origin/main", "origin/master"] {
-        let reference = format!("refs/remotes/{name}");
-        if read(repo, ["rev-parse", "--verify", "--quiet", &reference])
-            .await
-            .is_ok()
-        {
-            return Some(name.to_owned());
-        }
-    }
-
-    None
+    counted.parse().ok()
 }
 
 async fn divergence(root: &Path, other: &str) -> Option<Divergence> {

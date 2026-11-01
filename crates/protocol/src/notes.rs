@@ -22,6 +22,12 @@ pub struct Note {
     pub created: i64,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, TS)]
+pub struct NotesChanged {
+    pub notes: Vec<Note>,
+    pub listing: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
 pub struct NoteText {
     pub text: String,
@@ -124,5 +130,5 @@ pub struct NotesEvent;
 
 impl Event for NotesEvent {
     const NAME: &'static str = "notes.changed";
-    type Params = ();
+    type Params = NotesChanged;
 }

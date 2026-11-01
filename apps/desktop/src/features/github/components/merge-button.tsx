@@ -3,7 +3,6 @@ import { useId, useState } from "react";
 
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -21,9 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { ActionButton } from "@/features/github/components/action-button";
+import { ActionButton } from "@/components/action-button";
 import { useWrite } from "@/features/github/hooks/use-write";
+import { merging } from "@/features/github/lib/blockers";
 import type { MergeMethod, PullDetail, Repo } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
@@ -50,9 +49,8 @@ export function MergeButton({ machine, repo, id, number, pull }: Props) {
   const [remove, setRemove] = useState(!pull.cross);
   const merge = useWrite(machine, "Could not merge");
   const auto = useWrite(machine, "Could not change auto-merge");
-  const blocked = pull.merge === "conflicts" || pull.methods.length === 0;
-  const later =
-    pull.automerge && (pull.merge === "blocked" || pull.merge === "behind");
+  const mode = merging(pull);
+  const later = mode === "later";
   const pending = merge.isPending || auto.isPending;
 
   if (pull.auto) {
@@ -74,7 +72,7 @@ export function MergeButton({ machine, repo, id, number, pull }: Props) {
     <AlertDialog open={open} onOpenChange={setOpen}>
       <Button
         size="sm"
-        disabled={blocked}
+        disabled={mode === null}
         onClick={() => {
           setOpen(true);
         }}
@@ -141,10 +139,12 @@ export function MergeButton({ machine, repo, id, number, pull }: Props) {
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            size="sm"
-            disabled={pending || !method}
-            aria-busy={pending}
+          <ActionButton
+            variant="default"
+            label={later ? "Turn on auto-merge" : "Merge"}
+            busy={later ? "Turning on…" : "Merging…"}
+            pending={pending}
+            disabled={!method}
             onClick={() => {
               if (!method) {
                 return;
@@ -176,16 +176,7 @@ export function MergeButton({ machine, repo, id, number, pull }: Props) {
                 done,
               );
             }}
-          >
-            {pending && <Spinner aria-hidden data-icon="inline-start" />}
-            {later
-              ? pending
-                ? "Turning on…"
-                : "Turn on auto-merge"
-              : pending
-                ? "Merging…"
-                : "Merge"}
-          </AlertDialogAction>
+          />
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

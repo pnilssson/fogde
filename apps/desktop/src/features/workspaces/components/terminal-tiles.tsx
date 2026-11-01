@@ -8,7 +8,7 @@ import {
   type DockviewReadyEvent,
   type IDockviewPanelProps,
 } from "dockview-react";
-import { useContext, useEffect, useState } from "react";
+import { memo, useContext, useEffect, useState } from "react";
 
 import { StartPage } from "@/features/workspaces/components/start-page";
 import { TerminalPane } from "@/features/workspaces/components/terminal-pane";
@@ -52,12 +52,14 @@ import { closeStart } from "@/features/workspaces/lib/opening";
 import {
   activate,
   attach,
-  isShown,
+  hasTile,
   restore,
   sync,
 } from "@/features/workspaces/lib/tiles";
 
 const theme = { name: "fogde", className: "dockview-theme-fogde", gap: 8 };
+
+const Pane = memo(TerminalPane);
 
 const edges = {
   activationSize: { type: "percentage", value: 15 },
@@ -71,13 +73,7 @@ function TerminalTile({ api, params }: IDockviewPanelProps<Selection>) {
     return null;
   }
 
-  return (
-    <TerminalPane
-      panel={api}
-      machine={found.machine}
-      terminal={found.terminal}
-    />
-  );
+  return <Pane panel={api} machine={found.machine} terminal={found.terminal} />;
 }
 
 function StartTile({ api, params }: IDockviewPanelProps<{ folder?: string }>) {
@@ -185,7 +181,7 @@ export function TerminalTiles({ terminal }: { terminal: RenderTerminal }) {
       return;
     }
 
-    if (isListed(item) && !isShown(item)) {
+    if (isListed(item) && !hasTile(item)) {
       place.mutate({
         machine: group.machine,
         terminal: item.id,

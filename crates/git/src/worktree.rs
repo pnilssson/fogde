@@ -1,15 +1,28 @@
 use std::ffi::OsStr;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+use tokio::fs;
 
 use crate::Error;
-use crate::changes::{fetch, remote_head};
+use crate::base::{fetch, mainline};
+use crate::dirs::Dirs;
+use crate::history::unfinished;
 use crate::include;
 use crate::run::git;
+use list::parse;
+
+mod list;
+
+const RELEASE_TRIES: u32 = 20;
+const RELEASE_WAIT: Duration = Duration::from_millis(250);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Worktree {
     pub path: PathBuf,
     pub branch: Option<String>,
+    pub main: bool,
 }
 
 pub async fn worktrees(repo: &Path) -> Result<Vec<Worktree>, Error> {
@@ -20,41 +33,34 @@ pub async fn worktrees(repo: &Path) -> Result<Vec<Worktree>, Error> {
 
 pub async fn add_worktree(repo: &Path, path: &Path, branch: &str) -> Result<(), Error> {
     let reference = format!("refs/heads/{branch}");
-    let existing = git(repo, ["show-ref", "--verify", "--quiet", &reference])
+    if git(repo, ["show-ref", "--verify", "--quiet", &reference])
         .await
-        .is_ok();
-    if existing {
-        git(
-            repo,
-            [
-                OsStr::new("worktree"),
-                OsStr::new("add"),
-                path.as_os_str(),
-                OsStr::new(branch),
-            ],
-        )
-        .await?;
-    } else {
-        let base = base(repo).await;
-        git(
-            repo,
-            [
-                OsStr::new("worktree"),
-                OsStr::new("add"),
-                OsStr::new("--no-track"),
-                OsStr::new("-b"),
-                OsStr::new(branch),
-                path.as_os_str(),
-                OsStr::new(&base),
-            ],
-        )
-        .await?;
+        .is_ok()
+    {
+        return Err(Error::Git(format!(
+            "a branch named {branch} already exists; choose another name"
+        )));
     }
+
+    let base = base(repo).await;
+    git(
+        repo,
+        [
+            OsStr::new("worktree"),
+            OsStr::new("add"),
+            OsStr::new("--no-track"),
+            OsStr::new("-b"),
+            OsStr::new(branch),
+            path.as_os_str(),
+            OsStr::new(&base),
+        ],
+    )
+    .await?;
 
     let Err(error) = include::copy(repo, path).await else {
         return Ok(());
     };
-    undo(repo, path, (!existing).then_some(branch)).await;
+    undo(repo, path, Some(branch)).await;
 
     Err(error)
 }
@@ -84,13 +90,50 @@ pub async fn discard_worktree(repo: &Path, path: &Path) {
     undo(repo, path, None).await;
 }
 
+pub async fn removable(repo: &Path, path: &Path) -> Result<(), Error> {
+    if !linked(repo, path).await? {
+        return Err(Error::Git(format!(
+            "{} is not a worktree of this repository",
+            path.display()
+        )));
+    }
+    if let Some(operation) = unfinished(path).await? {
+        return Err(Error::Git(format!(
+            "finish or abort the {operation} in a terminal first"
+        )));
+    }
+    if !clean(path).await? {
+        return Err(Error::Git("commit or discard its changes first".to_owned()));
+    }
+
+    let dirs = Dirs::of(path).await?;
+    if fs::try_exists(dirs.path("locked")).await? {
+        return Err(Error::Git(
+            "the worktree is locked; unlock it in a terminal first".to_owned(),
+        ));
+    }
+    if fs::try_exists(dirs.path("modules")).await? || submodules(path).await? {
+        return Err(Error::Git(
+            "remove a worktree with submodules in a terminal".to_owned(),
+        ));
+    }
+    if loose(path).await? {
+        return Err(Error::Git(
+            "its commits are on no branch; create a branch for them first".to_owned(),
+        ));
+    }
+
+    Ok(())
+}
+
 pub async fn remove_worktree(repo: &Path, path: &Path) -> Result<Option<String>, Error> {
+    removable(repo, path).await?;
     let branch = git(path, ["symbolic-ref", "--quiet", "--short", "HEAD"])
         .await
         .ok()
         .map(|branch| String::from_utf8_lossy(&branch).trim().to_owned());
 
-    git(
+    let removed = git(
         repo,
         [
             OsStr::new("worktree"),
@@ -98,7 +141,13 @@ pub async fn remove_worktree(repo: &Path, path: &Path) -> Result<Option<String>,
             path.as_os_str(),
         ],
     )
-    .await?;
+    .await;
+    if let Err(error) = removed
+        && linked(repo, path).await.unwrap_or(true)
+    {
+        return Err(error);
+    }
+    release(path).await?;
 
     Ok(branch)
 }
@@ -111,9 +160,11 @@ pub async fn clean(path: &Path) -> Result<bool, Error> {
 
 pub async fn remove_merged_branch(repo: &Path, branch: &str) -> Result<bool, Error> {
     let tip = format!("refs/heads/{branch}");
+    let mut bases = vec!["HEAD".to_owned()];
+    bases.extend(mainline(repo).await.map(|mainline| mainline.reference));
     let mut merged = false;
-    for base in ["HEAD", "refs/remotes/origin/HEAD"] {
-        if git(repo, ["merge-base", "--is-ancestor", &tip, base])
+    for base in bases {
+        if git(repo, ["merge-base", "--is-ancestor", &tip, &base])
             .await
             .is_ok()
         {
@@ -135,7 +186,88 @@ async fn base(repo: &Path) -> String {
         tracing::warn!(%error, "could not fetch before adding a worktree");
     }
 
-    remote_head(repo).await.unwrap_or_else(|| "HEAD".to_owned())
+    mainline(repo)
+        .await
+        .map_or_else(|| "HEAD".to_owned(), |mainline| mainline.reference)
+}
+
+async fn submodules(path: &Path) -> Result<bool, Error> {
+    let staged = git(path, ["ls-files", "--stage", "-z"]).await?;
+    for entry in String::from_utf8_lossy(&staged).split('\0') {
+        let Some((meta, name)) = entry.split_once('\t') else {
+            continue;
+        };
+        if meta.starts_with("160000 ") && fs::try_exists(path.join(name).join(".git")).await? {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+async fn loose(path: &Path) -> Result<bool, Error> {
+    if git(path, ["symbolic-ref", "--quiet", "HEAD"]).await.is_ok() {
+        return Ok(false);
+    }
+
+    let containing = git(
+        path,
+        [
+            "for-each-ref",
+            "--count=1",
+            "--contains=HEAD",
+            "--format=%(refname)",
+            "refs/heads",
+            "refs/remotes",
+        ],
+    )
+    .await?;
+
+    Ok(containing.is_empty())
+}
+
+async fn linked(repo: &Path, path: &Path) -> Result<bool, Error> {
+    let wanted = fs::canonicalize(path).await.ok();
+    for worktree in worktrees(repo).await? {
+        if worktree.main {
+            continue;
+        }
+
+        let real = fs::canonicalize(&worktree.path).await.ok();
+        let same = match (&wanted, &real) {
+            (Some(wanted), Some(real)) => wanted == real,
+            _ => worktree.path == path,
+        };
+        if same {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+async fn release(path: &Path) -> Result<(), Error> {
+    let mut tries = 0;
+    loop {
+        match fs::remove_dir_all(path).await {
+            Ok(()) => {
+                return Ok(());
+            }
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return Ok(());
+            }
+            Err(error) if tries == RELEASE_TRIES => {
+                return Err(Error::Git(format!(
+                    "removed the worktree, but could not delete {}: {error}",
+                    path.display()
+                )));
+            }
+            Err(_) => {
+                tries += 1;
+                tokio::time::sleep(RELEASE_WAIT).await;
+            }
+        }
+    }
 }
 
 async fn undo(repo: &Path, path: &Path, branch: Option<&str>) {
@@ -161,84 +293,5 @@ async fn undo(repo: &Path, path: &Path, branch: Option<&str>) {
     }
 }
 
-fn parse(porcelain: &str) -> Vec<Worktree> {
-    let mut found: Vec<(Worktree, bool)> = Vec::new();
-
-    for line in porcelain.lines() {
-        if let Some(path) = line.strip_prefix("worktree ") {
-            found.push((
-                Worktree {
-                    path: native(path),
-                    branch: None,
-                },
-                true,
-            ));
-        } else if let Some((worktree, usable)) = found.last_mut() {
-            if let Some(branch) = line.strip_prefix("branch ") {
-                worktree.branch = Some(branch.trim_start_matches("refs/heads/").to_owned());
-            } else if line == "bare" || line.starts_with("prunable") {
-                *usable = false;
-            }
-        }
-    }
-
-    found
-        .into_iter()
-        .filter_map(|(worktree, usable)| usable.then_some(worktree))
-        .collect()
-}
-
-#[cfg(windows)]
-fn native(path: &str) -> PathBuf {
-    PathBuf::from(path.replace('/', "\\"))
-}
-
-#[cfg(not(windows))]
-fn native(path: &str) -> PathBuf {
-    PathBuf::from(path)
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn reads_worktrees_and_skips_unusable_ones() {
-        let porcelain = "worktree /repos/app\nHEAD 3f2a\nbranch refs/heads/main\n\n\
-            worktree /worktrees/app/login\nHEAD 9b1c\nbranch refs/heads/feature/login\n\n\
-            worktree /worktrees/app/gone\nHEAD 77aa\nbranch refs/heads/feature/gone\n\
-            prunable gitdir file points to non-existent location\n\n\
-            worktree /tmp/review\nHEAD 1d0e\ndetached\n\n";
-
-        assert_eq!(
-            parse(porcelain),
-            [
-                Worktree {
-                    path: native("/repos/app"),
-                    branch: Some("main".to_owned()),
-                },
-                Worktree {
-                    path: native("/worktrees/app/login"),
-                    branch: Some("feature/login".to_owned()),
-                },
-                Worktree {
-                    path: native("/tmp/review"),
-                    branch: None,
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn reads_windows_line_endings() {
-        let porcelain = "worktree C:/Users/dev/app\r\nHEAD 3f2a\r\nbranch refs/heads/main\r\n\r\n";
-
-        assert_eq!(
-            parse(porcelain),
-            [Worktree {
-                path: native("C:/Users/dev/app"),
-                branch: Some("main".to_owned()),
-            }]
-        );
-    }
-}
+mod tests;

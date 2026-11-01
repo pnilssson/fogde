@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { SidebarMenuSub } from "@/components/ui/sidebar";
 import {
   type RowsProps,
@@ -14,7 +16,10 @@ interface Props extends RowsProps {
 
 export function WorkspaceTree({ view, down, ...props }: Props) {
   const { machine, workspace } = props;
-  const own = { machine: machine.id, id: workspace.id };
+  const own = useMemo(
+    () => ({ machine: machine.id, id: workspace.id }),
+    [machine.id, workspace.id],
+  );
   const shown = useShown(workspace, own);
   const linked = worktrees(workspace);
   if (!shown && linked.length === 0) {

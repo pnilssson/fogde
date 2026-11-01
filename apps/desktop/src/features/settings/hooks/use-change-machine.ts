@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { toast } from "@/components/ui/toast";
 import { callOwn } from "@/lib/host";
+import { report } from "@/lib/report";
 import { forget, idOf, machinesQuery, type Machine } from "@/lib/machines";
 
 type Change = "connect" | "disconnect" | "remove";
@@ -28,11 +28,7 @@ export function useChangeMachine(change: Change, onChanged?: () => void) {
       onChanged?.();
     },
     onError: (error, machine) => {
-      toast.add({
-        type: "error",
-        title: `${failures[change]} ${machine.name}`,
-        description: error.message,
-      });
+      report(`${failures[change]} ${machine.name}`, error);
     },
   });
 }

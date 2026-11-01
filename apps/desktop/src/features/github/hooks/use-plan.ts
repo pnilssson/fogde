@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { optionsQuery } from "@/features/github/api/github";
-import { nextStep, syncOf } from "@/features/github/lib/sync";
+import { nowhere } from "@/features/github/lib/scope";
+import { nextStep, openable, syncOf } from "@/features/github/lib/sync";
 import type { CheckoutStatus } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
 
@@ -11,13 +12,13 @@ export function usePlan(
   hasPull: boolean,
   online: boolean,
 ) {
-  const { repo, branch } = checkout;
+  const { repo } = checkout;
   const options = useQuery({
-    ...optionsQuery(machine, repo ?? { host: "", owner: "", name: "" }),
+    ...optionsQuery(machine, repo ?? nowhere),
     enabled: online && repo !== null,
   });
   const base = options.data?.branch ?? null;
-  const canOpen = online && branch !== null && base !== null && branch !== base;
+  const canOpen = online && openable(checkout, base);
 
   return {
     canOpen,

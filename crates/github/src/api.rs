@@ -6,7 +6,7 @@ use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 use crate::Error;
-use crate::gh::{Gh, failure, spawn_error};
+use crate::gh::{Gh, failure};
 use crate::remote::segment;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -104,7 +104,7 @@ impl Gh {
             Some(input) => process::feed(&mut command, &input).await,
             None => command.stdin(Stdio::null()).output().await,
         }
-        .map_err(spawn_error)
+        .map_err(process::not_found(Error::Missing))
     }
 }
 

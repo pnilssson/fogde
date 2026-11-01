@@ -1,12 +1,14 @@
+import { useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
+import { accountsQuery } from "@/features/github/api/accounts";
 import type { Kind } from "@/features/github/api/github";
-import { ActionButton } from "@/features/github/components/action-button";
+import { ActionButton } from "@/components/action-button";
 import { RenderedHtml } from "@/features/github/components/rendered-html";
 import { useWrite } from "@/features/github/hooks/use-write";
-import { ago } from "@/features/github/lib/scope";
+import { authored } from "@/features/github/lib/scope";
 import { setDraft, useDraft } from "@/features/github/lib/state";
 import type {
   Comment,
@@ -16,6 +18,7 @@ import type {
   Verdict,
 } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { ago } from "@/lib/time";
 
 const verdicts: Record<Verdict, string> = {
   approved: "approved",
@@ -38,6 +41,9 @@ export function Conversation({ machine, kind, repo, detail }: Props) {
   const comment = useWrite(machine, "Could not comment");
   const review = useWrite(machine, "Could not submit the review");
   const [event, setEvent] = useState<ReviewEvent>();
+  const accounts = useQuery(accountsQuery(machine));
+  const own =
+    accounts.isPending || authored(accounts.data, repo.host, detail.author);
   const { number } = detail;
   const empty = text.trim() === "";
   const done = {
@@ -69,7 +75,7 @@ export function Conversation({ machine, kind, repo, detail }: Props) {
       ))}
       <Field>
         <FieldLabel htmlFor={`${id}-comment`}>
-          {kind === "pull" ? "Comment or review" : "Comment"}
+          {kind === "pull" && !own ? "Comment or review" : "Comment"}
         </FieldLabel>
         <Textarea
           id={`${id}-comment`}
@@ -95,7 +101,7 @@ export function Conversation({ machine, kind, repo, detail }: Props) {
             );
           }}
         />
-        {kind === "pull" && detail.state === "open" && (
+        {kind === "pull" && detail.state === "open" && !own && (
           <>
             <ActionButton
               label="Approve"

@@ -13,6 +13,7 @@ import { useNow } from "@/hooks/use-now";
 import type { Agent, Span, Window } from "@/generated/protocol";
 import { agents } from "@/lib/agents";
 import type { Machine } from "@/lib/machines";
+import { countdown } from "@/lib/time";
 
 const SESSION = 5 * 60 * 60_000;
 
@@ -107,22 +108,7 @@ function resetsAt(window: Window, now: number) {
 }
 
 function remaining(window: Window, now: number) {
-  return until(resetsAt(window, now) - now);
-}
-
-function until(milliseconds: number) {
-  const minutes = Math.max(1, Math.ceil(milliseconds / 60_000));
-  const days = Math.floor(minutes / 1440);
-  const hours = Math.floor((minutes % 1440) / 60);
-
-  if (days > 0) {
-    return `${String(days)}d ${String(hours)}h`;
-  }
-  if (hours > 0) {
-    return `${String(hours)}h ${String(minutes % 60)}m`;
-  }
-
-  return `${String(minutes)}m`;
+  return countdown(resetsAt(window, now) - now);
 }
 
 function resetTime(window: Window, now: number) {

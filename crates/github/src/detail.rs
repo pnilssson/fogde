@@ -1,26 +1,94 @@
-use protocol::github::{Comment, Detail, FileStat, Linked, MergeMethod, PullDetail};
+use protocol::github::{Detail, MergeMethod};
 use protocol::repos::Repo;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{Value, json};
 
 use crate::Error;
 use crate::api::checked;
 use crate::gh::Gh;
-use crate::list::{Login, Nodes, RawLabel, labels, logins, review, state};
+use crate::list::{Login, Nodes, RawLabel};
 
+mod build;
 mod checks;
 mod conversation;
 mod options;
+mod paging;
 
-use checks::{AutoMerge, CommitNode, check, merge, method};
+use build::detail;
+use checks::{AutoMerge, Commit, CommitNode, merge, method};
 use conversation::{RawComment, RawThread, comment, thread};
+use paging::{add_checks, add_threads, contexts};
 
-const PULL: &str = include_str!("queries/pull.graphql");
+const PULL: &str = concat!(
+    include_str!("queries/pull.graphql"),
+    include_str!("queries/thread-fields.graphql"),
+    include_str!("queries/check-fields.graphql")
+);
+const THREADS: &str = concat!(
+    include_str!("queries/pull-threads.graphql"),
+    include_str!("queries/thread-fields.graphql")
+);
+const CHECKS: &str = concat!(
+    include_str!("queries/pull-checks.graphql"),
+    include_str!("queries/check-fields.graphql")
+);
 const ISSUE: &str = include_str!("queries/issue.graphql");
+const PAGES: usize = 10;
 
 #[derive(Deserialize)]
 struct Reply<T> {
     repository: Option<T>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Page<T> {
+    #[serde(default = "Vec::new")]
+    nodes: Vec<Option<T>>,
+    page_info: Option<PageInfo>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PageInfo {
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+impl<T> Page<T> {
+    fn items(self) -> impl Iterator<Item = T> {
+        self.nodes.into_iter().flatten()
+    }
+
+    fn after(&self) -> Option<String> {
+        self.page_info
+            .as_ref()
+            .filter(|info| info.has_next_page)?
+            .end_cursor
+            .clone()
+    }
+
+    fn extend(&mut self, page: Self) {
+        self.nodes.extend(page.nodes);
+        self.page_info = page.page_info;
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ThreadsRepo {
+    pull_request: Option<ThreadsPull>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ThreadsPull {
+    review_threads: Option<Page<RawThread>>,
+}
+
+#[derive(Deserialize)]
+struct ChecksRepo {
+    object: Option<Commit>,
 }
 
 #[derive(Deserialize)]
@@ -77,13 +145,13 @@ struct RawItem {
     review_decision: Option<String>,
     merge_state_status: Option<String>,
     auto_merge_request: Option<AutoMerge>,
-    review_threads: Option<Nodes<RawThread>>,
+    review_threads: Option<Page<RawThread>>,
     additions: Option<u32>,
     deletions: Option<u32>,
     changed_files: Option<u32>,
     review_requests: Option<Nodes<Requested>>,
     files: Option<Nodes<RawFile>>,
-    commits: Option<Nodes<CommitNode>>,
+    commits: Option<Page<CommitNode>>,
 }
 
 #[derive(Deserialize)]
@@ -116,9 +184,46 @@ impl Gh {
     pub async fn pull(&self, repo: &Repo, number: u32) -> Result<Detail, Error> {
         let host = checked(repo)?;
         let variables = json!({ "owner": repo.owner, "name": repo.name, "number": number });
-        let reply: Reply<PullRepo> = self.graphql(&host, PULL, variables).await?;
+        let mut reply: Reply<PullRepo> = self.graphql(&host, PULL, variables.clone()).await?;
+        if let Some(raw) = reply
+            .repository
+            .as_mut()
+            .and_then(|repo| repo.pull_request.as_mut())
+        {
+            self.remaining(&host, &variables, raw).await?;
+        }
 
         pull(reply, number)
+    }
+
+    async fn remaining(
+        &self,
+        host: &str,
+        variables: &Value,
+        raw: &mut RawItem,
+    ) -> Result<(), Error> {
+        for _ in 0..PAGES {
+            let Some(after) = raw.review_threads.as_ref().and_then(Page::after) else {
+                break;
+            };
+            let mut variables = variables.clone();
+            variables["after"] = json!(after);
+            let reply: Reply<ThreadsRepo> = self.graphql(host, THREADS, variables).await?;
+            add_threads(raw, reply);
+        }
+
+        for _ in 0..PAGES {
+            let Some(after) = contexts(raw).and_then(|page| page.after()) else {
+                break;
+            };
+            let mut variables = variables.clone();
+            variables["after"] = json!(after);
+            variables["oid"] = json!(raw.head_ref_oid);
+            let reply: Reply<ChecksRepo> = self.graphql(host, CHECKS, variables).await?;
+            add_checks(raw, reply);
+        }
+
+        Ok(())
     }
 
     pub async fn issue(&self, repo: &Repo, number: u32) -> Result<Detail, Error> {
@@ -163,114 +268,6 @@ fn missing(number: u32) -> Error {
 struct Rules {
     methods: Vec<MergeMethod>,
     automerge: bool,
-}
-
-fn detail(mut raw: RawItem, rules: Rules) -> Detail {
-    let reviews = raw.reviews.take().map(Nodes::items).into_iter().flatten();
-    let mut comments: Vec<Comment> = raw
-        .comments
-        .take()
-        .map(Nodes::items)
-        .into_iter()
-        .flatten()
-        .chain(reviews)
-        .filter_map(comment)
-        .collect();
-    comments.sort_by(|a, b| a.created.cmp(&b.created));
-
-    let linked = raw
-        .closing_issues_references
-        .take()
-        .map(Nodes::items)
-        .into_iter()
-        .flatten()
-        .map(|link| Linked {
-            number: link.number,
-            title: link.title,
-            url: link.url,
-            state: state(&link.state),
-        })
-        .collect();
-
-    let pull = pull_detail(&mut raw, rules);
-
-    Detail {
-        id: raw.id,
-        number: raw.number,
-        title: raw.title,
-        url: raw.url,
-        state: state(&raw.state),
-        author: raw.author.map(|author| author.login),
-        created: raw.created_at,
-        body: raw.body,
-        html: raw.html,
-        labels: labels(raw.labels),
-        assignees: logins(raw.assignees),
-        editable: raw.viewer_can_update,
-        comments,
-        linked,
-        pull,
-    }
-}
-
-fn pull_detail(raw: &mut RawItem, rules: Rules) -> Option<PullDetail> {
-    let head = raw.head_ref_name.take()?;
-    let checks = raw
-        .commits
-        .take()
-        .and_then(|commits| commits.items().next())
-        .and_then(|node| node.commit.status_check_rollup)
-        .map(|rollup| rollup.contexts.items().filter_map(check).collect())
-        .unwrap_or_default();
-
-    Some(PullDetail {
-        draft: raw.is_draft.unwrap_or(false),
-        head,
-        owner: raw.head_repository_owner.take().map(|owner| owner.login),
-        sha: raw.head_ref_oid.take().unwrap_or_default(),
-        base: raw.base_ref_name.take().unwrap_or_default(),
-        cross: raw.is_cross_repository.unwrap_or(false),
-        review: raw.review_decision.as_deref().and_then(review),
-        merge: merge(raw.merge_state_status.as_deref().unwrap_or_default()),
-        methods: rules.methods,
-        automerge: rules.automerge,
-        auto: raw
-            .auto_merge_request
-            .take()
-            .and_then(|request| method(&request.merge_method)),
-        reviewers: raw
-            .review_requests
-            .take()
-            .map(Nodes::items)
-            .into_iter()
-            .flatten()
-            .filter_map(|request| request.requested_reviewer?.login)
-            .collect(),
-        checks,
-        threads: raw
-            .review_threads
-            .take()
-            .map(Nodes::items)
-            .into_iter()
-            .flatten()
-            .filter_map(thread)
-            .collect(),
-        files: raw
-            .files
-            .take()
-            .map(Nodes::items)
-            .into_iter()
-            .flatten()
-            .map(|file| FileStat {
-                path: file.path,
-                added: file.additions,
-                removed: file.deletions,
-            })
-            .collect(),
-        added: raw.additions.unwrap_or(0),
-        removed: raw.deletions.unwrap_or(0),
-        changed: raw.changed_files.unwrap_or(0),
-    })
 }
 
 #[cfg(test)]

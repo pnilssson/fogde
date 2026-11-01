@@ -8,7 +8,10 @@ export const notesQuery = (machine: Machine) =>
     queryFn: () => machine.client.call("notes.list"),
   });
 
-export const noteQuery = (machine: Machine, path: string) =>
+export const noteQuery = (
+  machine: Pick<Machine, "id" | "client">,
+  path: string,
+) =>
   queryOptions({
     queryKey: [machine.id, "notes.read", path],
     queryFn: () => machine.client.call("notes.read", path),

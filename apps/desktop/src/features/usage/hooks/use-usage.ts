@@ -1,8 +1,8 @@
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
 
 import { usageQuery } from "@/features/usage/api/usage";
 import type { Usage } from "@/generated/protocol";
+import { useMachineEvent } from "@/hooks/use-machine-event";
 import type { Machine } from "@/lib/machines";
 import { allAgents } from "@/lib/agents";
 import { shownQuery, shows } from "@/lib/usage";
@@ -15,19 +15,9 @@ export function useUsage(machines: Machine[]) {
     combine: (results) => results.flatMap(({ data }) => data ?? []),
   });
 
-  useEffect(() => {
-    const stops = machines.map((machine) =>
-      machine.client.listen("usage.changed", (usage) => {
-        queries.setQueryData(usageQuery(machine).queryKey, usage);
-      }),
-    );
-
-    return () => {
-      for (const stop of stops) {
-        stop();
-      }
-    };
-  }, [machines, queries]);
+  useMachineEvent(machines, "usage.changed", (machine, usage) => {
+    queries.setQueryData(usageQuery(machine).queryKey, usage);
+  });
 
   if (!shown) {
     return [];

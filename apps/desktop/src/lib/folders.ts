@@ -20,16 +20,30 @@ export const foldersQuery = (machine: Machine, path: string) =>
     queryFn: () => machine.client.call("folders.list", path),
   });
 
-function parts(path: string) {
-  const windows = /^[a-z]:/i.test(path);
+export function parts(path: string) {
+  const windows = /^[a-z]:/i.test(path) || path.includes("\\");
+  const resolved: string[] = [];
 
-  return path
-    .split(/[\\/]/)
-    .filter((part) => part.length > 0)
-    .map((part) => (windows ? part.toLowerCase() : part));
+  for (const part of path.split(/[\\/]/)) {
+    if (part === "" || part === ".") {
+      continue;
+    }
+    if (part === "..") {
+      resolved.pop();
+      continue;
+    }
+
+    resolved.push(windows ? part.toLowerCase() : part);
+  }
+
+  return resolved;
 }
 
-export function inside(path: string, root: string) {
+export function samePath(a: string, b: string) {
+  return parts(a).join("/") === parts(b).join("/");
+}
+
+function inside(path: string, root: string) {
   const outer = parts(root);
   const inner = parts(path);
 

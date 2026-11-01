@@ -1,15 +1,16 @@
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 
-import type { Edge } from "@/features/workspaces/lib/drag";
 import type { Selection } from "@/features/workspaces/lib/selection";
 
-const reorderType = "application/x-fogde-workspace";
+export type Edge = "above" | "below";
 
 interface Over {
   id: string;
   edge: Edge;
 }
+
+const reorderType = "application/x-fogde-workspace";
 
 const reordering = createStore<{
   moving: Selection | undefined;
@@ -20,13 +21,13 @@ export function useMoving() {
   return useStore(reordering, ({ moving }) => moving);
 }
 
-export function useOverWorkspace(id: string) {
+export function useOver(id: string) {
   return useStore(reordering, ({ over }) =>
     over?.id === id ? over.edge : undefined,
   );
 }
 
-export function hoverWorkspace(over: Over | undefined) {
+export function hover(over: Over | undefined) {
   const current = reordering.getState().over;
   if (current?.id === over?.id && current?.edge === over?.edge) {
     return;

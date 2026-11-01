@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 
 use crate::Error;
 use crate::api::{Request, checked, path};
-use crate::gh::{Gh, failure, spawn_error};
+use crate::gh::{Gh, failure};
 
 const READY: &str = "mutation($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { clientMutationId } }";
 const DRAFT: &str = "mutation($id: ID!) { convertPullRequestToDraft(input: { pullRequestId: $id }) { clientMutationId } }";
@@ -81,14 +81,11 @@ impl Gh {
             .args(["pr", "checkout", &number.to_string(), "--repo"])
             .arg(format!("{host}/{}/{}", repo.owner, repo.name))
             .env("GH_PROMPT_DISABLED", "1")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GCM_INTERACTIVE", "never")
-            .env("GIT_ASKPASS", "")
-            .env("SSH_ASKPASS_REQUIRE", "never")
+            .envs(process::UNPROMPTED)
             .stdin(Stdio::null())
             .output()
             .await
-            .map_err(spawn_error)?;
+            .map_err(process::not_found(Error::Missing))?;
         if !output.status.success() {
             return Err(failure(&output.stderr));
         }

@@ -1,19 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { lazy, Suspense } from "react";
 
 import { CopiedNotice } from "@/components/copied-notice";
+import { Loading } from "@/components/loading";
 import { MachinePicker } from "@/components/machine-picker";
 import { FullPage, PageFrame } from "@/components/page-frame";
-import { GitHubView } from "@/features/github/components/github-view";
 import { OpenCheckout } from "@/features/github/lib/open";
-import { samePath } from "@/features/github/lib/scope";
 import { setTab } from "@/features/github/lib/state";
-import { MonitorView } from "@/features/monitor/components/monitor-view";
 import { notesQuery } from "@/features/notes/api/notes";
-import { NotesView } from "@/features/notes/components/notes-view";
-import { SettingsView } from "@/features/settings/components/settings-view";
-import { copyPath, usePathCopied } from "@/features/notes/lib/copy";
-import { inDialog } from "@/features/workspaces/hooks/use-shortcuts";
+import { copiedPath, copyPath } from "@/features/notes/lib/copy";
+import { inDialog, inMenu } from "@/lib/dialogs";
+import { useWindowKey } from "@/hooks/use-window-key";
 import type { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import { mainCheckout } from "@/features/workspaces/lib/checkouts";
 import type { View } from "@/features/workspaces/lib/selection";
@@ -28,6 +25,29 @@ import {
   useShownNote,
 } from "@/lib/page";
 import { pressed, shortcuts } from "@/lib/shortcuts";
+import { useCopied } from "@/lib/copied";
+import { samePath } from "@/lib/folders";
+
+const GitHubView = lazy(() =>
+  import("@/features/github/components/github-view").then((module) => ({
+    default: module.GitHubView,
+  })),
+);
+const MonitorView = lazy(() =>
+  import("@/features/monitor/components/monitor-view").then((module) => ({
+    default: module.MonitorView,
+  })),
+);
+const NotesView = lazy(() =>
+  import("@/features/notes/components/notes-view").then((module) => ({
+    default: module.NotesView,
+  })),
+);
+const SettingsView = lazy(() =>
+  import("@/features/settings/components/settings-view").then((module) => ({
+    default: module.SettingsView,
+  })),
+);
 
 type Groups = ReturnType<typeof useGroups>;
 
@@ -47,7 +67,9 @@ export function Pages({ groups, workspace }: Props) {
   if (page === "settings") {
     return (
       <FullPage title="Settings" onClose={showTiles}>
-        <SettingsView />
+        <Suspense fallback={<Loading />}>
+          <SettingsView />
+        </Suspense>
       </FullPage>
     );
   }
@@ -103,10 +125,13 @@ function NotesPage(picker: FrameProps) {
   const shown = list.data?.notes.some(({ path }) => path === note)
     ? note
     : undefined;
-  const copied = usePathCopied();
+  const copied = useCopied(copiedPath);
 
-  useCopyShortcut(
-    shown
+  useWindowKey((event) =>
+    shown &&
+    pressed(event, shortcuts.path) &&
+    !inDialog(event.target) &&
+    !inMenu(event.target)
       ? () => {
           copyPath(shown);
         }
@@ -115,14 +140,16 @@ function NotesPage(picker: FrameProps) {
 
   return (
     <FullPage title="Notes" onClose={showTiles}>
-      <NotesView
-        machine={machine}
-        note={note}
-        picker={<MachinePicker {...picker} />}
-        onOpen={(next) => {
-          openNote(machine.id, next);
-        }}
-      />
+      <Suspense fallback={<Loading />}>
+        <NotesView
+          machine={machine}
+          note={note}
+          picker={<MachinePicker {...picker} />}
+          onOpen={(next) => {
+            openNote(machine.id, next);
+          }}
+        />
+      </Suspense>
       <CopiedNotice copied={copied} label="Path copied" />
     </FullPage>
   );
@@ -162,12 +189,14 @@ function GitHubPage({
   return (
     <FullPage title="GitHub">
       <OpenCheckout value={open}>
-        <GitHubView
-          machine={picker.machine}
-          workspaces={workspaces}
-          wanted={wanted}
-          picker={<MachinePicker {...picker} />}
-        />
+        <Suspense fallback={<Loading />}>
+          <GitHubView
+            machine={picker.machine}
+            workspaces={workspaces}
+            wanted={wanted}
+            picker={<MachinePicker {...picker} />}
+          />
+        </Suspense>
       </OpenCheckout>
     </FullPage>
   );
@@ -179,43 +208,13 @@ function MonitorPage({
 }: FrameProps & { workspaces: Workspace[] }) {
   return (
     <PageFrame title="Monitor" onClose={showTiles}>
-      <MonitorView
-        machine={picker.machine}
-        workspaces={workspaces}
-        picker={<MachinePicker {...picker} named />}
-      />
+      <Suspense fallback={<Loading />}>
+        <MonitorView
+          machine={picker.machine}
+          workspaces={workspaces}
+          picker={<MachinePicker {...picker} named />}
+        />
+      </Suspense>
     </PageFrame>
   );
-}
-
-function useCopyShortcut(action: (() => void) | undefined) {
-  const current = useRef(action);
-
-  useEffect(() => {
-    current.current = action;
-  }, [action]);
-
-  useEffect(() => {
-    const down = (event: KeyboardEvent) => {
-      if (
-        !pressed(event, shortcuts.path) ||
-        inDialog(event.target) ||
-        (event.target instanceof Element &&
-          event.target.closest('[role="menu"]')) ||
-        !current.current
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      current.current();
-    };
-
-    window.addEventListener("keydown", down, { capture: true });
-
-    return () => {
-      window.removeEventListener("keydown", down, { capture: true });
-    };
-  }, []);
 }

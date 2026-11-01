@@ -202,6 +202,7 @@ impl Handler for NewPull {
 
         if status.upstream.is_none() || status.ahead > 0 {
             git::push(&root).await.map_err(failure)?;
+            session.shared.tracker.recount();
         }
 
         let owner = published(&root, Some(&head), &session.shared.hosts())

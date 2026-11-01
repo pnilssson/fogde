@@ -6,15 +6,15 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useCallback } from "react";
 
-import { toast } from "@/components/ui/toast";
 import {
   addTerminal,
   removeTerminal,
   workspacesQuery,
 } from "@/features/workspaces/api/workspaces";
 import { opened } from "@/features/workspaces/lib/opening";
+import { useConnected } from "@/hooks/use-connected";
 import { useConnection } from "@/hooks/use-connection";
 import type {
   Agent,
@@ -23,38 +23,31 @@ import type {
   Workspace,
 } from "@/generated/protocol";
 import { agentsQuery } from "@/lib/agents";
+import { report } from "@/lib/report";
 import type { Machine } from "@/lib/machines";
 
 export function useGroups(machines: Machine[]) {
-  const results = useQueries({ queries: machines.map(workspacesQuery) });
   const queries = useQueryClient();
+  const combine = useCallback(
+    (results: UseQueryResult<Workspace[]>[]) =>
+      results.flatMap((workspaces, index) => {
+        const machine = machines[index];
 
-  useEffect(() => {
-    const stops = machines.map((machine) =>
-      machine.client.subscribe(() => {
-        if (machine.client.getSnapshot().state === "connected") {
-          void queries.invalidateQueries(workspacesQuery(machine), {
-            cancelRefetch: false,
-          });
-        }
+        return machine ? [{ machine, workspaces }] : [];
       }),
-    );
+    [machines],
+  );
 
-    return () => {
-      for (const stop of stops) {
-        stop();
-      }
-    };
-  }, [machines, queries]);
-
-  return results.flatMap((workspaces, index) => {
-    const machine = machines[index];
-
-    return machine ? [{ machine, workspaces }] : [];
+  useConnected(machines, (machine) => {
+    void queries.invalidateQueries(workspacesQuery(machine), {
+      cancelRefetch: false,
+    });
   });
+
+  return useQueries({ queries: machines.map(workspacesQuery), combine });
 }
 
-export function useStatus(
+export function useMachineStatus(
   machine: Machine,
   workspaces: UseQueryResult<Workspace[]>,
 ) {
@@ -115,11 +108,7 @@ export function useCreateTerminal() {
       opened({ machine: machine.id, id: terminal.id });
     },
     onError: (error) => {
-      toast.add({
-        type: "error",
-        title: "Could not open a terminal",
-        description: error.message,
-      });
+      report("Could not open a terminal", error);
     },
   });
 }
@@ -152,11 +141,7 @@ export function useCloseTerminal(machine: Machine) {
       removeTerminal(queries, machine, closed);
     },
     onError: (error, terminal) => {
-      toast.add({
-        type: "error",
-        title: `Could not close ${terminal.name}`,
-        description: error.message,
-      });
+      report(`Could not close ${terminal.name}`, error);
     },
   });
 }

@@ -1,6 +1,5 @@
+import { ActionButton } from "@/components/action-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 
 interface Props {
   target: string;
@@ -15,17 +14,13 @@ export function TrustServer({ target, fingerprint, pending, onTrust }: Props) {
       <AlertTitle>First connection to {target}</AlertTitle>
       <AlertDescription className="flex flex-col items-start gap-2">
         <p className="break-all">Its fingerprint is {fingerprint}.</p>
-        <Button
+        <ActionButton
           type="button"
-          variant="secondary"
-          size="sm"
-          aria-busy={pending !== undefined}
-          disabled={pending !== undefined}
+          label="Trust this server"
+          busy={pending}
+          pending={pending !== undefined}
           onClick={onTrust}
-        >
-          {pending && <Spinner aria-hidden data-icon="inline-start" />}
-          {pending ?? "Trust this server"}
-        </Button>
+        />
       </AlertDescription>
     </Alert>
   );

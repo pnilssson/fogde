@@ -2,8 +2,8 @@ use std::io;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("could not connect to Herdr")]
-    Connect(#[source] io::Error),
+    #[error("could not start Herdr: {0}")]
+    Start(#[source] io::Error),
 
     #[error("lost the connection to Herdr")]
     Io(#[from] io::Error),
@@ -11,20 +11,17 @@ pub enum Error {
     #[error("Herdr closed the connection")]
     Closed,
 
+    #[error("Herdr did not answer in time")]
+    Timeout,
+
     #[error("Herdr sent a message that could not be read")]
     Json(#[from] serde_json::Error),
 
-    #[error("Herdr answered request {actual} instead of {expected}")]
-    Mismatch { expected: String, actual: String },
+    #[error("Herdr rejected the request: {message} ({kind})")]
+    Herdr { kind: String, message: String },
 
-    #[error("Herdr rejected the request: {message} ({code})")]
-    Herdr { code: String, message: String },
-
-    #[error("could not start Herdr")]
-    Start(#[source] io::Error),
-
-    #[error("Herdr did not start in time")]
-    Timeout,
+    #[error("Herdr is {running}, not {wanted}")]
+    Version { running: String, wanted: String },
 
     #[error("Herdr is not available for this platform")]
     Unsupported,
@@ -32,9 +29,12 @@ pub enum Error {
     #[error("could not set up Herdr: {0}")]
     Install(#[from] download::Error),
 
-    #[error("Herdr stopped the terminal stream: {0}")]
-    Stream(String),
+    #[error("the terminal ended: {0}")]
+    Ended(String),
+}
 
-    #[error("Herdr sent a terminal frame that could not be decoded")]
-    Frame(#[from] base64::DecodeError),
+impl Error {
+    pub fn is_gone(&self) -> bool {
+        matches!(self, Self::Herdr { kind, .. } if kind == "not_found")
+    }
 }

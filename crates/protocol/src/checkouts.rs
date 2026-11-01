@@ -12,6 +12,7 @@ pub struct CheckoutStatus {
     pub upstream: Option<String>,
     pub ahead: u32,
     pub behind: u32,
+    pub commits: Option<u32>,
     pub files: Vec<FileChange>,
     pub truncated: bool,
     pub owner: Option<String>,

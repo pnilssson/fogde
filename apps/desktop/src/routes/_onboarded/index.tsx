@@ -15,7 +15,9 @@ export const Route = createFileRoute("/_onboarded/")({
           <TerminalView
             {...props}
             onChange={() => {
-              void queries.invalidateQueries(workspacesQuery(props.machine));
+              void queries.invalidateQueries(workspacesQuery(props.machine), {
+                cancelRefetch: false,
+              });
             }}
           />
         )}

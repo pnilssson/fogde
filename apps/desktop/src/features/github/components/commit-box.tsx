@@ -3,12 +3,12 @@ import { useId } from "react";
 
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import { ActionButton } from "@/features/github/components/action-button";
+import { ActionButton } from "@/components/action-button";
 import { useWrite } from "@/features/github/hooks/use-write";
-import { ago } from "@/features/github/lib/scope";
 import { setDraft, useDraft } from "@/features/github/lib/state";
 import type { CheckoutStatus, FileChange } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { ago } from "@/lib/time";
 
 interface Props {
   machine: Machine;

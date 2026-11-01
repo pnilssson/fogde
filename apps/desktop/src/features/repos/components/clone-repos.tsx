@@ -2,18 +2,18 @@ import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useQueries } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
+import { ActionButton } from "@/components/action-button";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
 import { remoteReposQuery } from "@/features/repos/api/repos";
 import { RepoList, type Progress } from "@/features/repos/components/repo-list";
 import { repoKey } from "@/features/repos/lib/repo-key";
 import type { RemoteRepo } from "@/generated/protocol";
+import { report } from "@/lib/report";
 import type { Machine } from "@/lib/machines";
 
 interface Props {
@@ -48,11 +48,7 @@ export function CloneRepos({
         reported.current.delete(host);
       } else if (!reported.current.has(host)) {
         reported.current.add(host);
-        toast.add({
-          type: "error",
-          title: `Could not list your repos on ${host}`,
-          description: error.message,
-        });
+        report(`Could not list your repos on ${host}`, error);
       }
     }
   });
@@ -74,11 +70,7 @@ export function CloneRepos({
           Object.entries(current).filter(([entry]) => entry !== key),
         ),
       );
-      toast.add({
-        type: "error",
-        title: `Could not clone ${name}`,
-        description: error instanceof Error ? error.message : String(error),
-      });
+      report(`Could not clone ${name}`, error);
     }
   };
 
@@ -117,16 +109,12 @@ export function CloneRepos({
         <Button variant="ghost" size="sm" onClick={onBack}>
           Back
         </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          aria-busy={finishing}
-          disabled={finishing}
+        <ActionButton
+          label="Continue"
+          busy="Finishing…"
+          pending={finishing}
           onClick={onContinue}
-        >
-          {finishing && <Spinner aria-hidden data-icon="inline-start" />}
-          {finishing ? "Finishing…" : "Continue"}
-        </Button>
+        />
       </div>
     </section>
   );

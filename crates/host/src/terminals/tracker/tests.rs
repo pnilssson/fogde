@@ -1,58 +1,70 @@
-use herdr_client::Status as Herdr;
+use herdr_client::{Foreground, Status as Reported};
 use protocol::agents::Agent;
 use protocol::terminals::Status;
 
 use super::describe::{active, status};
 use super::*;
 
-#[test]
-fn an_agent_that_finishes_unseen_is_done_until_viewed() {
-    let finished = status(Herdr::Idle, Some(Status::Working), false);
-    let still = status(Herdr::Idle, Some(finished), false);
-    let seen = status(Herdr::Idle, Some(still), true);
-    let later = status(Herdr::Idle, Some(seen), false);
+const SHELL: &str = r"C:\Program Files\PowerShell\7\pwsh.exe";
 
-    assert_eq!(
-        [finished, still, seen, later],
-        [Status::Done, Status::Done, Status::Idle, Status::Idle]
-    );
+fn terminal(label: &str) -> Terminal {
+    Terminal {
+        address: "t1".into(),
+        labels: BTreeMap::from([
+            ("fogde".to_owned(), label.to_owned()),
+            ("herdr.seen".to_owned(), "0".to_owned()),
+        ]),
+        cwd: "/repos/app".into(),
+        pid: Some(4242),
+        ..Terminal::default()
+    }
 }
 
-#[test]
-fn herdr_done_clears_only_when_viewed() {
-    assert_eq!(status(Herdr::Done, None, false), Status::Done);
-    assert_eq!(status(Herdr::Done, Some(Status::Done), true), Status::Idle);
+fn running(mut terminal: Terminal, process: &str, title: &str) -> Terminal {
+    terminal.foreground = Some(Foreground {
+        pid: 4343,
+        name: process.into(),
+        cwd: "/repos/app".into(),
+    });
+    terminal.title = title.into();
+    terminal
 }
 
-#[test]
-fn an_agent_waiting_for_input_stays_blocked_while_viewed() {
-    assert_eq!(status(Herdr::Blocked, None, true), Status::Blocked);
-    assert_eq!(status(Herdr::Working, None, true), Status::Working);
+fn reporting(mut terminal: Terminal, state: &str, turn: u64) -> Terminal {
+    terminal.status = Some(Reported {
+        state: state.into(),
+        app: Some("claude-code".into()),
+    });
+    terminal.turn = turn;
+    terminal
 }
 
-#[test]
-fn an_agent_seen_finishing_is_idle() {
-    assert_eq!(
-        status(Herdr::Idle, Some(Status::Working), true),
-        Status::Idle
-    );
-    assert_eq!(
-        status(Herdr::Unknown, Some(Status::Done), false),
-        Status::Idle
-    );
+fn seen(mut terminal: Terminal, turn: u64) -> Terminal {
+    terminal
+        .labels
+        .insert("herdr.seen".into(), turn.to_string());
+    terminal
+}
+
+fn update(tracker: &Tracker, terminal: Terminal) -> Vec<(String, PathBuf)> {
+    tracker.update(&BTreeMap::from([("t1".to_owned(), terminal)]))
+}
+
+fn current(tracker: &Tracker) -> TerminalState {
+    lock(&tracker.states)["t1"].clone()
 }
 
 #[test]
 fn views_count_once_per_session() {
     let tracker = Tracker::default();
 
-    tracker.view(1, Some("w1".into()));
-    tracker.view(2, Some("w1".into()));
+    tracker.view(1, Some("t1".into()));
+    tracker.view(2, Some("t1".into()));
     tracker.view(1, None);
 
-    assert_eq!(tracker.viewed(), HashSet::from(["w1".to_owned()]));
-    tracker.view(2, Some("w2".into()));
-    assert_eq!(tracker.viewed(), HashSet::from(["w2".to_owned()]));
+    assert_eq!(tracker.viewed(), HashSet::from(["t1".to_owned()]));
+    tracker.view(2, Some("t2".into()));
+    assert_eq!(tracker.viewed(), HashSet::from(["t2".to_owned()]));
 }
 
 #[tokio::test]
@@ -61,7 +73,7 @@ async fn a_session_that_falls_behind_gets_every_current_state() {
     let mut changes = tracker.changes();
     let states: Vec<_> = (0..300)
         .map(|index| TerminalState {
-            id: format!("w{index}"),
+            id: format!("t{index}"),
             name: "Claude".into(),
             agent: None,
             model: None,
@@ -85,66 +97,63 @@ async fn a_session_that_falls_behind_gets_every_current_state() {
     assert_eq!(received, expected);
 }
 
-fn workspace(label: &str) -> Workspace {
-    Workspace {
-        id: "w1".into(),
-        label: label.into(),
-    }
-}
-
-fn pane(agent: Option<&str>) -> Pane {
-    titled(agent, None)
-}
-
-fn titled(agent: Option<&str>, title: Option<&str>) -> Pane {
-    Pane {
-        id: "w1:p1".into(),
-        workspace: "w1".into(),
-        agent: agent.map(Into::into),
-        status: Herdr::Idle,
-        session: None,
-        cwd: None,
-        title: title.map(Into::into),
-        stripped: title.map(|title| title.strip_prefix("✳ ").unwrap_or(title).into()),
-        scrollback: None,
-    }
-}
-
-fn current(tracker: &Tracker) -> TerminalState {
-    lock(&tracker.states)["w1"].clone()
-}
-
 #[test]
-fn a_launched_agent_shows_until_herdr_reports_it_gone() {
+fn a_launched_agent_shows_until_it_exits() {
     let tracker = Tracker::default();
-    let claude = workspace("Claude");
+    let claude = terminal("Claude");
 
-    tracker.update(std::slice::from_ref(&claude), &[pane(None)]);
+    update(&tracker, running(claude.clone(), "pwsh.exe", SHELL));
     let starting = current(&tracker);
-    tracker.update(std::slice::from_ref(&claude), &[pane(Some("claude"))]);
-    let running = current(&tracker);
-    tracker.update(std::slice::from_ref(&claude), &[pane(None)]);
+    update(
+        &tracker,
+        running(claude.clone(), "claude.EXE", "Claude Code"),
+    );
+    let started = current(&tracker);
+    update(&tracker, running(claude, "pwsh.exe", SHELL));
     let exited = current(&tracker);
 
     assert_eq!(
-        [starting.agent, running.agent, exited.agent],
+        [starting.agent, started.agent, exited.agent],
         [Some(Agent::Claude), Some(Agent::Claude), None]
     );
-    assert_eq!([&*running.name, &*exited.name], ["Claude", "Terminal"]);
+    assert_eq!([&*started.name, &*exited.name], ["Claude", "Terminal"]);
+}
+
+#[test]
+fn an_agent_is_found_by_what_it_reports_or_its_process() {
+    let tracker = Tracker::default();
+    let mut codex = terminal("PowerShell");
+    codex.status = Some(Reported {
+        state: "idle".into(),
+        app: Some("codex".into()),
+    });
+
+    update(&tracker, codex);
+    let reported = current(&tracker).agent;
+    update(
+        &tracker,
+        running(terminal("PowerShell"), "copilot", "GitHub Copilot"),
+    );
+    let found = current(&tracker).agent;
+
+    assert_eq!(
+        [reported, found],
+        [Some(Agent::Codex), Some(Agent::Copilot)]
+    );
 }
 
 #[test]
 fn an_agent_is_named_after_its_task_until_it_exits() {
     let tracker = Tracker::default();
-    let codex = workspace("Codex");
+    let codex = terminal("Codex");
     let names = [
-        titled(Some("codex"), Some("app")),
-        titled(Some("codex"), Some("Fix the login | app")),
-        titled(Some("codex"), Some("app")),
-        titled(None, Some(r"C:\Program Files\PowerShell\7\pwsh.exe")),
+        running(codex.clone(), "codex.exe", "app"),
+        running(codex.clone(), "codex.exe", "Fix the login | app"),
+        running(codex.clone(), "codex.exe", "app"),
+        running(codex, "pwsh.exe", SHELL),
     ]
-    .map(|pane| {
-        tracker.update(std::slice::from_ref(&codex), &[pane]);
+    .map(|terminal| {
+        update(&tracker, terminal);
         current(&tracker).name
     });
 
@@ -157,9 +166,14 @@ fn an_agent_is_named_after_its_task_until_it_exits() {
 #[test]
 fn a_shell_keeps_its_name_around_an_agent_run_in_it() {
     let tracker = Tracker::default();
-    let shell = workspace("PowerShell");
-    let names = [pane(None), pane(Some("claude")), pane(None)].map(|pane| {
-        tracker.update(std::slice::from_ref(&shell), &[pane]);
+    let shell = terminal("PowerShell");
+    let names = [
+        running(shell.clone(), "pwsh.exe", SHELL),
+        running(shell.clone(), "claude.exe", "Claude Code"),
+        running(shell, "pwsh.exe", SHELL),
+    ]
+    .map(|terminal| {
+        update(&tracker, terminal);
         current(&tracker).name
     });
 
@@ -169,16 +183,13 @@ fn a_shell_keeps_its_name_around_an_agent_run_in_it() {
 #[test]
 fn a_new_agent_drops_the_last_task() {
     let tracker = Tracker::default();
-    let shell = workspace("Terminal");
+    let shell = terminal("Terminal");
 
-    tracker.update(
-        std::slice::from_ref(&shell),
-        &[titled(Some("claude"), Some("✳ Rust crates in folder"))],
+    update(
+        &tracker,
+        running(shell.clone(), "claude", "✳ Rust crates in folder"),
     );
-    tracker.update(
-        std::slice::from_ref(&shell),
-        &[titled(Some("copilot"), Some("GitHub Copilot"))],
-    );
+    update(&tracker, running(shell, "copilot", "GitHub Copilot"));
 
     assert_eq!(current(&tracker).name, "GitHub Copilot");
 }
@@ -186,93 +197,65 @@ fn a_new_agent_drops_the_last_task() {
 #[test]
 fn a_shell_title_before_claude_starts_is_not_its_task() {
     let tracker = Tracker::default();
-    let claude = workspace("Claude");
+    let claude = terminal("Claude");
     let names = [
-        titled(None, Some(r"C:\Program Files\PowerShell\7\pwsh.exe")),
-        titled(Some("claude"), Some("✳ Claude Code")),
-        titled(Some("claude"), Some("✳ Rust crates in folder")),
+        running(claude.clone(), "pwsh.exe", SHELL),
+        running(claude.clone(), "claude", "Claude Code"),
+        running(claude, "claude", "✳ Rust crates in folder"),
     ]
-    .map(|pane| {
-        tracker.update(std::slice::from_ref(&claude), &[pane]);
+    .map(|terminal| {
+        update(&tracker, terminal);
         current(&tracker).name
     });
 
     assert_eq!(names, ["Claude", "Claude", "Rust crates in folder"]);
 }
 
-#[tokio::test]
-async fn an_agent_whose_processes_cannot_be_read_waits_for_its_next_status() {
+#[test]
+fn a_terminal_lives_in_the_folder_its_program_is_in() {
     let tracker = Tracker::default();
-    let dir = tempfile::tempdir().unwrap();
-    let client = Client::new(&dir.path().join("herdr.sock"));
+    let mut moved = running(terminal("PowerShell"), "pwsh.exe", SHELL);
+    if let Some(process) = &mut moved.foreground {
+        process.cwd = "/repos/app/src".into();
+    }
 
-    tracker.read_models(&client, &[pane(Some("claude"))]).await;
+    update(&tracker, moved);
+
+    assert_eq!(current(&tracker).folder, "/repos/app/src");
+}
+
+#[tokio::test]
+async fn an_agent_whose_process_is_unknown_waits_for_its_next_status() {
+    let tracker = Tracker::default();
+    let mut claude = reporting(terminal("Claude"), "idle", 0);
+    claude.foreground = None;
+
+    tracker
+        .read_models(&BTreeMap::from([("t1".to_owned(), claude)]))
+        .await;
 
     assert!(
         lock(&tracker.models)
-            .get("w1")
+            .get("t1")
             .is_some_and(|model| model.name.is_none())
     );
 }
 
 #[test]
-fn an_agent_is_active_when_it_starts_or_stops_working() {
-    let idle = sample(Status::Idle, None);
-    let working = sample(Status::Working, active(Status::Working, Some(&idle), 100));
-    let done = sample(Status::Done, active(Status::Done, Some(&working), 160));
-    let seen = active(Status::Idle, Some(&done), 900);
-
-    assert_eq!(working.active, Some(100));
-    assert_eq!(done.active, Some(160));
-    assert_eq!(seen, Some(160));
-}
-
-#[test]
-fn an_idle_shell_has_no_activity() {
-    assert_eq!(active(Status::Idle, None, 100), None);
-    assert_eq!(
-        active(Status::Idle, Some(&sample(Status::Idle, None)), 200),
-        None
-    );
-}
-
-fn sample(status: Status, active: Option<i64>) -> TerminalState {
-    TerminalState {
-        id: "w1".into(),
-        name: "Claude".into(),
-        agent: Some(Agent::Claude),
-        model: None,
-        status,
-        active,
-        folder: "/repos/app".into(),
-        branch: Some("main".into()),
-        changes: None,
-    }
-}
-
-#[test]
 fn a_turn_starts_with_a_prompt_and_not_after_a_permission_answer() {
     let tracker = Tracker::default();
-    let claude = workspace("Claude");
+    let claude = terminal("Claude");
     let started = [
-        Herdr::Idle,
-        Herdr::Working,
-        Herdr::Blocked,
-        Herdr::Working,
-        Herdr::Idle,
-        Herdr::Working,
+        ("idle", 0),
+        ("working", 0),
+        ("blocked", 0),
+        ("working", 0),
+        ("idle", 1),
+        ("working", 1),
     ]
-    .map(|status| {
-        let pane = Pane {
-            status,
-            cwd: Some("/repos/app".into()),
-            ..pane(Some("claude"))
-        };
-        tracker
-            .update(std::slice::from_ref(&claude), &[pane])
-            .started
-            .len()
-    });
+    .map(|(state, turn)| update(&tracker, reporting(claude.clone(), state, turn)).len());
 
     assert_eq!(started, [0, 1, 0, 0, 0, 1]);
 }
+
+mod status;

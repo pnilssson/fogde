@@ -16,7 +16,6 @@ import {
   grouped,
   nowhere,
   pathsOf,
-  samePath,
 } from "@/features/github/lib/scope";
 import {
   sameRepo,
@@ -25,6 +24,7 @@ import {
 } from "@/features/github/lib/state";
 import type { Workspace } from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { samePath } from "@/lib/folders";
 
 interface Props {
   machine: Machine;
@@ -130,9 +130,6 @@ export function GitHubView({ machine, workspaces, wanted, picker }: Props) {
           repo={repo}
           unsigned={unsigned}
           counts={{
-            changes: checkout
-              ? `${String(checkout.files.length)}${checkout.truncated ? "+" : ""}`
-              : undefined,
             pull: open.data?.length.toString(),
             issue: issues.data?.length.toString(),
           }}

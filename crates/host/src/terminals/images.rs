@@ -7,8 +7,11 @@ use base64::engine::general_purpose::STANDARD;
 use protocol::terminals::{IMAGE_LIMIT, Image};
 use sha2::{Digest, Sha256};
 use tokio::fs;
+use tokio::sync::Mutex;
 
 const KEPT: Duration = Duration::from_hours(7 * 24);
+
+static FILES: Mutex<()> = Mutex::const_new(());
 
 pub async fn save(dir: &Path, image: Image, data: String) -> io::Result<PathBuf> {
     if data.len() > IMAGE_LIMIT.div_ceil(3) * 4 {
@@ -28,24 +31,34 @@ pub async fn save(dir: &Path, image: Image, data: String) -> io::Result<PathBuf>
     .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
 
     create(dir).await?;
-    prune(dir).await;
     let path = dir.join(format!("{name}.{}", extension(image)));
-    if refresh(&path).await {
-        return Ok(path);
+    let stored = {
+        let _files = FILES.lock().await;
+        store(&path, &name, dir, bytes).await
+    };
+    let old = dir.to_owned();
+    tokio::spawn(async move { prune(&old).await });
+
+    stored.map(|()| path)
+}
+
+async fn store(path: &Path, name: &str, dir: &Path, bytes: Vec<u8>) -> io::Result<()> {
+    if refresh(path).await {
+        return Ok(());
     }
 
     let mut suffix = [0u8; 8];
     getrandom::fill(&mut suffix).map_err(io::Error::other)?;
     let temp = dir.join(format!("{name}.{}.tmp", hex::encode(suffix)));
     fs::write(&temp, bytes).await?;
-    if let Err(error) = fs::rename(&temp, &path).await {
+    if let Err(error) = fs::rename(&temp, path).await {
         let _ = fs::remove_file(&temp).await;
-        if !fs::try_exists(&path).await.unwrap_or(false) {
+        if !fs::try_exists(path).await.unwrap_or(false) {
             return Err(error);
         }
     }
 
-    Ok(path)
+    Ok(())
 }
 
 async fn refresh(path: &Path) -> bool {
@@ -82,6 +95,7 @@ async fn create(dir: &Path) -> io::Result<()> {
 }
 
 pub async fn prune(dir: &Path) {
+    let _files = FILES.lock().await;
     let Ok(mut entries) = fs::read_dir(dir).await else {
         return;
     };
@@ -139,8 +153,37 @@ mod tests {
 
         assert_eq!(saved.extension().unwrap(), "jpg");
         assert_eq!(std::fs::read(&saved).unwrap(), b"jpeg");
+        for _ in 0..100 {
+            if !old.exists() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
         assert!(!old.exists());
         assert!(recent.exists());
+    }
+
+    #[tokio::test]
+    async fn a_repaste_of_a_week_old_image_keeps_its_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let images = dir.path().join("images");
+        let saved = save(&images, Image::Png, STANDARD.encode(b"png"))
+            .await
+            .unwrap();
+        File::options()
+            .write(true)
+            .open(&saved)
+            .unwrap()
+            .set_modified(SystemTime::now() - KEPT - Duration::from_secs(60))
+            .unwrap();
+
+        let again = save(&images, Image::Png, STANDARD.encode(b"png"))
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        assert_eq!(again, saved);
+        assert!(saved.exists());
     }
 
     #[tokio::test]

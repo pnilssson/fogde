@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { cn } from "cn";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Pages } from "@/app/pages";
 import { PageNav } from "@/app/page-nav";
@@ -13,22 +13,25 @@ import { useAgents } from "@/features/agents/hooks/use-agents";
 import { onboardedQuery } from "@/features/onboarding/api/onboarding";
 import { PaletteNotes } from "@/features/notes/components/palette-notes";
 import { useNotesChanges } from "@/features/notes/hooks/use-notes-changes";
+import { useSaveOnClose } from "@/features/notes/hooks/use-save-on-close";
 import { CommandPalette } from "@/features/workspaces/components/command-palette";
 import { WorkspaceChanges } from "@/app/changes";
 import { PanelToggle } from "@/features/github/components/panel-toggle";
+import { useFollow } from "@/features/github/hooks/use-follow";
 import { usePanel } from "@/features/github/lib/panel";
 import { SearchButton } from "@/features/workspaces/components/search-button";
 import { WorkspaceSidebar } from "@/features/workspaces/components/workspace-sidebar";
 import { useAttention } from "@/features/workspaces/hooks/use-attention";
 import { useBadge } from "@/features/workspaces/hooks/use-badge";
 import { useCheckouts } from "@/features/workspaces/hooks/use-checkouts";
-import { useFailures } from "@/features/workspaces/hooks/use-failures";
 import { useShortcuts } from "@/features/workspaces/hooks/use-shortcuts";
 import { useGroups } from "@/features/workspaces/hooks/use-terminals";
 import { useViewing } from "@/features/workspaces/hooks/use-viewing";
 import { keepMachines, useTiles } from "@/features/workspaces/lib/layouts";
 import {
   resolveWorkspace,
+  type Selection,
+  type View,
   WorkspaceContext,
 } from "@/features/workspaces/lib/selection";
 import { openStart } from "@/features/workspaces/lib/opening";
@@ -38,6 +41,21 @@ import { SideSlot } from "@/lib/side-slot";
 import { useRetryOnReturn } from "@/hooks/use-retry-on-return";
 import { entryId, machinesQuery } from "@/lib/machines";
 import { closePage, leavePage, usePage } from "@/lib/page";
+
+function choose(next: View, selection?: Selection) {
+  selectWorkspace(next);
+  leavePage(() => {
+    if (selection) {
+      show(selection);
+    }
+  });
+}
+
+function start(next: View, folder: string) {
+  closePage();
+  selectWorkspace(next);
+  openStart(folder);
+}
 
 export const Route = createFileRoute("/_onboarded")({
   beforeLoad: async ({ context }) => {
@@ -63,7 +81,15 @@ export const Route = createFileRoute("/_onboarded")({
     const { all, connected: machines } = useMachines();
     const groups = useGroups(machines);
     const stored = useTiles((tiles) => tiles.workspace);
-    const workspace = resolveWorkspace(groups, stored);
+    const { machine, id, checkout } = resolveWorkspace(groups, stored) ?? {};
+    const workspace = useMemo(() => {
+      if (!machine || !id) {
+        return undefined;
+      }
+
+      return checkout ? { machine, id, checkout } : { machine, id };
+    }, [machine, id, checkout]);
+    const context = useMemo(() => ({ groups, workspace }), [groups, workspace]);
     const page = usePage();
     const sided = page === "github" || page === "notes" || page === "settings";
     const [slot, setSlot] = useState<HTMLElement | null>(null);
@@ -72,16 +98,17 @@ export const Route = createFileRoute("/_onboarded")({
     useRetryOnReturn(machines);
     useAttention(machines);
     useBadge(groups);
-    useFailures(machines);
     useAgents(machines);
     useCheckouts(machines);
+    useFollow(machines);
     useNotesChanges(machines);
+    useSaveOnClose();
     useViewing(machines);
     useShortcuts(groups, workspace);
 
     useEffect(() => {
       if (all.length > 0) {
-        keepMachines(all.map(({ id }) => id));
+        keepMachines(all.map((entry) => entry.id));
       }
     }, [all]);
 
@@ -92,7 +119,7 @@ export const Route = createFileRoute("/_onboarded")({
     }, [workspace]);
 
     return (
-      <WorkspaceContext value={{ groups, workspace }}>
+      <WorkspaceContext value={context}>
         <div className="flex h-full min-h-0 flex-col">
           <TitleBar
             start={<SidebarToggle />}
@@ -113,19 +140,8 @@ export const Route = createFileRoute("/_onboarded")({
                     <WorkspaceSidebar
                       groups={groups}
                       selected={workspace}
-                      onSelect={(next, selection) => {
-                        selectWorkspace(next);
-                        leavePage(() => {
-                          if (selection) {
-                            show(selection);
-                          }
-                        });
-                      }}
-                      onStart={(next, folder) => {
-                        closePage();
-                        selectWorkspace(next);
-                        openStart(folder);
-                      }}
+                      onSelect={choose}
+                      onStart={start}
                     />
                   )}
                   <SidebarFoot machines={machines} />

@@ -1,9 +1,4 @@
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Nothing } from "@/components/nothing";
 import { CheckoutDetail } from "@/features/github/components/checkout-detail";
 import { ItemDetail } from "@/features/github/components/item-detail";
 import { type Entry, landed, pullFor } from "@/features/github/lib/scope";
@@ -81,16 +76,5 @@ export function DetailPane({
         (candidate) => candidate.repo && sameRepo(candidate.repo, item.repo),
       )}
     />
-  );
-}
-
-function Nothing({ title, hint }: { title: string; hint: string }) {
-  return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyTitle>{title}</EmptyTitle>
-        <EmptyDescription>{hint}</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
   );
 }

@@ -2,7 +2,6 @@ import { useForm } from "@tanstack/react-form";
 import { type ReactNode, useId } from "react";
 import { z } from "zod";
 
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,8 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { ActionButton } from "@/components/action-button";
 
 interface Text {
   title: string;
@@ -111,15 +110,13 @@ function TextForm({
       <DialogFooter>
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(submitting) => (
-            <Button
+            <ActionButton
               type="submit"
-              size="sm"
-              disabled={submitting}
-              aria-busy={submitting}
-            >
-              {submitting && <Spinner aria-hidden data-icon="inline-start" />}
-              {submitting ? busy : action}
-            </Button>
+              variant="default"
+              label={action}
+              busy={busy}
+              pending={submitting}
+            />
           )}
         </form.Subscribe>
       </DialogFooter>

@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 
 import type { Kind } from "@/features/github/api/github";
 import { checksLabel } from "@/features/github/lib/labels";
-import { ago } from "@/features/github/lib/scope";
+import { ago } from "@/lib/time";
 import type {
   ChecksSummary,
   ItemState,

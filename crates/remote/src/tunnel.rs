@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::tungstenite::{self, http::StatusCode};
 
-use crate::ssh::{Failure, Server, spawn_error};
+use crate::ssh::{Server, last_line};
 use crate::{Error, System};
 
 pub struct Binaries {
@@ -138,7 +138,7 @@ impl Server {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|error| Attempt::Failed(spawn_error(error)))?;
+            .map_err(|error| Attempt::Failed(process::not_found(Error::Missing)(error)))?;
         let (Some(stdout), Some(stdin)) = (ssh.stdout.take(), ssh.stdin.take()) else {
             return Err(Attempt::Failed(Error::Tunnel(
                 "ssh has no pipes".to_owned(),
@@ -189,15 +189,11 @@ impl Server {
 
         match status.code() {
             Some(127) => Attempt::NotInstalled,
-            Some(255) => Attempt::Failed(match self.failure(&stderr) {
-                Failure::Error(error) => error,
-                Failure::Unknown => Error::Unreachable(self.target().to_owned()),
-            }),
+            Some(255) => Attempt::Failed(self.error(&stderr)),
             _ => {
                 let text = String::from_utf8_lossy(&stderr);
-                let line = text.lines().rev().find(|line| !line.trim().is_empty());
                 Attempt::Failed(Error::Tunnel(
-                    line.map_or_else(|| error.to_string(), |line| line.trim().to_owned()),
+                    last_line(&text).map_or_else(|| error.to_string(), str::to_owned),
                 ))
             }
         }
@@ -213,7 +209,7 @@ impl Server {
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(spawn_error)?;
+            .map_err(process::not_found(Error::Missing))?;
         let written = match ssh.stdin.take() {
             Some(mut stdin) => stdin.write_all(binary).await,
             None => Err(std::io::Error::other("ssh has no stdin")),
@@ -221,10 +217,7 @@ impl Server {
 
         let output = ssh.wait_with_output().await?;
         if !output.status.success() {
-            return Err(match self.failure(&output.stderr) {
-                Failure::Error(error) => error,
-                Failure::Unknown => Error::Unreachable(self.target().to_owned()),
-            });
+            return Err(self.error(&output.stderr));
         }
         written?;
 

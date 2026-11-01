@@ -12,8 +12,8 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
 import { callOwn } from "@/lib/host";
+import { report } from "@/lib/report";
 import { machinesQuery } from "@/lib/machines";
 
 type Place = "computer" | "server";
@@ -45,11 +45,7 @@ export function ChooseWhere({
       await queries.invalidateQueries(machinesQuery);
       await onComputer();
     } catch (error) {
-      toast.add({
-        type: "error",
-        title: "Could not add this computer",
-        description: error instanceof Error ? error.message : String(error),
-      });
+      report("Could not add this computer", error);
     } finally {
       setGoing(undefined);
     }

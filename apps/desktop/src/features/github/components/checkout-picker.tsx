@@ -81,13 +81,10 @@ export function CheckoutPicker({ groups, chosen, openPulls, onPick }: Props) {
 }
 
 function describe(checkout: CheckoutStatus, pull: number | undefined) {
-  const changed = checkout.files.length;
   const parts = [
     checkout.repo
       ? `${checkout.branch ?? "Detached"} in ${checkout.repo.owner}/${checkout.repo.name}`
       : (checkout.branch ?? "Detached"),
-    changed > 0 &&
-      `${checkout.truncated ? `${String(changed)}+` : String(changed)} changed`,
     pull !== undefined && `pull request #${String(pull)}`,
   ];
 

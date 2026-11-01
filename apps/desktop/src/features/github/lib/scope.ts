@@ -1,10 +1,13 @@
 import { sameRepo } from "@/features/github/lib/state";
 import type {
+  Account,
   CheckoutStatus,
+  DiffScope,
   Listed,
   Repo,
   Workspace,
 } from "@/generated/protocol";
+import { samePath } from "@/lib/folders";
 
 export const nowhere: Repo = { host: "", owner: "", name: "" };
 
@@ -89,46 +92,28 @@ function belongs({ repo: base, item }: Entry, checkout: CheckoutStatus) {
   return holds(checkout, item.number, { ...pull, cross });
 }
 
-export function ago(time: string | number, now = Date.now()) {
-  const at = typeof time === "number" ? time : Date.parse(time);
-  const minutes = Math.floor((now - at) / 60_000);
-  if (minutes < 1) {
-    return "just now";
-  }
-  if (minutes < 60) {
-    return `${String(minutes)}m ago`;
-  }
+export function authored(
+  accounts: Account[] | undefined,
+  host: string,
+  author: string | null,
+) {
+  const login = author?.toLowerCase();
 
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return `${String(hours)}h ago`;
-  }
-
-  const days = Math.floor(hours / 24);
-  if (days === 1) {
-    return "yesterday";
-  }
-  if (days < 7) {
-    return `${String(days)}d ago`;
-  }
-  if (days < 30) {
-    return `${String(Math.floor(days / 7))}w ago`;
-  }
-
-  const months = Math.floor(days / 30);
-  if (months < 12) {
-    return `${String(months)}mo ago`;
-  }
-
-  return `${String(Math.max(1, Math.floor(days / 365)))}y ago`;
+  return (
+    accounts?.some(
+      (account) =>
+        account.host === host && account.login.toLowerCase() === login,
+    ) === true
+  );
 }
 
-export function samePath(a: string, b: string) {
-  const plain = (path: string) => {
-    const slashed = path.replaceAll("\\", "/").replace(/\/+$/, "");
+export function noChanges(scope: DiffScope, base: string | null) {
+  if (scope === "turn") {
+    return "No changes in the last turn";
+  }
+  if (scope === "uncommitted") {
+    return "No uncommitted changes";
+  }
 
-    return /^[a-z]:\//i.test(slashed) ? slashed.toLowerCase() : slashed;
-  };
-
-  return plain(a) === plain(b);
+  return `No changes${base ? ` since ${base}` : ""}`;
 }

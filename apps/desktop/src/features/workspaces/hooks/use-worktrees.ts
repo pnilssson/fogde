@@ -3,16 +3,20 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useState } from "react";
 
-import { toast } from "@/components/ui/toast";
 import { workspacesQuery } from "@/features/workspaces/api/workspaces";
 import { mainCheckout, working } from "@/features/workspaces/lib/checkouts";
+import { ask } from "@/features/workspaces/lib/confirm";
 import { forget, store } from "@/features/workspaces/lib/layouts";
 import { sameView } from "@/features/workspaces/lib/selection";
 import { selectWorkspace } from "@/features/workspaces/lib/tiles";
-import type { CreateWorktreeParams, Workspace } from "@/generated/protocol";
+import type {
+  Checkout,
+  CreateWorktreeParams,
+  Workspace,
+} from "@/generated/protocol";
 import type { Machine } from "@/lib/machines";
+import { report } from "@/lib/report";
 import { closePage } from "@/lib/page";
 
 const removing = new Set<string>();
@@ -36,11 +40,7 @@ export function useCreateWorktree(
       selectWorkspace({ machine: machine.id, id: workspace, checkout: path });
     },
     onError: (error) => {
-      toast.add({
-        type: "error",
-        title: "Could not create the worktree",
-        description: error.message,
-      });
+      report("Could not create the worktree", error);
     },
   });
 }
@@ -87,41 +87,40 @@ export function useRemoveWorktree(machine: Machine, workspace: Workspace) {
       await queries.invalidateQueries(workspacesQuery(machine));
     },
     onError: (error) => {
-      toast.add({
-        type: "error",
-        title: "Could not remove the worktree",
-        description: error.message,
-      });
+      report("Could not remove the worktree", error);
     },
   });
+}
+
+export function useRemoveRequest(machine: Machine, workspace: Workspace) {
+  const remove = useRemoveWorktree(machine, workspace);
+
+  return (checkout: Checkout) => {
+    if (working(workspace, checkout.path).length > 0) {
+      ask({ kind: "remove", machine, workspace, checkout });
+      return;
+    }
+
+    remove.mutate(checkout.path);
+  };
 }
 
 export function useRemoval(
   machine: Machine,
   workspace: Workspace,
-  path: string,
+  checkout: Checkout,
 ) {
-  const remove = useRemoveWorktree(machine, workspace);
-  const [confirming, setConfirming] = useState(false);
+  const request = useRemoveRequest(machine, workspace);
   const pending =
     useIsMutating({
       mutationKey: removalKey(machine),
-      predicate: ({ state }) => state.variables === path,
+      predicate: ({ state }) => state.variables === checkout.path,
     }) > 0;
-
-  const request = () => {
-    if (working(workspace, path).length > 0) {
-      setConfirming(true);
-      return;
-    }
-
-    remove.mutate(path);
-  };
 
   return {
     pending,
-    confirming,
-    setConfirming,
-    request,
+    request: () => {
+      request(checkout);
+    },
   };
 }

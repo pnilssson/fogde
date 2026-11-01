@@ -10,7 +10,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
+import { report } from "@/lib/report";
 import type { Machine } from "@/lib/machines";
 
 const Name = z.string().trim().min(1, "Enter a name for the folder");
@@ -33,11 +33,7 @@ export function NewFolder({ machine, parent, onCreated }: Props) {
       onCreated(folder.path);
     },
     onError: (error) => {
-      toast.add({
-        type: "error",
-        title: "Could not create the folder",
-        description: error.message,
-      });
+      report("Could not create the folder", error);
     },
   });
   const form = useForm({

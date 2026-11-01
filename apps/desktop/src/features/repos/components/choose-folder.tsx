@@ -1,3 +1,4 @@
+import { ActionButton } from "@/components/action-button";
 import { FolderDialog } from "@/components/folder-dialog";
 import { useForm } from "@tanstack/react-form";
 import {
@@ -5,7 +6,6 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { open as pick } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -17,10 +17,10 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
 import { reposFolderQuery } from "@/lib/folders";
+import { report } from "@/lib/report";
 import type { Machine } from "@/lib/machines";
+import { pickFolder } from "@/lib/pick-folder";
 
 interface Props {
   machine: Machine;
@@ -40,11 +40,7 @@ export function ChooseFolder({ machine, onBack, onContinue }: Props) {
       await onContinue();
     },
     onError: (error) => {
-      toast.add({
-        type: "error",
-        title: "Could not save the folder",
-        description: error.message,
-      });
+      report("Could not save the folder", error);
     },
   });
   const form = useForm({
@@ -71,15 +67,13 @@ export function ChooseFolder({ machine, onBack, onContinue }: Props) {
   });
 
   const browse = async () => {
-    if (!machine.local) {
-      setBrowsing(true);
-      return;
-    }
-
-    const picked = await pick({
-      directory: true,
-      defaultPath: form.getFieldValue("folder") || undefined,
-    });
+    const picked = await pickFolder(
+      machine,
+      form.getFieldValue("folder"),
+      () => {
+        setBrowsing(true);
+      },
+    );
     if (picked) {
       form.setFieldValue("folder", picked);
     }
@@ -124,7 +118,13 @@ export function ChooseFolder({ machine, onBack, onContinue }: Props) {
                   }}
                 />
                 <InputGroupAddon align="inline-end">
-                  <InputGroupButton onClick={() => void browse()}>
+                  <InputGroupButton
+                    onClick={() => {
+                      browse().catch((error: unknown) => {
+                        report("Could not browse the folders", error);
+                      });
+                    }}
+                  >
                     Browse
                   </InputGroupButton>
                 </InputGroupAddon>
@@ -142,16 +142,12 @@ export function ChooseFolder({ machine, onBack, onContinue }: Props) {
               const busy = submitting || save.isPending;
 
               return (
-                <Button
+                <ActionButton
                   type="submit"
-                  variant="secondary"
-                  size="sm"
-                  aria-busy={busy}
-                  disabled={busy}
-                >
-                  {busy && <Spinner aria-hidden data-icon="inline-start" />}
-                  {busy ? "Saving…" : "Continue"}
-                </Button>
+                  label="Continue"
+                  busy="Saving…"
+                  pending={busy}
+                />
               );
             }}
           </form.Subscribe>

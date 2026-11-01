@@ -6,7 +6,8 @@ use std::path::Path;
 use tokio::fs;
 
 use crate::Error;
-use crate::changes::{binary, remote_head};
+use crate::base::mainline;
+use crate::changes::binary;
 use crate::run::{git, git_env, git_with_input};
 use crate::status::{Change, status};
 
@@ -94,16 +95,12 @@ fn chunks(output: &[u8]) -> Vec<(parse::Chunk, bool)> {
 
 async fn start(root: &Path, scope: Scope) -> Result<(String, Option<String>), Error> {
     if scope == Scope::Branch
-        && let Some(remote) = remote_head(root).await
-        && let Ok(merged) = git(root, ["merge-base", "HEAD", &remote]).await
+        && let Some(mainline) = mainline(root).await
+        && let Ok(merged) = git(root, ["merge-base", "HEAD", &mainline.reference]).await
     {
-        let name = remote
-            .split_once('/')
-            .map_or(remote.as_str(), |(_, name)| name);
-
         return Ok((
             String::from_utf8_lossy(&merged).trim().to_owned(),
-            Some(name.to_owned()),
+            Some(mainline.name),
         ));
     }
 

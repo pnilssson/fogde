@@ -1,17 +1,7 @@
 import { useState } from "react";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { StateIcon } from "@/features/github/components/rows";
 import { useWrite } from "@/features/github/hooks/use-write";
 import type { Entry } from "@/features/github/lib/scope";
@@ -44,54 +34,43 @@ export function LandedCard({ machine, checkout, entry, linked }: Props) {
         <span className="text-muted-foreground">#{item.number}</span> was merged
         into {base}.
       </p>
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <Button
-          size="sm"
-          onClick={() => {
-            setOpen(true);
-          }}
-        >
-          Clean up
-        </Button>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clean up after #{item.number}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {linked
-                ? `Removes the worktree ${folderName(checkout.path)}, closes its terminals and deletes ${branch}.`
-                : `Switches to ${base}, pulls it and deletes ${branch}.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              size="sm"
-              disabled={clean.isPending}
-              aria-busy={clean.isPending}
-              onClick={() => {
-                clean.mutate(
-                  (client) =>
-                    client.call("checkouts.cleanUp", {
-                      path: checkout.path,
-                      sha,
-                      base,
-                    }),
-                  {
-                    onSettled: () => {
-                      setOpen(false);
-                    },
-                  },
-                );
-              }}
-            >
-              {clean.isPending && (
-                <Spinner aria-hidden data-icon="inline-start" />
-              )}
-              {clean.isPending ? "Cleaning up…" : "Clean up"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Button
+        size="sm"
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        Clean up
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`Clean up after #${String(item.number)}?`}
+        description={
+          linked
+            ? `Removes the worktree ${folderName(checkout.path)}, closes its terminals and deletes ${branch}.`
+            : `Switches to ${base}, pulls it and deletes ${branch}.`
+        }
+        action="Clean up"
+        busy="Cleaning up…"
+        pending={clean.isPending}
+        safe
+        onConfirm={() => {
+          clean.mutate(
+            (client) =>
+              client.call("checkouts.cleanUp", {
+                path: checkout.path,
+                sha,
+                base,
+              }),
+            {
+              onSettled: () => {
+                setOpen(false);
+              },
+            },
+          );
+        }}
+      />
     </div>
   );
 }

@@ -134,7 +134,7 @@ export const Route = createFileRoute("/_onboarded")({
                   {sided ? (
                     <div
                       ref={setSlot}
-                      className="flex min-h-0 flex-1 flex-col"
+                      className="flex min-h-0 flex-1 flex-col gap-2"
                     />
                   ) : (
                     <WorkspaceSidebar

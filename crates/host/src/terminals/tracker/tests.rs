@@ -5,7 +5,10 @@ use protocol::terminals::Status;
 use super::describe::{active, status};
 use super::*;
 
+#[cfg(windows)]
 const SHELL: &str = r"C:\Program Files\PowerShell\7\pwsh.exe";
+#[cfg(unix)]
+const SHELL: &str = "/bin/zsh";
 
 fn terminal(label: &str) -> Terminal {
     Terminal {

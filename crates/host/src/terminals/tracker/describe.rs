@@ -92,7 +92,7 @@ fn name(
         return launch::shell(label).to_owned();
     };
 
-    title::task(agent, &terminal.title, title::strip(&terminal.title))
+    title::task(agent, &terminal.title)
         .or_else(|| {
             previous
                 .filter(|state| state.agent == Some(agent))

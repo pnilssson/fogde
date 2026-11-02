@@ -33,5 +33,9 @@ jobs:
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: just,cargo-deny,cargo-shear,cargo-nextest,typos,zizmor,sqlx-cli
+      - if: runner.os == 'Linux'
+        run: zizmor .
+        env:
+          GH_TOKEN: ${{ github.token }}
       - run: just check
       - run: git diff --exit-code apps/desktop/src/generated

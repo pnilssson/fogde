@@ -14,12 +14,15 @@ import {
 import { appearance } from "@/features/terminals/lib/appearance";
 import { handleClipboard } from "@/features/terminals/lib/clipboard";
 import { trackKeyboard } from "@/features/terminals/lib/keyboard";
+import { learnGeometry } from "@/lib/geometry";
+import { routeInput } from "@/features/terminals/lib/input";
 import { handleKeys } from "@/features/terminals/lib/keys";
 import { openLinks } from "@/features/terminals/lib/links";
 import { showOutput } from "@/features/terminals/lib/output";
 import { handleSelection } from "@/features/terminals/lib/selection";
 import { report } from "@/lib/report";
 import { measure, observeSize, sizer } from "@/features/terminals/lib/size";
+import { colors, followTheme } from "@/features/terminals/lib/theme";
 import { watchTerminal } from "@/features/terminals/lib/watch";
 import { accessibilityQuery } from "@/lib/accessibility";
 import type { Size } from "@/generated/protocol";
@@ -88,6 +91,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       const size = measure(fit, frame);
       if (size) {
         fitTo(size);
+        learnGeometry(terminal, panel);
       }
       if (size && deferred) {
         show();
@@ -131,7 +135,7 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
           fitTo(now);
           sizes.started(now);
 
-          return now;
+          return { size: now, display: colors() };
         },
         () => {
           starting = false;
@@ -203,24 +207,20 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       }
     }
 
-    function send(data: string) {
-      request("Could not send your input", "terminals.input", { id, data });
-    }
-
     const selection = handleSelection(terminal, element, () => {
       flashCopied(place);
     });
     const stopOutput = showOutput(client, id, terminal, () => token);
-    const typing = terminal.onData(send);
-    handleKeys(terminal, selection, keyboard, send);
+    const input = routeInput(terminal, element, id, request);
+    handleKeys(terminal, selection, keyboard, input.send);
     const stopClipboard = handleClipboard(element, {
-      text: send,
-      image: async (image, data) => {
+      text: input.send,
+      file: async (name, data) => {
         if (!watching) {
           throw new Error("The terminal is not connected yet.");
         }
 
-        await client.call("terminals.pasteImage", { id, image, data });
+        await client.call("terminals.pasteFile", { id, name, data });
       },
       failed: (error) => {
         report("Could not paste", error);
@@ -230,15 +230,13 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       terminal.focus();
     });
     const resizing = observeSize(element, resize);
-    const theming = new MutationObserver(() => {
-      terminal.options = appearance(element);
-      resize();
+    const stopTheming = followTheme(terminal, element, resize, (display) => {
+      request("Could not recolor", "terminals.display", { id, display });
     });
     const shortcuts = (event: KeyboardEvent) => {
       event.stopPropagation();
     };
 
-    theming.observe(document.documentElement, { attributeFilter: ["class"] });
     element.addEventListener("keydown", shortcuts);
     void document.fonts
       .load(`${String(options.fontSize)}px ${options.fontFamily}`)
@@ -259,12 +257,12 @@ export function TerminalView({ id, machine, panel, onChange }: Props) {
       stopOutput();
       keyboard.dispose();
       stopEnded();
-      typing.dispose();
+      input.dispose();
       stopClipboard();
       selection.dispose();
       focusing.dispose();
       resizing();
-      theming.disconnect();
+      stopTheming();
       element.removeEventListener("keydown", shortcuts);
       terminal.dispose();
       view.current = undefined;

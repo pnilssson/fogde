@@ -13,7 +13,10 @@ import {
   removeTerminal,
   workspacesQuery,
 } from "@/features/workspaces/api/workspaces";
+import { predictSize } from "@/lib/geometry";
+import { startId } from "@/features/workspaces/lib/layouts";
 import { opened } from "@/features/workspaces/lib/opening";
+import { dockview } from "@/features/workspaces/lib/tiles";
 import { useConnected } from "@/hooks/use-connected";
 import { useConnection } from "@/hooks/use-connection";
 import type {
@@ -93,8 +96,14 @@ export function useChoices(machine: Machine): (Agent | null)[] | undefined {
   ];
 }
 
-interface Create extends CreateTerminalParams {
+interface Create extends Omit<CreateTerminalParams, "size"> {
   machine: Machine;
+}
+
+function tile() {
+  const api = dockview();
+
+  return (api?.getPanel(startId) ?? api?.activePanel)?.api;
 }
 
 export function useCreateTerminal() {
@@ -102,7 +111,10 @@ export function useCreateTerminal() {
 
   return useMutation({
     mutationFn: ({ machine, ...params }: Create) =>
-      machine.client.call("terminals.create", params),
+      machine.client.call("terminals.create", {
+        ...params,
+        size: predictSize(tile()),
+      }),
     onSuccess: (terminal, { machine, workspace }) => {
       addTerminal(queries, machine, workspace, terminal);
       opened({ machine: machine.id, id: terminal.id });

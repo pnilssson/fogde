@@ -1,6 +1,6 @@
 mod changes;
 pub mod codex;
-mod images;
+mod files;
 mod input;
 mod launch;
 mod stream;
@@ -13,11 +13,12 @@ use std::future;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use futures_util::future::join_all;
-use herdr_client::Run;
+use herdr_client::{Run, Size};
 use protocol::rpc::{Failure, SERVER_ERROR};
 use protocol::terminals::{
-    CloseTerminal, CreateTerminal, CreateTerminalParams, PasteImage, ResizeTerminal, Status,
-    Terminal, TerminalInput, UnwatchTerminal, ViewTerminal, WatchTerminal, WatchTerminalParams,
+    CloseTerminal, CreateTerminal, CreateTerminalParams, DisplayTerminal, FocusTerminal, PasteFile,
+    ResizeTerminal, Status, Terminal, TerminalInput, TerminalReply, UnwatchTerminal, ViewTerminal,
+    WatchTerminal, WatchTerminalParams,
 };
 use tokio::sync::mpsc;
 
@@ -25,7 +26,7 @@ use crate::folders;
 use crate::rpc::{Handler, Router, failure};
 use crate::session::Session;
 pub use changes::count;
-pub use images::prune;
+pub use files::prune;
 use launch::Launches;
 use stream::Control;
 pub use tracker::Tracker;
@@ -73,8 +74,11 @@ pub fn register(router: &mut Router) {
     router.add::<WatchTerminal>();
     router.add::<UnwatchTerminal>();
     router.add::<TerminalInput>();
+    router.add::<TerminalReply>();
+    router.add::<FocusTerminal>();
     router.add::<ResizeTerminal>();
-    router.add::<PasteImage>();
+    router.add::<DisplayTerminal>();
+    router.add::<PasteFile>();
     router.add::<ViewTerminal>();
 }
 
@@ -157,6 +161,10 @@ impl Handler for CreateTerminal {
                 cwd: &folder,
                 env: &env,
                 labels: &labels,
+                size: params.size.map(|size| Size {
+                    cols: size.cols,
+                    rows: size.rows,
+                }),
             })
             .await
             .map_err(failure)?;

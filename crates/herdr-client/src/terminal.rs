@@ -45,6 +45,13 @@ pub struct Run<'a> {
     pub cwd: &'a Path,
     pub env: &'a BTreeMap<String, String>,
     pub labels: &'a BTreeMap<String, String>,
+    pub size: Option<Size>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct Size {
+    pub cols: u16,
+    pub rows: u16,
 }
 
 impl Connection {
@@ -57,6 +64,8 @@ impl Connection {
                 env: run.env,
                 labels: run.labels,
                 rm: true,
+                keep: true,
+                size: run.size,
             },
         )
         .await
@@ -110,6 +119,9 @@ struct Started<'a> {
     env: &'a BTreeMap<String, String>,
     labels: &'a BTreeMap<String, String>,
     rm: bool,
+    keep: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    size: Option<Size>,
 }
 
 #[derive(Deserialize)]
@@ -164,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn removes_a_terminal_once_it_ends() {
+    fn starts_a_kept_terminal_at_its_size_and_removes_it_once_it_exits() {
         let env = BTreeMap::from([("XDG_CONFIG_HOME".to_owned(), String::new())]);
         let labels = BTreeMap::from([("fogde".to_owned(), "Terminal".to_owned())]);
         let argv = ["/bin/zsh".to_owned()];
@@ -174,6 +186,11 @@ mod tests {
             env: &env,
             labels: &labels,
             rm: true,
+            keep: true,
+            size: Some(Size {
+                cols: 120,
+                rows: 40,
+            }),
         };
 
         assert_eq!(
@@ -184,6 +201,8 @@ mod tests {
                 "env": {"XDG_CONFIG_HOME": ""},
                 "labels": {"fogde": "Terminal"},
                 "rm": true,
+                "keep": true,
+                "size": {"cols": 120, "rows": 40},
             })
         );
     }

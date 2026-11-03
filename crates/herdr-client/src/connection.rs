@@ -22,6 +22,7 @@ const PATIENCE: Duration = Duration::from_secs(30);
 
 pub struct Connection {
     version: String,
+    features: Vec<String>,
     outgoing: mpsc::UnboundedSender<Vec<u8>>,
     mux: Arc<Mux>,
     ids: AtomicU64,
@@ -76,6 +77,7 @@ impl Connection {
 
         Ok(Self {
             version: greeting.version,
+            features: greeting.features,
             outgoing,
             mux,
             ids: AtomicU64::new(1),
@@ -85,6 +87,10 @@ impl Connection {
 
     pub fn version(&self) -> &str {
         &self.version
+    }
+
+    pub(crate) fn supports(&self, feature: &str) -> bool {
+        self.features.iter().any(|offered| offered == feature)
     }
 
     pub fn is_closed(&self) -> bool {

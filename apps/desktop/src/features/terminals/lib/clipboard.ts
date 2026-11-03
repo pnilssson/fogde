@@ -1,16 +1,9 @@
-import { type Image, imageLimit } from "@/generated/protocol";
+import { fileLimit } from "@/generated/protocol";
 import { bracket } from "@/lib/paste";
-
-const images: Partial<Record<string, Image>> = {
-  "image/png": "png",
-  "image/jpeg": "jpeg",
-  "image/gif": "gif",
-  "image/webp": "webp",
-};
 
 interface Paste {
   text: (data: string) => void;
-  image: (image: Image, data: string) => Promise<void>;
+  file: (name: string, data: string) => Promise<void>;
   failed: (error: unknown) => void;
 }
 
@@ -19,17 +12,10 @@ export function handleClipboard(element: HTMLElement, paste: Paste) {
 
   const attach = (files: File[]) => {
     for (const file of files) {
-      const image = images[file.type];
-      if (!image) {
-        paste.failed(
-          new Error(`${file.name} is not a PNG, JPEG, GIF or WebP image.`),
-        );
-        continue;
-      }
-      if (file.size > imageLimit) {
+      if (file.size > fileLimit) {
         paste.failed(
           new Error(
-            `The image is larger than ${String(imageLimit / 1024 / 1024)} MB.`,
+            `${file.name} is larger than ${String(fileLimit / 1024 / 1024)} MB.`,
           ),
         );
         continue;
@@ -37,7 +23,7 @@ export function handleClipboard(element: HTMLElement, paste: Paste) {
 
       queue = queue
         .then(() => encode(file))
-        .then((data) => paste.image(image, data))
+        .then((data) => paste.file(file.name, data))
         .catch(paste.failed);
     }
   };
@@ -93,7 +79,9 @@ function encode(file: File) {
       resolve(url.slice(url.indexOf(",") + 1));
     };
     reader.onerror = () => {
-      reject(reader.error ?? new Error("Could not read the image."));
+      reject(
+        new Error(`Could not read ${file.name}. Drop files, not folders.`),
+      );
     };
     reader.readAsDataURL(file);
   });

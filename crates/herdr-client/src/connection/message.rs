@@ -6,10 +6,14 @@ use crate::Error;
 pub(super) fn answer(line: &str) -> Result<(Option<u64>, Result<Value, Error>), Error> {
     let reply: Reply = serde_json::from_str(line)?;
     let result = match (reply.result, reply.error) {
-        (_, Some(failure)) => Err(Error::Herdr {
-            kind: failure.data.and_then(|data| data.kind).unwrap_or_default(),
-            message: failure.message,
-        }),
+        (_, Some(failure)) => {
+            let data = failure.data.unwrap_or_default();
+            Err(Error::Herdr {
+                kind: data.kind.unwrap_or_default(),
+                message: failure.message,
+                hint: data.hint,
+            })
+        }
         (Some(result), None) => Ok(result),
         (None, None) => Ok(Value::Null),
     };
@@ -47,6 +51,8 @@ pub(super) struct Hello {
 #[derive(Deserialize)]
 pub(super) struct Greeting {
     pub(super) version: String,
+    #[serde(default)]
+    pub(super) features: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -67,9 +73,10 @@ struct Failure {
     pub(super) data: Option<FailureData>,
 }
 
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 struct FailureData {
     pub(super) kind: Option<String>,
+    pub(super) hint: Option<String>,
 }
 
 #[derive(Deserialize)]

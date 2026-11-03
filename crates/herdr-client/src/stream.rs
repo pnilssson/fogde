@@ -1,22 +1,36 @@
-use serde::Serialize;
-use serde::de::IgnoredAny;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::error::TryRecvError;
 
 use crate::connection::{Channel, Chunk};
-use crate::wire::{self, DATA, RESIZE};
+use crate::wire::{self, AUTOMATIC, DATA, FACTS, FOCUS, RESIZE};
 use crate::{Connection, Error};
 
 const HISTORY: usize = 2000;
 const INPUT: usize = 64 * 1024;
+const TAGGED: &str = "automatic_input";
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct Display {
+    pub fg: String,
+    pub bg: String,
+    pub cursor: String,
+}
 
 pub struct Stream {
     channel: Channel,
     ended: Option<Error>,
+    tagged: bool,
 }
 
 impl Connection {
-    pub async fn attach(&self, terminal: &str, cols: u16, rows: u16) -> Result<Stream, Error> {
-        let (IgnoredAny, channel) = self
+    pub async fn attach(
+        &self,
+        terminal: &str,
+        cols: u16,
+        rows: u16,
+        display: Display,
+    ) -> Result<Stream, Error> {
+        let (attached, channel): (Attached, _) = self
             .open_channel(
                 "terminal.attach",
                 Attach {
@@ -24,6 +38,7 @@ impl Connection {
                     cols,
                     rows,
                     history: HISTORY,
+                    display,
                 },
             )
             .await?;
@@ -31,6 +46,7 @@ impl Connection {
         Ok(Stream {
             channel,
             ended: None,
+            tagged: attached.automatic_input && self.supports(TAGGED),
         })
     }
 }
@@ -66,15 +82,31 @@ impl Stream {
     }
 
     pub fn input(&self, bytes: &[u8]) -> Result<(), Error> {
-        for chunk in bytes.chunks(INPUT) {
-            self.channel.send(DATA, chunk)?;
-        }
+        self.send(DATA, bytes)
+    }
 
-        Ok(())
+    pub fn reply(&self, bytes: &[u8]) -> Result<(), Error> {
+        self.send(if self.tagged { AUTOMATIC } else { DATA }, bytes)
     }
 
     pub fn resize(&self, cols: u16, rows: u16) -> Result<(), Error> {
         self.channel.send(RESIZE, &wire::size(cols, rows))
+    }
+
+    pub fn display(&self, display: &Display) -> Result<(), Error> {
+        self.channel.send(FACTS, &serde_json::to_vec(display)?)
+    }
+
+    pub fn focus(&self, focused: bool) -> Result<(), Error> {
+        self.channel.send(FOCUS, &[u8::from(focused)])
+    }
+
+    fn send(&self, kind: u8, bytes: &[u8]) -> Result<(), Error> {
+        for chunk in bytes.chunks(INPUT) {
+            self.channel.send(kind, chunk)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -88,4 +120,14 @@ struct Attach<'a> {
     cols: u16,
     rows: u16,
     history: usize,
+    display: Display,
 }
+
+#[derive(Deserialize)]
+struct Attached {
+    #[serde(default)]
+    automatic_input: bool,
+}
+
+#[cfg(test)]
+mod tests;

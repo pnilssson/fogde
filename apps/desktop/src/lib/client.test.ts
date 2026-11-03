@@ -207,6 +207,7 @@ test("reconnect rejects old requests before the old socket finishes closing", as
     .call("terminals.watch", {
       id: "w1",
       size: { cols: 80, rows: 24 },
+      display: { fg: "#fafafa", bg: "#171717", cursor: "#fafafa" },
       token: 1,
     })
     .then(

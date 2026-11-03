@@ -71,6 +71,7 @@ pub struct CreateTerminalParams {
     pub workspace: String,
     pub folder: String,
     pub agent: Option<Agent>,
+    pub size: Option<Size>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, TS)]
@@ -79,10 +80,18 @@ pub struct Size {
     pub rows: u16,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, TS)]
+pub struct Display {
+    pub fg: String,
+    pub bg: String,
+    pub cursor: String,
+}
+
 #[derive(Clone, Debug, Deserialize, TS)]
 pub struct WatchTerminalParams {
     pub id: String,
     pub size: Size,
+    pub display: Display,
     pub token: u32,
 }
 
@@ -93,26 +102,29 @@ pub struct ResizeTerminalParams {
 }
 
 #[derive(Clone, Debug, Deserialize, TS)]
+pub struct DisplayTerminalParams {
+    pub id: String,
+    pub display: Display,
+}
+
+#[derive(Clone, Debug, Deserialize, TS)]
 pub struct TerminalInputParams {
     pub id: String,
     pub data: String,
 }
 
-pub const IMAGE_LIMIT: usize = 10 * 1024 * 1024;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, TS)]
-#[serde(rename_all = "lowercase")]
-pub enum Image {
-    Png,
-    Jpeg,
-    Gif,
-    Webp,
+#[derive(Clone, Debug, Deserialize, TS)]
+pub struct FocusTerminalParams {
+    pub id: String,
+    pub focused: bool,
 }
 
+pub const FILE_LIMIT: usize = 10 * 1024 * 1024;
+
 #[derive(Clone, Debug, Deserialize, TS)]
-pub struct PasteImageParams {
+pub struct PasteFileParams {
     pub id: String,
-    pub image: Image,
+    pub name: String,
     pub data: String,
 }
 
@@ -156,6 +168,22 @@ impl Method for TerminalInput {
     type Result = ();
 }
 
+pub struct TerminalReply;
+
+impl Method for TerminalReply {
+    const NAME: &'static str = "terminals.reply";
+    type Params = TerminalInputParams;
+    type Result = ();
+}
+
+pub struct FocusTerminal;
+
+impl Method for FocusTerminal {
+    const NAME: &'static str = "terminals.focus";
+    type Params = FocusTerminalParams;
+    type Result = ();
+}
+
 pub struct ResizeTerminal;
 
 impl Method for ResizeTerminal {
@@ -164,11 +192,19 @@ impl Method for ResizeTerminal {
     type Result = ();
 }
 
-pub struct PasteImage;
+pub struct DisplayTerminal;
 
-impl Method for PasteImage {
-    const NAME: &'static str = "terminals.pasteImage";
-    type Params = PasteImageParams;
+impl Method for DisplayTerminal {
+    const NAME: &'static str = "terminals.display";
+    type Params = DisplayTerminalParams;
+    type Result = ();
+}
+
+pub struct PasteFile;
+
+impl Method for PasteFile {
+    const NAME: &'static str = "terminals.pasteFile";
+    type Params = PasteFileParams;
     type Result = ();
 }
 

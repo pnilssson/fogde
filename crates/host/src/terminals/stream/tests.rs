@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use herdr_client::Connection;
@@ -43,7 +44,17 @@ impl Core {
     }
 }
 
-async fn attached() -> (Stream, Core) {
+struct Again(Arc<Connection>);
+
+impl Reattach for Again {
+    async fn attach(&self, id: &str, size: Size, display: Display) -> Result<Stream, Error> {
+        self.0
+            .attach(id, size.cols, size.rows, facts(display))
+            .await
+    }
+}
+
+async fn attached() -> (Stream, Core, Again) {
     let (ours, theirs) = tokio::io::duplex(1 << 20);
     let (reader, writer) = tokio::io::split(ours);
     let (reader_core, writer_core) = tokio::io::split(theirs);
@@ -61,7 +72,7 @@ async fn attached() -> (Stream, Core) {
             .unwrap();
     };
     let (connection, ()) = tokio::join!(Connection::open(reader, writer, None), greet);
-    let connection = connection.unwrap();
+    let connection = Arc::new(connection.unwrap());
 
     let serve = async {
         let (_, _, request) = core.frame().await;
@@ -69,18 +80,40 @@ async fn attached() -> (Stream, Core) {
         let reply = json!({"id": request["id"], "jsonrpc": "2.0", "result": {"channel": 1, "terminal": {"address": "t1"}}});
         core.send(0, DATA, reply.to_string().as_bytes()).await;
     };
-    let (stream, ()) = tokio::join!(connection.attach("t1", 80, 24), serve);
+    let (stream, ()) = tokio::join!(
+        connection.attach("t1", 80, 24, herdr_client::Display::default()),
+        serve
+    );
 
-    (stream.unwrap(), core)
+    (stream.unwrap(), core, Again(connection))
 }
 
 fn watching(
-    stream: Stream,
+    (stream, again): (Option<Stream>, Again),
     frames: mpsc::Sender<Message>,
     launches: Launches,
 ) -> mpsc::UnboundedSender<Control> {
     let (controls, receiver) = mpsc::unbounded_channel();
-    tokio::spawn(watch(stream, "t1".into(), 7, receiver, frames, launches));
+    let display = Display {
+        fg: "#fafafa".into(),
+        bg: "#171717".into(),
+        cursor: "#fafafa".into(),
+    };
+    tokio::spawn(watch(
+        stream,
+        receiver,
+        Watch {
+            id: "t1".into(),
+            token: 7,
+            size: Size { cols: 80, rows: 24 },
+            display,
+            frames,
+            launches,
+            herdr: again,
+            pause: Duration::from_millis(10),
+            fresh: false,
+        },
+    ));
 
     controls
 }
@@ -101,11 +134,11 @@ fn decoded(message: Message) -> Vec<u8> {
 
 #[tokio::test]
 async fn the_first_output_starts_the_agent_it_was_opened_for() {
-    let (stream, mut core) = attached().await;
+    let (stream, mut core, again) = attached().await;
     let (frames, mut queued) = mpsc::channel(4);
     let launches = Launches::default();
     launches.hold("t1".into(), Agent::Codex);
-    let _controls = watching(stream, frames, launches.clone());
+    let _controls = watching((Some(stream), again), frames, launches.clone());
 
     core.send(1, DATA, b"PS /repos/app> ").await;
 
@@ -123,14 +156,14 @@ async fn the_first_output_starts_the_agent_it_was_opened_for() {
 
 #[tokio::test]
 async fn a_client_that_falls_behind_holds_herdr_back_without_losing_output() {
-    let (stream, mut core) = attached().await;
+    let (stream, mut core, again) = attached().await;
     let (frames, mut queued) = mpsc::channel(1);
     let other = notification::<EndedEvent>(TerminalEnded {
         id: "t2".into(),
         error: None,
     });
     frames.send(other.unwrap()).await.unwrap();
-    let _controls = watching(stream, frames, Launches::default());
+    let _controls = watching((Some(stream), again), frames, Launches::default());
 
     core.send(1, DATA, b"one ").await;
     assert_eq!(core.frame().await, (1, CREDIT, 4u32.to_le_bytes().to_vec()));
@@ -150,9 +183,9 @@ async fn a_client_that_falls_behind_holds_herdr_back_without_losing_output() {
 
 #[tokio::test]
 async fn a_program_that_exits_ends_the_terminal_without_an_error() {
-    let (stream, mut core) = attached().await;
+    let (stream, mut core, again) = attached().await;
     let (frames, mut queued) = mpsc::channel(4);
-    let _controls = watching(stream, frames, Launches::default());
+    let _controls = watching((Some(stream), again), frames, Launches::default());
 
     core.send(1, DATA, b"bye").await;
     core.send(
@@ -169,33 +202,42 @@ async fn a_program_that_exits_ends_the_terminal_without_an_error() {
 }
 
 #[tokio::test]
-async fn a_core_that_stops_says_why_the_terminal_ended() {
-    let (stream, mut core) = attached().await;
-    let (frames, mut queued) = mpsc::channel(4);
-    let _controls = watching(stream, frames, Launches::default());
-
-    core.send(1, CLOSE, br#"{"reason":"server_stop"}"#).await;
-
-    let ended = wire(queued.recv().await.unwrap());
-    assert_eq!(ended["params"]["error"], "the terminal ended: server_stop");
-}
-
-#[tokio::test]
-async fn typing_and_resizing_reach_the_program() {
-    let (stream, mut core) = attached().await;
+async fn typing_replies_focus_resizing_and_theming_reach_the_program() {
+    let (stream, mut core, again) = attached().await;
     let (frames, _queued) = mpsc::channel(4);
-    let controls = watching(stream, frames, Launches::default());
+    let controls = watching((Some(stream), again), frames, Launches::default());
 
     controls.send(Control::Input(b"ls\r".to_vec())).unwrap();
+    controls
+        .send(Control::Reply(b"\x1b[?62;22c".to_vec()))
+        .unwrap();
+    controls.send(Control::Focus(true)).unwrap();
     controls
         .send(Control::Resize(Size {
             cols: 100,
             rows: 30,
         }))
         .unwrap();
+    controls
+        .send(Control::Display(Display {
+            fg: "#fafafa".into(),
+            bg: "#171717".into(),
+            cursor: "#fafafa".into(),
+        }))
+        .unwrap();
 
     assert_eq!(core.frame().await, (1, DATA, b"ls\r".to_vec()));
+    assert_eq!(core.frame().await, (1, DATA, b"\x1b[?62;22c".to_vec()));
+    assert_eq!(core.frame().await, (1, 4, vec![1]));
     assert_eq!(core.frame().await, (1, 3, vec![100, 0, 30, 0]));
+    let (channel, kind, facts) = core.frame().await;
+    assert_eq!((channel, kind), (1, 5));
+    assert_eq!(
+        serde_json::from_slice::<Value>(&facts).unwrap(),
+        json!({"fg": "#fafafa", "bg": "#171717", "cursor": "#fafafa"})
+    );
     drop(controls);
     assert_eq!(core.frame().await, (1, CLOSE, Vec::new()));
 }
+
+mod loss;

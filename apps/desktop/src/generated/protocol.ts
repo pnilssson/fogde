@@ -56,7 +56,7 @@ export type Connection = { url: string, token: string, };
 
 export type CreateFolderParams = { parent: string, name: string, };
 
-export type CreateTerminalParams = { workspace: string, folder: string, agent: Agent | null, };
+export type CreateTerminalParams = { workspace: string, folder: string, agent: Agent | null, size: Size | null, };
 
 export type CreateWorktreeParams = { repo: string, name: string, };
 
@@ -69,6 +69,10 @@ export type DiffParams = { path: string, scope: DiffScope, terminal: string | nu
 export type DiffScope = "turn" | "uncommitted" | "branch";
 
 export type Disk = { free: number, total: number, };
+
+export type Display = { fg: string, bg: string, cursor: string, };
+
+export type DisplayTerminalParams = { id: string, display: Display, };
 
 export type Divergence = { ahead: number, behind: number, };
 
@@ -86,13 +90,13 @@ export type Filter = "open" | "closed";
 
 export type FinishAgentSignInParams = { agent: Agent, code: string | null, };
 
+export type FocusTerminalParams = { id: string, focused: boolean, };
+
 export type Folder = { name: string, path: string, };
 
 export type Folders = { path: string, parent: string | null, folders: Array<Folder>, };
 
 export type Frame = { platform: Platform, translucent: boolean, };
-
-export type Image = "png" | "jpeg" | "gif" | "webp";
 
 export type ItemParams = { repo: Repo, number: number, };
 
@@ -148,7 +152,7 @@ export type NotesChanged = { notes: Array<Note>, listing: boolean, };
 
 export type Notifications = { enabled: boolean, sound: boolean, };
 
-export type PasteImageParams = { id: string, image: Image, data: string, };
+export type PasteFileParams = { id: string, name: string, data: string, };
 
 export type PeopleParams = { repo: Repo, number: number, add: Array<string>, remove: Array<string>, };
 
@@ -236,7 +240,7 @@ export type Usage = { agent: Agent, windows: Array<Window>, at: number, };
 
 export type Verdict = "approved" | "changes" | "commented" | "dismissed";
 
-export type WatchTerminalParams = { id: string, size: Size, token: number, };
+export type WatchTerminalParams = { id: string, size: Size, display: Display, token: number, };
 
 export type Window = { span: Span, left: number, resets: number, };
 
@@ -333,8 +337,11 @@ export type Methods = {
   "stats.set": { params: Stats; result: null };
   "terminals.close": { params: string; result: null };
   "terminals.create": { params: CreateTerminalParams; result: Terminal };
+  "terminals.display": { params: DisplayTerminalParams; result: null };
+  "terminals.focus": { params: FocusTerminalParams; result: null };
   "terminals.input": { params: TerminalInputParams; result: null };
-  "terminals.pasteImage": { params: PasteImageParams; result: null };
+  "terminals.pasteFile": { params: PasteFileParams; result: null };
+  "terminals.reply": { params: TerminalInputParams; result: null };
   "terminals.resize": { params: ResizeTerminalParams; result: null };
   "terminals.unwatch": { params: string; result: null };
   "terminals.view": { params: string | null; result: null };
@@ -367,7 +374,7 @@ export type Events = {
 
 export const offline = -32001;
 
-export const imageLimit = 10485760;
+export const fileLimit = 10485760;
 
 export const allAgents: Agent[] = ["claude","codex","copilot"];
 

@@ -17,8 +17,12 @@ pub enum Error {
     #[error("Herdr sent a message that could not be read")]
     Json(#[from] serde_json::Error),
 
-    #[error("Herdr rejected the request: {message} ({kind})")]
-    Herdr { kind: String, message: String },
+    #[error("Herdr rejected the request: {message}{}", hint.as_ref().map(|hint| format!(" ({hint})")).unwrap_or_default())]
+    Herdr {
+        kind: String,
+        message: String,
+        hint: Option<String>,
+    },
 
     #[error("Herdr is {running}, not {wanted}")]
     Version { running: String, wanted: String },

@@ -6,6 +6,9 @@ pub const DATA: u8 = 0;
 pub const CREDIT: u8 = 1;
 pub const CLOSE: u8 = 2;
 pub const RESIZE: u8 = 3;
+pub const FOCUS: u8 = 4;
+pub const FACTS: u8 = 5;
+pub const AUTOMATIC: u8 = 6;
 
 const HEADER: usize = 9;
 const LIMIT: usize = 16 << 20;

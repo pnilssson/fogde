@@ -1,5 +1,6 @@
 import type { Terminal } from "@xterm/xterm";
 
+import { copyFromPrograms } from "@/features/terminals/lib/copies";
 import { report } from "@/lib/report";
 
 export interface Selection {
@@ -48,6 +49,7 @@ export function handleSelection(
   const typing = terminal.onKey(() => {
     terminal.clearSelection();
   });
+  const programs = copyFromPrograms(terminal, copied);
   element.addEventListener("mousedown", press);
   document.addEventListener("mouseup", release);
 
@@ -60,6 +62,7 @@ export function handleSelection(
     dispose: () => {
       window.clearTimeout(timer);
       typing.dispose();
+      programs.dispose();
       element.removeEventListener("mousedown", press);
       document.removeEventListener("mouseup", release);
     },

@@ -1,4 +1,4 @@
-import type { Size } from "@/generated/protocol";
+import type { WatchTerminalParams } from "@/generated/protocol";
 import type { Client } from "@/lib/client";
 
 const operations = new WeakMap<Client, Map<string, Promise<void>>>();
@@ -30,7 +30,7 @@ function enqueue(client: Client, id: string, step: () => Promise<void>) {
 export function watchTerminal(
   client: Client,
   id: string,
-  size: () => Size,
+  view: () => Omit<WatchTerminalParams, "id" | "token">,
   ready: () => void,
   failed: (error: unknown) => void,
   begin: (token: number) => void = () => undefined,
@@ -47,7 +47,7 @@ export function watchTerminal(
     try {
       const token = ++tokens;
       begin(token);
-      await client.call("terminals.watch", { id, size: size(), token });
+      await client.call("terminals.watch", { id, ...view(), token });
       attached = true;
       if (active()) {
         ready();

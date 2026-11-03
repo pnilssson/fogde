@@ -1,6 +1,8 @@
 mod connection;
 mod error;
 mod events;
+#[cfg(test)]
+mod fake;
 mod herdr;
 mod install;
 mod stream;
@@ -11,5 +13,5 @@ pub use connection::Connection;
 pub use error::Error;
 pub use events::{Change, Events};
 pub use herdr::Herdr;
-pub use stream::Stream;
-pub use terminal::{Foreground, Run, Status, Terminal};
+pub use stream::{Display, Stream};
+pub use terminal::{Foreground, Run, Size, Status, Terminal};

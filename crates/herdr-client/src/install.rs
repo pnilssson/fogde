@@ -5,7 +5,7 @@ use download::Packing;
 
 use crate::Error;
 
-pub const VERSION: &str = "0.1.16";
+pub const VERSION: &str = "0.1.17";
 const RELEASES: &str = "https://releases.herdr.dev/core";
 
 pub async fn locate(tools: &Path) -> Result<PathBuf, Error> {
@@ -26,23 +26,23 @@ fn asset() -> Option<(&'static str, &'static str)> {
     let asset = match (env::consts::OS, env::consts::ARCH) {
         ("windows", "x86_64") => (
             "herdr-core-windows-x86_64.zip",
-            "3535f8db6258bae909a9f29ea15ada9133471a905adb90655838807ee2f49049",
+            "a212b69db0efb808882683f15e5da45ab9606da7bcc54b97b29ed4fa540f5491",
         ),
         ("macos", "x86_64") => (
             "herdr-core-macos-x86_64.tar.gz",
-            "6af081cdb35c8612c5752d3f64c6a378e6a0313968b6d4fbc4c03c95691b2872",
+            "e2dc3211edb1f1c77d0e73dd76c1426636d71050f34a5303916a56d363d7062b",
         ),
         ("macos", "aarch64") => (
             "herdr-core-macos-aarch64.tar.gz",
-            "698d8f0c44f4e4b15fec174d52a39d57a014cfd71added44b53a0753b469d0fd",
+            "cedbd4d4d9ba1385588198dd4d3c67d2654478f33add5b6445d4d0eb9da5fcf3",
         ),
         ("linux", "x86_64") => (
             "herdr-core-linux-x86_64.tar.gz",
-            "58d6861176dc6fe905b58880d5bff07a9959be613a98e5d66b4583b04b6cfa45",
+            "82ec44043f6894bfdb716b979b87cda43fd7fa46b0104e7b7bd93e64d1a9b877",
         ),
         ("linux", "aarch64") => (
             "herdr-core-linux-aarch64.tar.gz",
-            "b6573137d70baff24fb346c957a9879af6bdc4c641188cdf9e47a7b2a677bc92",
+            "3a37a454ec63494cf4306db26481fe9db96673d888723701d24f8a992ae8ab8c",
         ),
         _ => return None,
     };

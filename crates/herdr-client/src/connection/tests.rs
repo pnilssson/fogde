@@ -1,66 +1,12 @@
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, ReadHalf, WriteHalf};
 
 use super::*;
+use crate::Display;
+use crate::fake::connected;
 use crate::wire::{CLOSE, Frame};
 
-const HELLO: &str = r#"{"id":0,"jsonrpc":"2.0","result":{"core":{"id":"45255384ce5fc955fddc39260e47956f","name":"dev-pc"},"features":["framed","attach","events","status","shell"],"framed":true,"generation":1,"methods":["hello","terminal.run","terminal.list","terminal.kill","terminal.attach","events.subscribe"],"version":"0.1.16"}}"#;
 const GONE: &str = r#"{"error":{"code":-32000,"data":{"hint":"see `hc ls --all`","kind":"not_found"},"message":"t3 was removed"},"id":ID,"jsonrpc":"2.0"}"#;
 const PAINT: &[u8] = b"\x18\x1b[!p\x1b[?2026l\x1b[=0;1u\x1b[H\x1b[2JWindows PowerShell\r\n";
-
-pub(crate) struct Core {
-    reader: BufReader<ReadHalf<DuplexStream>>,
-    writer: WriteHalf<DuplexStream>,
-}
-
-impl Core {
-    pub(crate) async fn frame(&mut self) -> Frame {
-        wire::read(&mut self.reader).await.unwrap().unwrap()
-    }
-
-    pub(crate) async fn request(&mut self) -> Value {
-        let frame = self.frame().await;
-        assert_eq!((frame.channel, frame.kind), (0, DATA));
-
-        serde_json::from_slice(&frame.payload).unwrap()
-    }
-
-    pub(crate) async fn send(&mut self, channel: u32, kind: u8, payload: &[u8]) {
-        self.writer
-            .write_all(&wire::encode(channel, kind, payload))
-            .await
-            .unwrap();
-    }
-
-    pub(crate) async fn reply(&mut self, id: &Value, result: Value) {
-        let reply = json!({"id": id, "jsonrpc": "2.0", "result": result});
-        self.send(0, DATA, reply.to_string().as_bytes()).await;
-    }
-}
-
-pub(crate) async fn connected() -> (Connection, Core) {
-    let (ours, theirs) = tokio::io::duplex(1 << 20);
-    let (reader, writer) = tokio::io::split(ours);
-    let (reader_core, writer_core) = tokio::io::split(theirs);
-    let mut core = Core {
-        reader: BufReader::new(reader_core),
-        writer: writer_core,
-    };
-
-    let greet = async {
-        let mut line = String::new();
-        core.reader.read_line(&mut line).await.unwrap();
-        core.writer
-            .write_all(format!("{HELLO}\n").as_bytes())
-            .await
-            .unwrap();
-        line
-    };
-    let (connection, hello) = tokio::join!(Connection::open(reader, writer, None), greet);
-
-    assert!(hello.contains(r#""method":"hello""#) && hello.contains(r#""framed":true"#));
-    (connection.unwrap(), core)
-}
 
 #[tokio::test]
 async fn reads_the_version_herdr_greets_with() {
@@ -107,6 +53,10 @@ async fn reports_the_kind_of_error_herdr_gives() {
 
     let error = killed.unwrap_err();
     assert!(error.is_gone(), "{error:?}");
+    assert_eq!(
+        error.to_string(),
+        "Herdr rejected the request: t3 was removed (see `hc ls --all`)"
+    );
 }
 
 #[tokio::test]
@@ -124,7 +74,8 @@ async fn streams_a_terminal_and_gives_credit_for_what_it_read() {
         core.send(1, DATA, &PAINT[20..]).await;
         request["params"].clone()
     };
-    let (attached, params) = tokio::join!(connection.attach("t3", 80, 10), serving);
+    let (attached, params) =
+        tokio::join!(connection.attach("t3", 80, 10, Display::default()), serving);
     let mut stream = attached.unwrap();
     tokio::task::yield_now().await;
 
@@ -187,7 +138,7 @@ async fn closes_a_stream_it_drops() {
         )
         .await;
     };
-    let (attached, ()) = tokio::join!(connection.attach("t3", 80, 10), serving);
+    let (attached, ()) = tokio::join!(connection.attach("t3", 80, 10, Display::default()), serving);
     drop(attached.unwrap());
 
     assert_eq!(
@@ -235,7 +186,7 @@ async fn keeps_what_herdr_streams_before_it_answers() {
         )
         .await;
     };
-    let (attached, ()) = tokio::join!(connection.attach("t3", 80, 10), serving);
+    let (attached, ()) = tokio::join!(connection.attach("t3", 80, 10, Display::default()), serving);
     let mut stream = attached.unwrap();
     let next = tokio::time::timeout(std::time::Duration::from_secs(5), stream.next());
 
@@ -263,7 +214,7 @@ async fn splits_a_large_paste_into_frames_herdr_accepts() {
         let request = core.request().await;
         core.reply(&request["id"], json!({"channel": 2})).await;
     };
-    let (attached, ()) = tokio::join!(connection.attach("t3", 80, 10), serving);
+    let (attached, ()) = tokio::join!(connection.attach("t3", 80, 10, Display::default()), serving);
     let paste = vec![b'x'; 200 * 1024];
 
     attached.unwrap().input(&paste).unwrap();
@@ -284,7 +235,7 @@ async fn a_request_that_times_out_ends_the_streams_on_that_connection() {
         let request = core.request().await;
         core.reply(&request["id"], json!({"channel": 2})).await;
     };
-    let (attached, ()) = tokio::join!(connection.attach("t3", 80, 10), serving);
+    let (attached, ()) = tokio::join!(connection.attach("t3", 80, 10, Display::default()), serving);
     let mut stream = attached.unwrap();
 
     let (listed, _) = tokio::join!(

@@ -3,7 +3,10 @@ import { expect, test } from "vitest";
 import { watchTerminal } from "@/features/terminals/lib/watch";
 import type { Client } from "@/lib/client";
 
-const size = () => ({ cols: 80, rows: 24 });
+const view = () => ({
+  size: { cols: 80, rows: 24 },
+  display: { fg: "#fafafa", bg: "#171717", cursor: "#fafafa" },
+});
 
 function fake(call: (method: string) => Promise<unknown>, state = "connected") {
   return { call, getSnapshot: () => ({ state }) } as unknown as Client;
@@ -16,13 +19,13 @@ function fail(error: unknown) {
 test("a stalled server watch does not block a local terminal", async () => {
   const remote = fake(() => new Promise(() => undefined), "connecting");
   const local = fake(() => Promise.resolve());
-  watchTerminal(remote, "w1", size, () => undefined, fail);
+  watchTerminal(remote, "w1", view, () => undefined, fail);
 
   const ready = new Promise<"ready">((resolve) => {
     watchTerminal(
       local,
       "w1",
-      size,
+      view,
       () => {
         resolve("ready");
       },
@@ -55,7 +58,7 @@ test("a late cleanup finishes before the next watch on the same machine", async 
   const stop = watchTerminal(
     client,
     "w1",
-    size,
+    view,
     () => {
       stale = true;
     },
@@ -65,7 +68,7 @@ test("a late cleanup finishes before the next watch on the same machine", async 
 
   stop();
   const ready = new Promise<void>((resolve) => {
-    watchTerminal(client, "w1", size, resolve, fail);
+    watchTerminal(client, "w1", view, resolve, fail);
   });
   finish();
   await ready;
@@ -84,13 +87,13 @@ test("a slow watch on one terminal does not hold back another on the same machin
       params.id === "t1" ? new Promise(() => undefined) : Promise.resolve(),
     getSnapshot: () => ({ state: "connected" }),
   } as unknown as Client;
-  watchTerminal(client, "t1", size, () => undefined, fail);
+  watchTerminal(client, "t1", view, () => undefined, fail);
 
   const ready = new Promise<"ready">((resolve) => {
     watchTerminal(
       client,
       "t2",
-      size,
+      view,
       () => {
         resolve("ready");
       },
@@ -114,14 +117,14 @@ test("a new watch starts taking output only after the old one let go", async () 
   });
   let stop: () => void = () => undefined;
   await new Promise<void>((resolve) => {
-    stop = watchTerminal(client, "w1", size, resolve, fail, () =>
+    stop = watchTerminal(client, "w1", view, resolve, fail, () =>
       calls.push("begin"),
     );
   });
 
   stop();
   await new Promise<void>((resolve) => {
-    watchTerminal(client, "w1", size, resolve, fail, () => calls.push("begin"));
+    watchTerminal(client, "w1", view, resolve, fail, () => calls.push("begin"));
   });
 
   expect(calls).toEqual([
@@ -148,7 +151,7 @@ test("each watch carries a new token that begin sees first", async () => {
     const stopping = watchTerminal(
       client,
       "w1",
-      size,
+      view,
       () => {
         resolve(stopping);
       },
@@ -158,15 +161,15 @@ test("each watch carries a new token that begin sees first", async () => {
   });
   stop();
   await new Promise<void>((resolve) => {
-    watchTerminal(client, "w1", size, resolve, fail, (token) =>
+    watchTerminal(client, "w1", view, resolve, fail, (token) =>
       begun.push(token),
     );
   });
 
   const [first, second] = begun;
   expect(first).not.toBe(second);
-  expect(sent).toContainEqual({ id: "w1", size: size(), token: first });
-  expect(sent).toContainEqual({ id: "w1", size: size(), token: second });
+  expect(sent).toContainEqual({ id: "w1", ...view(), token: first });
+  expect(sent).toContainEqual({ id: "w1", ...view(), token: second });
 });
 
 test("a watch whose start throws reports it and lets the next one run", async () => {
@@ -175,7 +178,7 @@ test("a watch whose start throws reports it and lets the next one run", async ()
     watchTerminal(
       client,
       "w1",
-      size,
+      view,
       () => undefined,
       resolve,
       () => {
@@ -185,7 +188,7 @@ test("a watch whose start throws reports it and lets the next one run", async ()
   });
 
   await new Promise<void>((resolve) => {
-    watchTerminal(client, "w1", size, resolve, fail);
+    watchTerminal(client, "w1", view, resolve, fail);
   });
 
   expect(failed).toBeInstanceOf(Error);

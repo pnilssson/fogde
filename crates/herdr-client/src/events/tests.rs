@@ -1,7 +1,7 @@
 use serde_json::json;
 
 use super::*;
-use crate::connection::tests::{Core, connected};
+use crate::fake::{Core, connected};
 use crate::wire::{CREDIT, DATA};
 
 const TITLE: &str = r#"{"jsonrpc":"2.0","method":"event","params":{"data":{"title":"app task"},"seq":7,"terminal":"t2","type":"title"}}"#;

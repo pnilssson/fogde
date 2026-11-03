@@ -64,8 +64,8 @@ impl Shared {
             herdr: OnceCell::new(),
             hosts: std::sync::Mutex::default(),
         };
-        let images = shared.images();
-        tokio::spawn(async move { terminals::prune(&images).await });
+        let files = shared.files();
+        tokio::spawn(async move { terminals::prune(&files).await });
 
         Ok(shared)
     }
@@ -134,8 +134,8 @@ impl Shared {
         &self.fogde
     }
 
-    pub fn images(&self) -> PathBuf {
-        self.fogde.join(".app").join("images")
+    pub fn files(&self) -> PathBuf {
+        self.fogde.join(".app").join("files")
     }
 
     pub fn worktrees(&self) -> PathBuf {

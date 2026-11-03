@@ -91,9 +91,9 @@ fn export_protocol() {
         .collect();
     write!(
         file,
-        "export type Methods = {{\n{methods}}};\n\nexport type Events = {{\n{events}}};\n\nexport const offline = {};\n\nexport const imageLimit = {};\n\nexport const allAgents: Agent[] = {};\n\nexport const agents: Record<Agent, AgentSpec> = {};\n",
+        "export type Methods = {{\n{methods}}};\n\nexport type Events = {{\n{events}}};\n\nexport const offline = {};\n\nexport const fileLimit = {};\n\nexport const allAgents: Agent[] = {};\n\nexport const agents: Record<Agent, AgentSpec> = {};\n",
         protocol::rpc::OFFLINE,
-        protocol::terminals::IMAGE_LIMIT,
+        protocol::terminals::FILE_LIMIT,
         serde_json::to_string(&Agent::ALL).unwrap(),
         serde_json::to_string(&specs).unwrap()
     )

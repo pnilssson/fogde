@@ -62,6 +62,7 @@ async fn capture(
     let index = scratch(store);
     if fs::try_exists(&repo.index).await.unwrap_or(false) {
         fs::copy(&repo.index, &index).await?;
+        keep_age(&repo.index, &index).await?;
     }
 
     let env = [
@@ -88,6 +89,20 @@ async fn capture(
     let _ = fs::remove_file(&index).await;
 
     Ok(String::from_utf8_lossy(&tree?).trim().to_owned())
+}
+
+async fn keep_age(from: &Path, to: &Path) -> std::io::Result<()> {
+    let (from, to) = (from.to_owned(), to.to_owned());
+
+    tokio::task::spawn_blocking(move || {
+        let modified = std::fs::metadata(from)?.modified()?;
+        std::fs::File::options()
+            .write(true)
+            .open(to)?
+            .set_modified(modified)
+    })
+    .await
+    .map_err(std::io::Error::other)?
 }
 
 async fn unfiltered(root: &Path) -> Vec<String> {

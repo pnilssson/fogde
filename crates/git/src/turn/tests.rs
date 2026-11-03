@@ -150,3 +150,41 @@ async fn runs_no_hook_of_the_repository() {
 
     assert!(!dir.path().join(".git").join("hooked").exists());
 }
+
+#[tokio::test]
+async fn sees_an_edit_made_in_the_same_moment_git_last_wrote_its_index() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = tempfile::tempdir().unwrap();
+    repo(dir.path()).await;
+    git(dir.path(), ["config", "core.trustctime", "false"])
+        .await
+        .unwrap();
+    let file = dir.path().join("a.txt");
+    let moment = std::time::SystemTime::now() - std::time::Duration::from_secs(60);
+    let age = |path: &Path| {
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(moment)
+            .unwrap();
+    };
+    write(dir.path(), "a.txt", "one\n").await;
+    age(&file);
+    commit(dir.path(), &["a.txt".to_owned()], "start")
+        .await
+        .unwrap();
+    write(dir.path(), "a.txt", "two\n").await;
+    age(&file);
+    age(&dir.path().join(".git").join("index"));
+
+    let start = snapshot(dir.path(), store.path()).await.unwrap();
+    write(dir.path(), "a.txt", "three\n").await;
+    let diff = turn(dir.path(), store.path(), &start).await.unwrap();
+
+    let patch = diff.files[0].patch.as_deref().unwrap();
+    assert!(
+        patch.contains("-two") && patch.contains("+three"),
+        "{patch}"
+    );
+}

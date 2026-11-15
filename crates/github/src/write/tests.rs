@@ -1,11 +1,7 @@
 use super::*;
 
 fn body(request: &Request) -> String {
-    request
-        .body
-        .as_ref()
-        .map(Value::to_string)
-        .unwrap_or_default()
+    request.body.as_ref().map_or_default(Value::to_string)
 }
 
 #[test]

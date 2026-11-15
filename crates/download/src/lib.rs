@@ -23,7 +23,7 @@ pub enum Packing {
 }
 
 pub async fn install(url: &str, sha256: &str, packing: Packing, dir: &Path) -> Result<(), Error> {
-    let mut name = dir.file_name().map(OsStr::to_owned).unwrap_or_default();
+    let mut name = dir.file_name().map_or_default(OsStr::to_owned);
     name.push(".partial");
     let staging = dir.with_file_name(name);
     if staging.exists() {

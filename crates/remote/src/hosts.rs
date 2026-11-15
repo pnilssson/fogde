@@ -7,8 +7,7 @@ pub async fn hosts() -> Vec<String> {
 
     fs::read_to_string(config)
         .await
-        .map(|text| parse(&text))
-        .unwrap_or_default()
+        .map_or_default(|text| parse(&text))
 }
 
 fn parse(config: &str) -> Vec<String> {

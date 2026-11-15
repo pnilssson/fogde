@@ -145,8 +145,7 @@ async fn untracked(root: &Path) -> Result<(Vec<(parse::Chunk, bool)>, bool), Err
         let bytes = if linked {
             fs::read_link(&full)
                 .await
-                .map(|target| target.into_os_string().into_encoded_bytes())
-                .unwrap_or_default()
+                .map_or_default(|target| target.into_os_string().into_encoded_bytes())
         } else if large {
             Vec::new()
         } else {

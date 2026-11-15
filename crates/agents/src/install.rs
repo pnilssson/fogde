@@ -65,9 +65,9 @@ mod os {
             command
         },
         dirs: || {
-            app_data()
-                .map(|local| winget(&local.join("Microsoft").join("WinGet"), "GitHub.Copilot_"))
-                .unwrap_or_default()
+            app_data().map_or_default(|local| {
+                winget(&local.join("Microsoft").join("WinGet"), "GitHub.Copilot_")
+            })
         },
     };
 

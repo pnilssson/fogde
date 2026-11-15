@@ -14,7 +14,8 @@ export function parsed(file: FileDiff): FileDiffMetadata | undefined {
     return undefined;
   }
 
-  return parsePatchFiles(file.patch, file.path)[0]?.files[0];
+  return parsePatchFiles(file.patch, { cacheKeyPrefix: file.path })[0]
+    ?.files[0];
 }
 
 export function versionOf(file: FileDiff, collapsed: boolean) {

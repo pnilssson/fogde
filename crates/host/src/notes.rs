@@ -193,8 +193,7 @@ fn note(path: &Path, folder: &Path, metadata: &Metadata) -> Note {
     Note {
         name: path
             .file_stem()
-            .map(|stem| stem.to_string_lossy().into_owned())
-            .unwrap_or_default(),
+            .map_or_default(|stem| stem.to_string_lossy().into_owned()),
         path: path.display().to_string(),
         folder: folder.display().to_string(),
         modified,

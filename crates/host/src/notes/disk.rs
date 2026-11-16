@@ -20,8 +20,7 @@ pub(super) async fn replace(file: &Path, bytes: &[u8]) -> io::Result<()> {
 
     let name = file
         .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
+        .map_or_default(|name| name.to_string_lossy().into_owned());
     let mut suffix = [0u8; 8];
     getrandom::fill(&mut suffix).map_err(io::Error::other)?;
     let temp = file.with_file_name(format!(".{name}.{}.tmp", hex::encode(suffix)));

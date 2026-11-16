@@ -56,9 +56,7 @@ pub(super) async fn trash(root: &Path, path: &Path) -> io::Result<()> {
         Entry::Note(_) => (path.file_stem(), ".md"),
         Entry::Folder(_) => (path.file_name(), ""),
     };
-    let stem = stem
-        .map(|stem| stem.to_string_lossy().into_owned())
-        .unwrap_or_default();
+    let stem = stem.map_or_default(|stem| stem.to_string_lossy().into_owned());
     let bin = root.join(".trash");
     fs::create_dir_all(&bin).await?;
 

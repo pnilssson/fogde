@@ -59,8 +59,7 @@ pub(super) fn pull_detail(raw: &mut RawItem, rules: Rules) -> Option<PullDetail>
         .take()
         .and_then(|commits| commits.items().next())
         .and_then(|node| node.commit.status_check_rollup)
-        .map(|rollup| rollup.contexts.items().filter_map(check).collect())
-        .unwrap_or_default();
+        .map_or_default(|rollup| rollup.contexts.items().filter_map(check).collect());
 
     Some(PullDetail {
         draft: raw.is_draft.unwrap_or(false),

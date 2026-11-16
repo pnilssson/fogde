@@ -63,8 +63,7 @@ pub fn name(program: &str) -> String {
     let path = Path::new(program);
     let file = path
         .file_name()
-        .map(|file| file.to_string_lossy().into_owned())
-        .unwrap_or_default();
+        .map_or_default(|file| file.to_string_lossy().into_owned());
 
     known(&file).map_or_else(
         || {

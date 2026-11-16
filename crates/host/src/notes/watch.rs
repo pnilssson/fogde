@@ -123,8 +123,7 @@ pub(super) fn classify(paths: HashSet<PathBuf>, known: &mut HashSet<PathBuf>) ->
         };
         let name = path
             .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
+            .map_or_default(|name| name.to_string_lossy().into_owned());
         let listed = metadata.is_dir() || (metadata.is_file() && markdown(&path));
         if !listed || folders::hidden(&name, &metadata) {
             continue;

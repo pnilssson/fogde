@@ -8,6 +8,7 @@ ignore = [
     { id = "RUSTSEC-2026-0370", reason = "zvariant merged into zbus 6; tauri-plugin-opener still uses zbus 5" },
     { id = "RUSTSEC-2026-0371", reason = "zbus_names merged into zbus 6; tauri-plugin-opener still uses zbus 5" },
     { id = "RUSTSEC-2026-0372", reason = "zvariant_derive merged into zbus 6; tauri-plugin-opener still uses zbus 5" },
+    { id = "RUSTSEC-2026-0459", reason = "sqlx 0.9.0 caps libsqlite3-sys below 0.38; the fix is 0.39. Local attack needing a crafted db+wal pair; fogde only opens its own database and Codex's local state database, read-only. Remove when sqlx allows 0.39" },
 ]
 
 [licenses]

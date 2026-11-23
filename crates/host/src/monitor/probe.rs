@@ -27,18 +27,18 @@ struct Usage {
 }
 
 impl Probe {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, sysinfo::Error> {
         let mut system = System::new_with_specifics(
             RefreshKind::nothing()
-                .with_cpu(CpuRefreshKind::nothing().with_cpu_usage())
+                .with_cpu(CpuRefreshKind::nothing().with_usage())
                 .with_memory(MemoryRefreshKind::nothing().with_ram()),
-        );
+        )?;
         system.refresh_processes_specifics(ProcessesToUpdate::All, true, processes());
 
-        Self {
+        Ok(Self {
             system,
-            disks: Disks::new_with_refreshed_list(),
-        }
+            disks: Disks::new_with_refreshed_list()?,
+        })
     }
 
     pub fn sample(
@@ -95,7 +95,6 @@ impl Probe {
 
     fn disk(&self, repos: &Path) -> Option<Disk> {
         self.disks
-            .list()
             .iter()
             .filter(|disk| repos.starts_with(disk.mount_point()))
             .max_by_key(|disk| disk.mount_point().as_os_str().len())

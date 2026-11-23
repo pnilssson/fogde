@@ -181,10 +181,17 @@ async fn run(shared: Arc<Shared>) {
 }
 
 async fn start() -> Option<Probe> {
-    task::spawn_blocking(Probe::new)
-        .await
-        .inspect_err(|error| tracing::warn!(%error, "could not read the machine"))
-        .ok()
+    match task::spawn_blocking(Probe::new).await {
+        Ok(Ok(probe)) => Some(probe),
+        Ok(Err(error)) => {
+            tracing::warn!(%error, "could not read the machine");
+            None
+        }
+        Err(error) => {
+            tracing::warn!(%error, "could not read the machine");
+            None
+        }
+    }
 }
 
 async fn shells(shared: &Shared) -> Vec<Shell> {

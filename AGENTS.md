@@ -12,7 +12,7 @@ Before changing the frontend, read `apps/desktop/AGENTS.md`; before changing Rus
 - Never start the development environment or run visual checks unless asked; the user runs `just dev`, which also rebuilds and deploys the server host, and restarts it after Rust changes.
 - Run `just check` before committing or pushing and fix what it finds. Add an `#[allow]`, lint override, ignore entry or lower threshold only after the user agrees.
 - Allow permissive and file-level copyleft licenses (BSD, ISC, Zlib, MPL-2.0) in cargo-deny without asking; ask before GPL, LGPL, AGPL or other strong copyleft.
-- Leave changes uncommitted until the user asks. Work on `main`, without branches or pull requests unless asked.
+- Release class: free. Commit freely and push to main yourself once `just check` passes; anything that breaks is fixed forward. Work on `main`, without branches or pull requests unless asked.
 - Never hand-edit generated files; change the source and regenerate.
 - These files hold only rules an agent would otherwise get wrong and no check enforces. Product and design decisions go in the Fogde notes; when a change reverses or replaces a decision recorded there, update that note in the same change. When a rule changes, replace the old one; add a new one only when the user asks.
 

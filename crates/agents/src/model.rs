@@ -35,7 +35,7 @@ pub async fn model(agent: Agent, foreground: Vec<u32>) -> Option<String> {
         return None;
     }
 
-    let running = blocking(move || Some(running(&foreground))).await?;
+    let running = blocking(move || running(&foreground)).await?;
     match agent {
         Agent::Claude => {
             let home = home("CLAUDE_CONFIG_DIR", ".claude")?;
@@ -73,8 +73,10 @@ fn home(variable: &str, folder: &str) -> Option<PathBuf> {
         .or_else(|| env::home_dir().map(|home| home.join(folder)))
 }
 
-fn running(foreground: &[u32]) -> Running {
-    let mut system = System::new();
+fn running(foreground: &[u32]) -> Option<Running> {
+    let mut system = System::new()
+        .inspect_err(|error| tracing::warn!(%error, "could not read the running processes"))
+        .ok()?;
     system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
 
     let mut pids = foreground.to_vec();
@@ -103,7 +105,7 @@ fn running(foreground: &[u32]) -> Running {
         })
         .collect();
 
-    Running { processes, started }
+    Some(Running { processes, started })
 }
 
 fn start(system: &System, pid: u32) -> Option<SystemTime> {
